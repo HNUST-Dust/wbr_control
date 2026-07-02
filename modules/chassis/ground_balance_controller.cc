@@ -68,6 +68,8 @@ GroundBalanceOutput GroundBalanceController::Update(
   if (first_leg_valid) {
     telemetry_.leg_length[0] = leg_1.length;
     telemetry_.leg_length_rate[0] = leg_1.length_rate;
+    telemetry_.leg_angle[0] = leg_1.angle;
+    telemetry_.leg_angle_rate[0] = leg_1.angle_rate;
     leg_speed_[0] += kLegSpeedFilter * (leg_1.length_rate - leg_speed_[0]);
     leg_angle_speed_[0] +=
         kStateSpeedFilter * (leg_1.angle_rate - leg_angle_speed_[0]);
@@ -75,6 +77,8 @@ GroundBalanceOutput GroundBalanceController::Update(
   if (second_leg_valid) {
     telemetry_.leg_length[1] = leg_2.length;
     telemetry_.leg_length_rate[1] = leg_2.length_rate;
+    telemetry_.leg_angle[1] = leg_2.angle;
+    telemetry_.leg_angle_rate[1] = leg_2.angle_rate;
     leg_speed_[1] += kLegSpeedFilter * (leg_2.length_rate - leg_speed_[1]);
     leg_angle_speed_[1] +=
         kStateSpeedFilter * (leg_2.angle_rate - leg_angle_speed_[1]);
@@ -87,12 +91,17 @@ GroundBalanceOutput GroundBalanceController::Update(
                    std::cos(leg_1.angle) + std::cos(leg_2.angle));
     command_initialized_ = true;
   }
+  const double previous_commanded_leg_length = commanded_leg_length_;
   commanded_leg_length_ =
       MoveTowards(commanded_leg_length_, output.sanitized_leg_length,
                   kTargetLengthSlewRate * control_dt);
+  telemetry_.commanded_leg_length = commanded_leg_length_;
+  telemetry_.commanded_leg_length_rate =
+      (commanded_leg_length_ - previous_commanded_leg_length) / control_dt;
   commanded_leg_angle_ =
       MoveTowards(commanded_leg_angle_, output.sanitized_leg_angle,
                   kTargetAngleSlewRate * control_dt);
+  telemetry_.commanded_leg_angle = commanded_leg_angle_;
 
   double total_wheel_torque = 0.0;
   double total_leg_angle_torque = 0.0;
@@ -273,41 +282,6 @@ GroundBalanceOutput GroundBalanceController::Update(
       support_feedforward_2 -= 0.5 * differential_force;
     }
 
-    if (time_reset) {
-      leg_length_integral_[0] = 0.0;
-      leg_length_integral_[1] = 0.0;
-    }
-    const LegKinematics* legs[2] = {&leg_1, &leg_2};
-    const double support_feedforward[2] = {
-        support_feedforward_1, support_feedforward_2};
-    const double support_factor[2] = {
-        support_factor_[0], support_factor_[1]};
-    for (int leg = 0; leg < 2; ++leg) {
-      const bool integral_enabled = support_factor[leg] > 0.5;
-      if (integral_enabled) {
-        const double error = commanded_leg_length_ - legs[leg]->length;
-        const double integral_limit =
-            kLegIntegralForceLimit / kLegLengthKi;
-        const double candidate = Clamp(
-            leg_length_integral_[leg] + error * control_dt,
-            -integral_limit, integral_limit);
-        const double candidate_force =
-            kLegLengthKp * error - kLegLengthKd *
-                leg_speed_[leg] +
-            support_feedforward[leg] + kLegLengthKi * candidate;
-        const bool pushes_further_into_saturation =
-            (candidate_force > kLegForceLimit && error > 0.0) ||
-            (candidate_force < -kLegForceLimit && error < 0.0);
-        if (!pushes_further_into_saturation) {
-          leg_length_integral_[leg] = candidate;
-        }
-      } else {
-        leg_length_integral_[leg] *= std::exp(-control_dt / 0.25);
-      }
-      telemetry_.integral_force[leg] =
-          kLegLengthKi * leg_length_integral_[leg];
-    }
-
     const double state_error[6] = {
         std::remainder(theta - commanded_leg_angle_, kTwoPi),
         theta_rate,
@@ -417,6 +391,37 @@ GroundBalanceOutput GroundBalanceController::Update(
     telemetry_.applied_leg_angle_torque = total_leg_angle_torque;
   }
 
+  if (time_reset) {
+    leg_length_integral_[0] = 0.0;
+    leg_length_integral_[1] = 0.0;
+  }
+  const LegKinematics* legs[2] = {&leg_1, &leg_2};
+  const double support_feedforward[2] = {
+      support_feedforward_1, support_feedforward_2};
+  const bool leg_valid[2] = {first_leg_valid, second_leg_valid};
+  for (int leg = 0; leg < 2; ++leg) {
+    if (leg_valid[leg]) {
+      const double error = commanded_leg_length_ - legs[leg]->length;
+      const double integral_limit = kLegIntegralForceLimit / kLegLengthKi;
+      const double candidate = Clamp(
+          leg_length_integral_[leg] + error * control_dt,
+          -integral_limit, integral_limit);
+      const double candidate_force =
+          kLegLengthKp * error - kLegLengthKd * leg_speed_[leg] +
+          support_feedforward[leg] + kLegLengthKi * candidate;
+      const bool pushes_further_into_saturation =
+          (candidate_force > kLegForceLimit && error > 0.0) ||
+          (candidate_force < -kLegForceLimit && error < 0.0);
+      if (!pushes_further_into_saturation) {
+        leg_length_integral_[leg] = candidate;
+      }
+    } else {
+      leg_length_integral_[leg] *= std::exp(-control_dt / 0.25);
+    }
+    telemetry_.integral_force[leg] =
+        kLegLengthKi * leg_length_integral_[leg];
+  }
+
   const bool yaw_command_released = std::fabs(target_yaw_rate_) < 1e-5;
   const bool yaw_command_reversed =
       target_yaw_rate_ * commanded_yaw_torque_ < 0.0;
@@ -459,10 +464,28 @@ GroundBalanceOutput GroundBalanceController::Update(
   // of that action/reaction pair (the identification path uses the same
   // conversion in ApplyLegController).  Convert conventions before J^T F.
   const double common_leg_angle_torque = -0.5 * total_leg_angle_torque;
-  const double first_leg_angle_torque =
+  double first_leg_angle_torque =
       common_leg_angle_torque + 0.5 * differential_leg_angle_torque;
-  const double second_leg_angle_torque =
+  double second_leg_angle_torque =
       common_leg_angle_torque - 0.5 * differential_leg_angle_torque;
+  if (first_leg_valid) {
+    telemetry_.leg_angle_error[0] =
+        std::remainder(commanded_leg_angle_ - leg_1.angle, kTwoPi);
+    telemetry_.leg_angle_torque[0] = Clamp(
+        kLegAngleKp * telemetry_.leg_angle_error[0] -
+            kLegAngleKd * leg_angle_speed_[0],
+        -kLegAngleTorqueLimit, kLegAngleTorqueLimit);
+    first_leg_angle_torque += telemetry_.leg_angle_torque[0];
+  }
+  if (second_leg_valid) {
+    telemetry_.leg_angle_error[1] =
+        std::remainder(commanded_leg_angle_ - leg_2.angle, kTwoPi);
+    telemetry_.leg_angle_torque[1] = Clamp(
+        kLegAngleKp * telemetry_.leg_angle_error[1] -
+            kLegAngleKd * leg_angle_speed_[1],
+        -kLegAngleTorqueLimit, kLegAngleTorqueLimit);
+    second_leg_angle_torque += telemetry_.leg_angle_torque[1];
+  }
   double desired_contact_leg_offset[2] = {0.0, 0.0};
   if (contact_safety_state_ == WbrContactSafetyState::kSingleSupportFirst) {
     desired_contact_leg_offset[0] = -kGroundedLegYield;
@@ -489,7 +512,8 @@ GroundBalanceOutput GroundBalanceController::Update(
   if (first_leg_valid) {
     const LegVmcOutput vmc = ComputeLegVmc(
         leg_1, first_leg_target_length, support_feedforward_1,
-        telemetry_.integral_force[0], first_leg_angle_torque, leg_speed_[0]);
+        telemetry_.integral_force[0], first_leg_angle_torque, leg_speed_[0],
+        telemetry_.commanded_leg_length_rate);
     telemetry_.axial_force[0] = vmc.axial_force;
     auto& joint_b = output.actuator.motor[
         motor_index(control::MotorId::kLeftJointB)];
@@ -504,7 +528,8 @@ GroundBalanceOutput GroundBalanceController::Update(
   if (second_leg_valid) {
     const LegVmcOutput vmc = ComputeLegVmc(
         leg_2, second_leg_target_length, support_feedforward_2,
-        telemetry_.integral_force[1], second_leg_angle_torque, leg_speed_[1]);
+        telemetry_.integral_force[1], second_leg_angle_torque, leg_speed_[1],
+        telemetry_.commanded_leg_length_rate);
     telemetry_.axial_force[1] = vmc.axial_force;
     auto& joint_b = output.actuator.motor[
         motor_index(control::MotorId::kRightJointB)];

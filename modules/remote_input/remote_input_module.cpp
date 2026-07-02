@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include <zephyr/logging/log.h>
-#include <zephyr/sys/printk.h>
 
 #include <modules/remote_input/remote_input_module.h>
 #include <modules/thread_utils.h>
@@ -25,7 +24,14 @@ K_THREAD_STACK_DEFINE(g_remote_input_module_stack, 1024);
 
 constexpr float kWflySbusMid = 1024.0f;
 constexpr float kWflySbusScale = 670.0f;
-constexpr uint32_t kRemoteInputLogDecimation = 10U;
+constexpr uint16_t kWflySwitchLowMidThreshold = 689U;
+constexpr uint16_t kWflySwitchMidHighThreshold = 1359U;
+
+enum class WflySwitchPosition : uint8_t {
+  kLow = 1,
+  kMid = 2,
+  kHigh = 3,
+};
 
 float ClampNormalized(float value) {
   if (value > 1.0f) {
@@ -44,26 +50,44 @@ float NormalizeWflyChannel(uint16_t raw) {
                          kWflySbusScale);
 }
 
-int AxisMilli(float value) {
-  return static_cast<int>(value * 1000.0f);
+float PositiveOnly(float value) {
+  return (value > 0.0f) ? value : 0.0f;
 }
 
-bool ShouldLogRemoteInput(uint32_t sequence) {
-  return (sequence <= 10U) ||
-         ((sequence % kRemoteInputLogDecimation) == 0U);
-}
-
-const char *RemoteInputSourceName(uint8_t source) {
-  switch (source) {
-  case channels::kRemoteInputDr16:
-    return "dr16";
-  case channels::kRemoteInputVt03:
-    return "vt03";
-  case channels::kRemoteInputWfly:
-    return "wfly";
-  default:
-    return "unknown";
+WflySwitchPosition DecodeWflySwitch(uint16_t raw) {
+  if (raw < kWflySwitchLowMidThreshold) {
+    return WflySwitchPosition::kLow;
   }
+
+  if (raw < kWflySwitchMidHighThreshold) {
+    return WflySwitchPosition::kMid;
+  }
+
+  return WflySwitchPosition::kHigh;
+}
+
+void SetCommonActiveDefaults(channels::RemoteInputState *input) {
+  input->run = true;
+  input->robot_enable = true;
+  input->leg_length = 0.0f;
+  input->leg_length_delta = 0.0f;
+  input->friction_speed = 0.0f;
+  input->plucker = 0.0f;
+  input->fast_spin = false;
+}
+
+void SetDisabled(channels::RemoteInputState *input) {
+  input->chassis_x = 0.0f;
+  input->chassis_rotate = 0.0f;
+  input->yaw_angle = 0.0f;
+  input->pitch_angle = 0.0f;
+  input->leg_length = 0.0f;
+  input->leg_length_delta = 0.0f;
+  input->friction_speed = 0.0f;
+  input->plucker = 0.0f;
+  input->run = false;
+  input->robot_enable = false;
+  input->fast_spin = false;
 }
 
 } // namespace
@@ -94,8 +118,7 @@ int RemoteInputModule::Start() {
 }
 
 void RemoteInputModule::RunLoop() {
-  printk("remote_input module started\n");
-  LOG_INF("remote_input log enabled");
+  LOG_INF("remote_input module started");
 
   while (true) {
     DecodeUartBytesFromRing();
@@ -121,18 +144,21 @@ int RemoteInputModule::ParseLine(const char *line,
 
   if (strcmp(type, "dr16") == 0) {
     out->source = channels::kRemoteInputDr16;
+    SetCommonActiveDefaults(out);
     out->chassis_x = chassis_x;
     out->chassis_rotate = chassis_rotate;
     out->yaw_angle = yaw_angle;
     out->pitch_angle = pitch_angle;
   } else if (strcmp(type, "vt03") == 0) {
     out->source = channels::kRemoteInputVt03;
+    SetCommonActiveDefaults(out);
     out->chassis_x = chassis_x;
     out->chassis_rotate = chassis_rotate;
     out->yaw_angle = yaw_angle;
     out->pitch_angle = pitch_angle;
   } else if (strcmp(type, "wfly") == 0) {
     out->source = channels::kRemoteInputWfly;
+    SetCommonActiveDefaults(out);
     out->chassis_x = chassis_x;
     out->chassis_rotate = chassis_rotate;
     out->yaw_angle = yaw_angle;
@@ -170,20 +196,41 @@ void RemoteInputModule::TryDecodeBinaryFrames() {
       protocols::remote_input::wfly_sbus::WflySbusFrame wfly_frame = {};
       if (protocols::remote_input::wfly_sbus::DecodeFrame(
               binary_buf_, binary_len_, &wfly_frame)) {
-        const uint32_t sequence = publish_sequence_ + 1U;
         input.source = channels::kRemoteInputWfly;
-        input.chassis_x = NormalizeWflyChannel(wfly_frame.channels[2]);
-        input.chassis_rotate = NormalizeWflyChannel(wfly_frame.channels[3]);
-        input.yaw_angle = NormalizeWflyChannel(wfly_frame.channels[0]);
-        input.pitch_angle = NormalizeWflyChannel(wfly_frame.channels[1]);
-        if (ShouldLogRemoteInput(sequence)) {
-        //   LOG_INF("wfly raw seq=%u ch0=%u ch1=%u ch2=%u ch3=%u ch4=%u ch5=%u "
-        //           "lost=%u failsafe=%u",
-        //           sequence, wfly_frame.channels[0], wfly_frame.channels[1],
-        //           wfly_frame.channels[2], wfly_frame.channels[3],
-        //           wfly_frame.channels[4], wfly_frame.channels[5],
-        //           wfly_frame.frame_lost ? 1U : 0U,
-        //           wfly_frame.failsafe ? 1U : 0U);
+        SetDisabled(&input);
+
+        if (!wfly_frame.frame_lost && !wfly_frame.failsafe) {
+          const float right_x = NormalizeWflyChannel(wfly_frame.channels[0]);
+          const float right_y = NormalizeWflyChannel(wfly_frame.channels[1]);
+          const float left_y = NormalizeWflyChannel(wfly_frame.channels[2]);
+          const float left_x = NormalizeWflyChannel(wfly_frame.channels[3]);
+          const WflySwitchPosition ch4 =
+              DecodeWflySwitch(wfly_frame.channels[4]);
+          const WflySwitchPosition ch5 =
+              DecodeWflySwitch(wfly_frame.channels[5]);
+
+          if (ch4 == WflySwitchPosition::kLow) {
+            if (ch5 == WflySwitchPosition::kMid) {
+              input.run = true;
+              input.robot_enable = true;
+              input.chassis_x = left_y;
+              input.chassis_rotate = left_x;
+              input.yaw_angle = right_x;
+              input.pitch_angle = right_y;
+            } else if (ch5 == WflySwitchPosition::kHigh) {
+              input.run = true;
+              input.robot_enable = true;
+              input.friction_speed = PositiveOnly(left_y);
+              input.plucker = right_y;
+            }
+          } else if (ch4 == WflySwitchPosition::kMid) {
+            input.run = true;
+            input.robot_enable = true;
+            input.chassis_x = left_y;
+            input.chassis_rotate = left_x;
+            input.leg_length_delta = right_y;
+            input.leg_length = input.leg_length_delta;
+          }
         }
         PublishRemoteState(&input);
         ConsumeBinary(protocols::remote_input::wfly_sbus::kFrameLength);
@@ -200,6 +247,7 @@ void RemoteInputModule::TryDecodeBinaryFrames() {
       if (protocols::remote_input::vt03::DecodeRemoteFrame(
               binary_buf_, binary_len_, &vt03_frame)) {
         input.source = channels::kRemoteInputVt03;
+        SetCommonActiveDefaults(&input);
         input.chassis_x = vt03_frame.left_y;
         input.chassis_rotate = vt03_frame.left_x;
         input.yaw_angle = vt03_frame.right_x;
@@ -218,6 +266,7 @@ void RemoteInputModule::TryDecodeBinaryFrames() {
       if (protocols::remote_input::vt03::DecodeCustomFrame(
               binary_buf_, binary_len_, &custom)) {
         input.source = channels::kRemoteInputVt03;
+        SetCommonActiveDefaults(&input);
         input.yaw_angle = custom.joystick_x;
         input.pitch_angle = custom.joystick_y;
         PublishRemoteState(&input);
@@ -231,6 +280,7 @@ void RemoteInputModule::TryDecodeBinaryFrames() {
       if (protocols::remote_input::dr16::DecodeFrame(binary_buf_, binary_len_,
                                                      &dr16_frame)) {
         input.source = channels::kRemoteInputDr16;
+        SetCommonActiveDefaults(&input);
         input.chassis_x = dr16_frame.left_stick_y;
         input.chassis_rotate = dr16_frame.left_stick_x;
         input.yaw_angle = dr16_frame.right_stick_x;
@@ -321,15 +371,6 @@ void RemoteInputModule::PublishRemoteState(channels::RemoteInputState *input) {
 
   input->sequence = ++publish_sequence_;
   latest_remote_state.write(*input);
-  if (!ShouldLogRemoteInput(input->sequence)) {
-    return;
-  }
-
-//   LOG_INF("remote_input source=%s seq=%u chassis_x=%d chassis_rotate=%d "
-//           "yaw=%d pitch=%d",
-//           RemoteInputSourceName(input->source), input->sequence,
-//           AxisMilli(input->chassis_x), AxisMilli(input->chassis_rotate),
-//           AxisMilli(input->yaw_angle), AxisMilli(input->pitch_angle));
 }
 
 } // namespace modules::remote_input

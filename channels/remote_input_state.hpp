@@ -23,13 +23,19 @@ struct RemoteInputState {
 	float chassis_rotate;
 	float yaw_angle;
 	float pitch_angle;
+	float leg_length;
+	float leg_length_delta;
+	float friction_speed;
+	float plucker;
 	bool run;
 	bool robot_enable;
+	bool fast_spin;
 	bool supercap;
 	bool auto_aim;
 	bool friction_wheel;
 	bool auth_shoot;
 	bool pc_shoot_control;
+
 	uint32_t sequence;
 };
 

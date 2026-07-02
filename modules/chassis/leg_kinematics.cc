@@ -94,12 +94,23 @@ LegVmcOutput ComputeLegVmc(const LegKinematics& leg,
                            double support_feedforward,
                            double integral_force,
                            double leg_angle_torque,
-                           double filtered_leg_speed) {
+                           double filtered_leg_speed,
+                           double target_leg_length_rate) {
   LegVmcOutput output;
+  const double length_error = target_leg_length - leg.length;
+  double retract_feedforward = 0.0;
+  if (length_error < -kLegRetractFeedforwardDeadband) {
+    retract_feedforward = -kLegRetractFeedforward;
+  }
+  double velocity_feedforward = 0.0;
+  if (target_leg_length_rate > kLegVelocityFeedforwardDeadband) {
+    velocity_feedforward =
+        kLegExtendVelocityFeedforward * target_leg_length_rate;
+  }
   output.axial_force = Clamp(
-      kLegLengthKp * (target_leg_length - leg.length) -
+      kLegLengthKp * length_error -
           kLegLengthKd * filtered_leg_speed + support_feedforward +
-          integral_force,
+          integral_force + retract_feedforward + velocity_feedforward,
       -kLegForceLimit, kLegForceLimit);
   const double radial_x = leg.hx / leg.length;
   const double radial_z = leg.hz / leg.length;
@@ -116,4 +127,3 @@ LegVmcOutput ComputeLegVmc(const LegKinematics& leg,
 }
 
 }  // namespace wbr::v2
-

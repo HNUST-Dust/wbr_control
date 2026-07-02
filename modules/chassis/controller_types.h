@@ -12,8 +12,15 @@ enum class WbrContactSafetyState {
 struct WbrControllerV2Telemetry {
   double leg_length[2] = {};
   double leg_length_rate[2] = {};
+  double leg_angle[2] = {};
+  double leg_angle_rate[2] = {};
+  double commanded_leg_length = 0.18;
+  double commanded_leg_length_rate = 0.0;
+  double commanded_leg_angle = 0.0;
   double axial_force[2] = {};
   double integral_force[2] = {};
+  double leg_angle_error[2] = {};
+  double leg_angle_torque[2] = {};
   double requested_wheel_torque = 0.0;
   double requested_leg_angle_torque = 0.0;
   double applied_wheel_torque = 0.0;

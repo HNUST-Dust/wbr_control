@@ -30,9 +30,9 @@ LegVmcOutput ComputeLegVmc(const LegKinematics& leg,
                            double support_feedforward,
                            double integral_force,
                            double leg_angle_torque,
-                           double filtered_leg_speed);
+                           double filtered_leg_speed,
+                           double target_leg_length_rate);
 
 }  // namespace wbr::v2
 
 #endif  // WBR_CONTROL_CORE_LEG_KINEMATICS_H_
-
