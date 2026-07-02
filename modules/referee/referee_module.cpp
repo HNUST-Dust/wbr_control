@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 
 #include <channels/uart_raw_frame_queue.h>
 #include <modules/referee/referee_module.h>
 #include <modules/thread_utils.h>
 #include <platform/drivers/devices/system/referee_client.h>
+
+LOG_MODULE_REGISTER(referee_module, LOG_LEVEL_INF);
 
 namespace {
 
@@ -36,7 +38,7 @@ int RefereeModule::Start() {
 }
 
 void RefereeModule::RunLoop() {
-  printk("referee module started\n");
+  LOG_INF("referee module started");
 
   while (true) {
     DecodeUartFramesInQueue();

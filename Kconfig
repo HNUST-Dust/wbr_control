@@ -28,6 +28,53 @@ config RM_TEST_MODULE_REFEREE
 	help
 	  Enable registering and starting the referee module.
 
+config RM_TEST_MODULE_OSCILLOSCOPE
+	bool "Enable VOFA oscilloscope module"
+	default n
+	depends on SERIAL
+	help
+	  Enable the VOFA+ oscilloscope module. The module sends the latest
+	  oscilloscope sample over UART0 using the JustFloat protocol.
+
+config RM_TEST_OSCILLOSCOPE_UART_BAUDRATE
+	int "VOFA oscilloscope UART baudrate"
+	default 921600
+	depends on RM_TEST_MODULE_OSCILLOSCOPE
+	help
+	  UART0 baudrate used by the VOFA+ oscilloscope output.
+
+config RM_TEST_OSCILLOSCOPE_PERIOD_MS
+	int "VOFA oscilloscope output period in milliseconds"
+	default 10
+	depends on RM_TEST_MODULE_OSCILLOSCOPE
+	help
+	  Output period for the VOFA+ oscilloscope module. A value of 10 ms
+	  gives 100 Hz output.
+
+config RM_TEST_MODULE_HI91_IMU
+	bool "Enable HI91 IMU module"
+	default n
+	depends on SERIAL && UART_ASYNC_API
+	help
+	  Enable the HI91 external IMU module on UART2. The module parses HI91
+	  binary frames and publishes the latest IMU sample to channels.
+
+config RM_TEST_HI91_IMU_UART_BAUDRATE
+	int "HI91 IMU UART baudrate"
+	default 921600
+	depends on RM_TEST_MODULE_HI91_IMU
+	help
+	  UART2 baudrate used by the HI91 external IMU module.
+
+config RM_TEST_HI91_IMU_STRICT_CRC
+	bool "Reject HI91 frames with CRC mismatch"
+	default n
+	depends on RM_TEST_MODULE_HI91_IMU
+	help
+	  Reject frames that do not match the built-in CRC16 check. Keep this
+	  disabled until the exact CRC variant is confirmed from the device
+	  manual or captured frames.
+
 config RM_TEST_MODULE_SYS_STATE
 	bool "Enable status indicator module"
 	default n

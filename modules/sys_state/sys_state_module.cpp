@@ -3,10 +3,12 @@
 #include <errno.h>
 
 #include <zephyr/devicetree.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 
 #include <modules/thread_utils.h>
 #include <modules/sys_state/sys_state_module.h>
+
+LOG_MODULE_REGISTER(sys_state_module, LOG_LEVEL_INF);
 
 namespace {
 
@@ -85,28 +87,28 @@ int SysStateModule::Initialize()
 
 	if (!gpio_is_ready_dt(&led_r_) || !gpio_is_ready_dt(&led_g_) || !gpio_is_ready_dt(&led_b_)) {
 		g_sys_state_diag_state = kSysStateDiagInitGpioNotReady;
-		printk("sys_state init skipped: gpio not ready\n");
+		LOG_WRN("sys_state init skipped: gpio not ready");
 		return 0;
 	}
 
 	int rc = gpio_pin_configure_dt(&led_r_, GPIO_OUTPUT_INACTIVE);
 	if (rc != 0) {
 		g_sys_state_diag_state = kSysStateDiagInitConfigRFail;
-		printk("sys_state init skipped: led_r config failed (%d)\n", rc);
+		LOG_WRN("sys_state init skipped: led_r config failed (%d)", rc);
 		return 0;
 	}
 
 	rc = gpio_pin_configure_dt(&led_g_, GPIO_OUTPUT_INACTIVE);
 	if (rc != 0) {
 		g_sys_state_diag_state = kSysStateDiagInitConfigGFail;
-		printk("sys_state init skipped: led_g config failed (%d)\n", rc);
+		LOG_WRN("sys_state init skipped: led_g config failed (%d)", rc);
 		return 0;
 	}
 
 	rc = gpio_pin_configure_dt(&led_b_, GPIO_OUTPUT_INACTIVE);
 	if (rc != 0) {
 		g_sys_state_diag_state = kSysStateDiagInitConfigBFail;
-		printk("sys_state init skipped: led_b config failed (%d)\n", rc);
+		LOG_WRN("sys_state init skipped: led_b config failed (%d)", rc);
 		return 0;
 	}
 
@@ -115,7 +117,7 @@ int SysStateModule::Initialize()
 	led_g_ready_ = true;
 	led_b_ready_ = true;
 #else
-	printk("sys_state init skipped: led aliases not found\n");
+	LOG_WRN("sys_state init skipped: led aliases not found");
 #endif
 
 #ifdef RM_TEST_BUZZER_NODE
@@ -128,14 +130,14 @@ int SysStateModule::Initialize()
 		}
 	}
 #else
-	printk("status_indicator init skipped: buzzer alias not found\n");
+	LOG_WRN("status_indicator init skipped: buzzer alias not found");
 #endif
 
 	ready_ = led_ready_ || buzzer_ready_;
 
 	if (!ready_) {
 		g_sys_state_diag_state = kSysStateDiagInitNoOutputs;
-		printk("status_indicator init skipped: no output device ready\n");
+		LOG_WRN("status_indicator init skipped: no output device ready");
 		return 0;
 	}
 
@@ -229,7 +231,7 @@ void SysStateModule::ApplyBuzzerPercent(uint8_t pct)
 void SysStateModule::RunLoop()
 {
 	g_sys_state_diag_state = kSysStateDiagRunLoopEnter;
-	printk("status_indicator module started\n");
+	LOG_INF("status_indicator module started");
 
 	uint16_t breathe_step = 0U;
 	uint8_t color_idx = 0U;

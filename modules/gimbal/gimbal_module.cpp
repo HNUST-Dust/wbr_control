@@ -4,12 +4,14 @@
 #include <cmath>
 #include <errno.h>
 
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 
 #include <channels/serialservo_send_raw.hpp>
 #include <modules/gimbal/gimbal_module.h>
 #include <modules/thread_utils.h>
 #include <platform/drivers/devices/actuators/serial_servo.h>
+
+LOG_MODULE_REGISTER(gimbal_module, LOG_LEVEL_INF);
 
 namespace {
 
@@ -156,7 +158,7 @@ void GimbalModule::SetPitchAngle(float degrees) {
 void GimbalModule::HandleRemoteState(const channels::RemoteInputState &state) {
   idle_ticks_ = 0U;
 
-  if (state.source == channels::kRemoteInputUnknown) {
+  if ((state.source == channels::kRemoteInputUnknown) || !state.robot_enable) {
     command_enable_ = 0U;
     return;
   }
@@ -167,7 +169,7 @@ void GimbalModule::HandleRemoteState(const channels::RemoteInputState &state) {
 }
 
 void GimbalModule::RunLoop() {
-  printk("gimbal module started (servo_ready=%d)\n", servo_ready_ ? 1 : 0);
+  LOG_INF("gimbal module started (servo_ready=%d)", servo_ready_ ? 1 : 0);
 
   while (true) {
     channels::RemoteInputState remote_state = {};
@@ -234,15 +236,14 @@ void GimbalModule::RunLoop() {
 
     if (kBaselineTraceEnabled &&
         ((state_sequence_ % kBaselineTracePeriod) == 0U)) {
-      printk("[baseline][gimbal] yaw=%.2f pitch=%.2f en=%u idle=%u yid=%u "
-             "pid=%u yon=%u pon=%u\n",
-             static_cast<double>(yaw_angle_deg_),
-             static_cast<double>(pitch_angle_deg_),
-             static_cast<unsigned int>(command_enable_),
-             static_cast<unsigned int>(idle_ticks_),
-             static_cast<unsigned int>(yaw_servo_id_),
-             static_cast<unsigned int>(pitch_servo_id_),
-             yaw_servo_online_ ? 1U : 0U, pitch_servo_online_ ? 1U : 0U);
+      LOG_INF("baseline yaw=%.2f pitch=%.2f en=%u idle=%u yid=%u pid=%u yon=%u pon=%u",
+              static_cast<double>(yaw_angle_deg_),
+              static_cast<double>(pitch_angle_deg_),
+              static_cast<unsigned int>(command_enable_),
+              static_cast<unsigned int>(idle_ticks_),
+              static_cast<unsigned int>(yaw_servo_id_),
+              static_cast<unsigned int>(pitch_servo_id_),
+              yaw_servo_online_ ? 1U : 0U, pitch_servo_online_ ? 1U : 0U);
     }
     k_sleep(K_MSEC(2));
   }
