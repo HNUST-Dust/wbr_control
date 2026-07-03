@@ -3,6 +3,8 @@
 #include <atomic>
 #include <cstdint>
 
+#include <zephyr/kernel.h>
+
 template <typename T>
 class SeqlockValue {
 public:
@@ -10,9 +12,11 @@ public:
 
     void write(const T& value)
     {
+        const unsigned int key = irq_lock();
         seq_.fetch_add(1, std::memory_order_release); // odd: writing
         data_ = value;
         seq_.fetch_add(1, std::memory_order_release); // even: stable
+        irq_unlock(key);
     }
 
     bool read(T& out) const
