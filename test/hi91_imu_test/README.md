@@ -3,8 +3,9 @@
 This isolated test validates HI91 IMU reception on UART2 before the driver is
 merged into the main control application.
 
-It configures UART2 for Zephyr async RX through the HPM DMA + idle interrupt
-path, parses HI91 frames, and outputs VOFA+ JustFloat data on UART0.
+It configures UART2 for Zephyr async RX through HPM UART DMA plus the UART RX
+timeout interrupt, parses HI91 frames, and outputs VOFA+ JustFloat data on
+UART0. No TRGM/GPTMR idle-detect pin is required for this path.
 
 VOFA channel order:
 

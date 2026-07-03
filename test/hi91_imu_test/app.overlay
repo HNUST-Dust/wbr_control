@@ -1,30 +1,25 @@
 /*
- * UART2 HI91 async DMA/idle test.
+ * UART2 HI91 async DMA RX-timeout test.
  *
  * PC23: UART2_RXD
  * PC24: UART2_TXD
- * PC22: TRGM2_P0 idle detect input for UART2 RX.
+ *
+ * RX completion is detected from UART's own RX timeout interrupt; no TRGM/GPTMR
+ * idle-detect pin is required.
  */
 
 &uart2 {
 	status = "okay";
 	current-speed = <921600>;
-	interrupts = <33 1>, <65 1>;
-	interrupt-names = "uart", "idletimer";
-	uart-idle-trgm-reg = <0xF022C000>;
-	uart-idle-trgm-pin = <0>;
-	uart-idle-trgm-input-src = <0x02>;
-	uart-idle-trgm-output-gptmr-in = <0x3B>;
-	uart-idle-trgm-output-gptmr-sync = <0x3A>;
-	uart-idle-gptmr-reg = <0xF3014000>;
-	uart-idle-gptmr-clock-name = <18808848>;
+	interrupts = <33 1>;
+	interrupt-names = "uart";
 	dmas = <&hdma 2 12>, <&hdma 3 13>;
 	dma-names = "rx", "tx";
 };
 
 /*
- * The board DTS normally assigns GPTMR5/HDMA4/5 to UART3 async idle.
- * This isolated test gives GPTMR5 to UART2, so keep UART3 out of the image.
+ * Keep UART3 out of the isolated test image so UART2 reception can be checked
+ * without remote-input traffic.
  */
 &uart3 {
 	status = "disabled";
