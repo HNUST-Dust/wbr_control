@@ -11,7 +11,7 @@
 
 namespace channels {
 
-constexpr size_t kOscilloscopeMaxChannels = 13U;
+constexpr size_t kOscilloscopeMaxChannels = 14U;
 
 struct OscilloscopeSample {
 	uint32_t sequence;

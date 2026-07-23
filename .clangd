@@ -1,21 +1,5 @@
 CompileFlags:
   Add:
-    - --target=arm-none-eabi
-    - -mcpu=cortex-m7 # 根据你的 MCU
-    - -mthumb
-    # - -I/path/to/STM32_HAL/Inc
-    # - -I/path/to/CMSIS/Include
-    - -I/Applications/ArmGNUToolchain/13.3.rel1/arm-none-eabi/arm-none-eabi/include # GCC C 库
-    - -I/Applications/ArmGNUToolchain/13.3.rel1/arm-none-eabi/arm-none-eabi/include/c++/13.3.1 # GCC C++ 库
-    - -I/Applications/ArmGNUToolchain/13.3.rel1/arm-none-eabi/arm-none-eabi/include/c++/13.3.1/arm-none-eabi
-    # - -I/lib/arm-none-eabi/include
-    # - -I/lib/arm-none-eabi/include/c++/10.3.1
-    # - -I/lib/arm-none-eabi/include/c++/10.3.1/arm-none-eabi
-    # - -IC:\\DevTools\\Arm-GNU-Toolchian\\arm-none-eabi\\include
-    # - -IC:\\DevTools\\Arm-GNU-Toolchian\\arm-none-eabi\\include\\c++\\11.2.1
-    # - -IC:\\DevTools\\Arm-GNU-Toolchian\\arm-none-eabi\\include\\c++\\11.2.1\\arm-none-eabi
-    # - -std=gnu11  # 或 c++17
+    - -Wno-vla-cxx-extension
   Remove:
     - -fno-reorder-functions
-    - -mthumb-interwork
-    - -march=rv32imac_zicsr_zifencei

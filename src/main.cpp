@@ -10,7 +10,6 @@
 
 #include <channels/system_status_channel.h>
 #include <modules/chassis/chassis_module.h>
-#include <modules/gimbal/gimbal_module.h>
 #include <modules/imu/hi91_imu_module.h>
 #include <modules/oscilloscope/oscilloscope_module.h>
 #include <modules/referee/referee_module.h>
@@ -28,23 +27,18 @@ LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 #include <platform/storage/filesystem/littlefs_service.h>
 #endif
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_UART) && CONFIG_RM_TEST_RUNTIME_INIT_UART
-#include <platform/drivers/communication/uart_dispatch.h>
-#endif
-
 #if defined(CONFIG_RM_TEST_RUNTIME_INIT_USB) && CONFIG_RM_TEST_RUNTIME_INIT_USB
 #include <platform/drivers/communication/usb_session.h>
 #endif
 
 namespace {
 
-modules::sys_state::SysStateModule g_sys_state_module;
-modules::remote_input::RemoteInputModule g_remote_input_module;
-modules::chassis::ChassisModule g_chassis_module;
-modules::gimbal::GimbalModule g_gimbal_module;
-modules::referee::RefereeModule g_referee_module;
-modules::imu::Hi91ImuModule g_hi91_imu_module;
-modules::oscilloscope::OscilloscopeModule g_oscilloscope_module;
+modules::SysStateModule g_sys_state_module;
+modules::RemoteInputModule g_remote_input_module;
+modules::ChassisModule g_chassis_module;
+modules::RefereeModule g_referee_module;
+modules::Hi91ImuModule g_hi91_imu_module;
+modules::OscilloscopeModule g_oscilloscope_module;
 
 }  // namespace
 
@@ -63,19 +57,9 @@ int main(void)
 
 	int rc = 0;
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_UART) && CONFIG_RM_TEST_RUNTIME_INIT_UART
-	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_UART)) {
-		rc = platform::drivers::communication::uart_dispatch::Initialize();
-		if (rc != 0) {
-			LOG_ERR("uart_dispatch init failed: %d", rc);
-			return rc;
-		}
-	}
-#endif
-
 #if defined(CONFIG_RM_TEST_RUNTIME_INIT_CAN) && CONFIG_RM_TEST_RUNTIME_INIT_CAN
 	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_CAN)) {
-		rc = platform::drivers::communication::can_dispatch::Initialize();
+		rc = platform::InitializeCanDispatch();
 		if (rc != 0) {
 			if (rc == -ENODEV) {
 				LOG_WRN("can_dispatch init skipped: no CAN device");
@@ -89,7 +73,7 @@ int main(void)
 
 #if defined(CONFIG_RM_TEST_RUNTIME_INIT_USB) && CONFIG_RM_TEST_RUNTIME_INIT_USB
 	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_USB)) {
-		rc = platform::drivers::communication::usb_session::Initialize();
+		rc = platform::InitializeUsbSession();
 		if (rc != 0) {
 			if (rc == -ENODEV) {
 				LOG_WRN("usb_session init skipped: no USB device");
@@ -103,7 +87,7 @@ int main(void)
 
 #if defined(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS) && CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS
 	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS)) {
-		rc = platform::storage::filesystem::littlefs_service::Initialize();
+		rc = platform::InitializeLittlefs();
 		if (rc != 0) {
 			LOG_WRN("littlefs init skipped: %d", rc);
 		}
@@ -134,15 +118,6 @@ int main(void)
 		rc = g_chassis_module.Initialize();
 		if (rc != 0) {
 			LOG_ERR("module init failed: %s (%d)", g_chassis_module.Name(), rc);
-			return rc;
-		}
-		++module_count;
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_GIMBAL)) {
-		rc = g_gimbal_module.Initialize();
-		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_gimbal_module.Name(), rc);
 			return rc;
 		}
 		++module_count;
@@ -202,14 +177,6 @@ int main(void)
 		rc = g_chassis_module.Start();
 		if (rc != 0) {
 			LOG_ERR("module start failed: %s (%d)", g_chassis_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_GIMBAL)) {
-		rc = g_gimbal_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_gimbal_module.Name(), rc);
 			return rc;
 		}
 	}

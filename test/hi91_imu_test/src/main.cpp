@@ -58,7 +58,7 @@ float g_sof_5aa5_hz = 0.0F;
 float g_byte_a5_hz = 0.0F;
 float g_byte_5a_hz = 0.0F;
 
-protocols::imu::hi91::Parser g_parser;
+protocols::Hi91Parser g_parser;
 
 void InvalidateDmaRxCache(const uint8_t *data, size_t len)
 {
@@ -102,14 +102,14 @@ void ProcessBytes(const uint8_t *data, size_t size)
 		}
 		g_previous_byte = data[i];
 
-		protocols::imu::hi91::Sample sample = {};
+		protocols::Hi91Sample sample = {};
 		const auto result = g_parser.Feed(data[i], &sample);
-		if (result == protocols::imu::hi91::ParseResult::kFrame) {
+		if (result == protocols::Hi91ParseResult::kFrame) {
 			g_roll_deg = sample.roll_deg;
 			g_pitch_deg = sample.pitch_deg;
 			g_yaw_deg = sample.yaw_deg;
 			++g_frame_count;
-		} else if (result != protocols::imu::hi91::ParseResult::kNone) {
+		} else if (result != protocols::Hi91ParseResult::kNone) {
 			++g_parse_error_count;
 		}
 	}

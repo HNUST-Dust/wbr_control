@@ -40,7 +40,6 @@ target_sources(app PRIVATE
   src/main.cpp
 )
 
-add_subdirectory(services)
 add_subdirectory(modules)
 add_subdirectory(algorithms)
 add_subdirectory(channels)

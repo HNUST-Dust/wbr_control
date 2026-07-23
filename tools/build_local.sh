@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build wbr_control into applications/wbr_control/build so the app folder is self-contained.
+# Build wbr_control into its local build directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-WORKSPACE_DIR="$(cd "${APP_DIR}/../.." && pwd)"
+WORKSPACE_DIR="$(cd "${APP_DIR}/.." && pwd)"
 
 BUILD_DIR="${APP_DIR}/build"
-BOARD="${BOARD:-hpm6e00evk_v2}"
-WEST_BIN="${WORKSPACE_DIR}/.venv/bin/west"
+BOARD="${BOARD:-hpm6750evk2}"
+WEST_BIN="${WORKSPACE_DIR}/../.venv/bin/west"
+CCACHE_TEMPDIR="${CCACHE_TEMPDIR:-${TMPDIR:-/tmp}/wbr_control_ccache}"
+
+mkdir -p "${CCACHE_TEMPDIR}"
+export CCACHE_TEMPDIR
 
 if [[ ! -x "${WEST_BIN}" ]]; then
   WEST_BIN="west"

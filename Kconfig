@@ -14,13 +14,7 @@ config RM_TEST_MODULE_CHASSIS
 	bool "Enable chassis module"
 	default y
 	help
-	  Enable registering and starting the chassis module.
-
-config RM_TEST_MODULE_GIMBAL
-	bool "Enable gimbal module"
-	default n
-	help
-	  Enable registering and starting the gimbal module.
+	  Register and start the 1 kHz independent-leg chassis controller.
 
 config RM_TEST_MODULE_REFEREE
 	bool "Enable referee module"
@@ -90,13 +84,6 @@ config RM_TEST_SHELL_MAVLINK_CONTROL
 	help
 	  Enable `mavlink on/off/status` shell command. When enabled,
 	  MAVLink bytes are received on the same shell UART by using shell bypass.
-
-config RM_TEST_RUNTIME_INIT_UART
-	bool "Initialize UART dispatch in bootstrap"
-	default y
-	depends on SERIAL
-	help
-	  Enable UART dispatch initialization during runtime bootstrap.
 
 config RM_TEST_RUNTIME_INIT_CAN
 	bool "Initialize CAN dispatch in bootstrap"

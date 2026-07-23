@@ -46,7 +46,7 @@ constexpr uint32_t kPrintPeriodMs = 100U;
 constexpr double kJointTorqueLimitNm = 8.0;
 constexpr bool kExitBetweenSweepCycles = false;
 
-constexpr protocols::motors::dm::DmMitRange kDmJointMitRange = {
+constexpr protocols::DmMitRange kDmJointMitRange = {
 	.p_min = -12.56637f,
 	.p_max = 12.56637f,
 	.v_min = -45.0f,
@@ -60,7 +60,7 @@ constexpr protocols::motors::dm::DmMitRange kDmJointMitRange = {
 };
 
 struct JointFeedback {
-	protocols::motors::dm::DmMotorFeedbackNormal feedback;
+	protocols::DmMotorFeedbackNormal feedback;
 	uint32_t sequence = 0U;
 };
 
@@ -70,7 +70,7 @@ struct BusContext {
 
 struct LegCommand {
 	bool valid = false;
-	wbr::v2::LegKinematics leg = {};
+	modules::LegKinematics leg = {};
 	double joint_d_torque = 0.0;
 	double joint_b_torque = 0.0;
 };
@@ -90,13 +90,13 @@ float UIntToFloat(uint16_t value, float min_value, float max_value,
 	return static_cast<float>(value) * span / max_int + min_value;
 }
 
-double DmPositionRad(const protocols::motors::dm::DmMotorFeedbackNormal &fb)
+double DmPositionRad(const protocols::DmMotorFeedbackNormal &fb)
 {
 	return UIntToFloat(fb.angle, kDmJointMitRange.p_min,
 			   kDmJointMitRange.p_max, 16);
 }
 
-double DmVelocityRadPerSec(const protocols::motors::dm::DmMotorFeedbackNormal &fb)
+double DmVelocityRadPerSec(const protocols::DmMotorFeedbackNormal &fb)
 {
 	return UIntToFloat(fb.omega, kDmJointMitRange.v_min,
 			   kDmJointMitRange.v_max, 12);
@@ -168,7 +168,7 @@ uint32_t CanBitrateForBus(uint8_t bus)
 
 void WriteFeedback(JointFeedback &slot, const uint8_t data[8], uint8_t dlc)
 {
-	if (protocols::motors::dm::DecodeFeedbackNormal(data, dlc,
+	if (protocols::DecodeDmFeedbackNormal(data, dlc,
 							&slot.feedback) == 0) {
 		++slot.sequence;
 	}
@@ -219,17 +219,17 @@ int SendStdFrame(uint8_t bus, uint16_t can_id, const uint8_t data[8])
 }
 
 void SendDmControl(uint8_t bus, uint16_t can_id,
-		   protocols::motors::dm::DmControlCommand command)
+		   protocols::DmControlCommand command)
 {
 	uint8_t data[8] = {};
-	if (protocols::motors::dm::GetControlCommandFrame(command, data) == 0) {
+	if (protocols::GetDmControlCommandFrame(command, data) == 0) {
 		(void)SendStdFrame(bus, can_id, data);
 	}
 }
 
 void SendDmTorque(uint8_t bus, uint16_t can_id, double torque)
 {
-	protocols::motors::dm::DmMitCommand command = {};
+	protocols::DmMitCommand command = {};
 	command.position = 0.0f;
 	command.velocity = 0.0f;
 	command.kp = 0.0f;
@@ -238,7 +238,7 @@ void SendDmTorque(uint8_t bus, uint16_t can_id, double torque)
 		torque, -kJointTorqueLimitNm, kJointTorqueLimitNm));
 
 	uint8_t data[8] = {};
-	if (protocols::motors::dm::PackMitCommand(
+	if (protocols::PackDmMitCommand(
 		    &command, &kDmJointMitRange, data) == 0) {
 		(void)SendStdFrame(bus, can_id, data);
 	}
@@ -248,15 +248,15 @@ void SendAllEnter()
 {
 	if (kEnableLeftLeg) {
 		SendDmControl(kLeftLegBus, kLeftJointBCanId,
-			      protocols::motors::dm::DmControlCommand::kEnter);
+			      protocols::DmControlCommand::kEnter);
 		SendDmControl(kLeftLegBus, kLeftJointDCanId,
-			      protocols::motors::dm::DmControlCommand::kEnter);
+			      protocols::DmControlCommand::kEnter);
 	}
 	if (kEnableRightLeg) {
 		SendDmControl(kRightLegBus, kRightJointBCanId,
-			      protocols::motors::dm::DmControlCommand::kEnter);
+			      protocols::DmControlCommand::kEnter);
 		SendDmControl(kRightLegBus, kRightJointDCanId,
-			      protocols::motors::dm::DmControlCommand::kEnter);
+			      protocols::DmControlCommand::kEnter);
 	}
 }
 
@@ -264,15 +264,15 @@ void SendAllExit()
 {
 	if (kEnableLeftLeg) {
 		SendDmControl(kLeftLegBus, kLeftJointBCanId,
-			      protocols::motors::dm::DmControlCommand::kExit);
+			      protocols::DmControlCommand::kExit);
 		SendDmControl(kLeftLegBus, kLeftJointDCanId,
-			      protocols::motors::dm::DmControlCommand::kExit);
+			      protocols::DmControlCommand::kExit);
 	}
 	if (kEnableRightLeg) {
 		SendDmControl(kRightLegBus, kRightJointBCanId,
-			      protocols::motors::dm::DmControlCommand::kExit);
+			      protocols::DmControlCommand::kExit);
 		SendDmControl(kRightLegBus, kRightJointDCanId,
-			      protocols::motors::dm::DmControlCommand::kExit);
+			      protocols::DmControlCommand::kExit);
 	}
 }
 
@@ -285,7 +285,7 @@ LegCommand ComputeAxialForceCommand(const JointFeedback &joint_b,
 		return command;
 	}
 
-	command.valid = wbr::v2::ComputeLegKinematics(
+	command.valid = modules::ComputeLegKinematics(
 		DmPositionRad(joint_d.feedback),
 		DmPositionRad(joint_b.feedback),
 		DmVelocityRadPerSec(joint_d.feedback),

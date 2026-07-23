@@ -35,7 +35,7 @@
 ## 主要链路
 
 ```
-uart_dispatch 收到遥控器数据
+remote_input_module 通过独占 UART DMA 接收遥控器数据
     ↓
 remote_input_module 解析并发布 zbus channel
     ↓
