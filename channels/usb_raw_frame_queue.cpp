@@ -12,7 +12,7 @@ namespace {
 constexpr size_t kQueueDepth = 16U;
 
 K_MSGQ_DEFINE(g_cdc_acm_usb_raw_msgq,
-	     sizeof(channels::usb_raw_frame_queue::UsbRawFrameMessage),
+	     sizeof(channels::UsbRawFrameMessage),
 	     kQueueDepth,
 	     4);
 
@@ -31,7 +31,7 @@ k_timeout_t TimeoutFromMs(int32_t timeout_ms)
 
 }  // namespace
 
-namespace channels::usb_raw_frame_queue {
+namespace channels {
 
 int EnqueueForCdcAcm(const UsbRawFrameMessage *frame)
 {
@@ -51,4 +51,4 @@ int DequeueForCdcAcm(UsbRawFrameMessage *frame, int32_t timeout_ms)
 	return k_msgq_get(&g_cdc_acm_usb_raw_msgq, frame, TimeoutFromMs(timeout_ms));
 }
 
-}  // namespace channels::usb_raw_frame_queue
+}  // namespace channels
