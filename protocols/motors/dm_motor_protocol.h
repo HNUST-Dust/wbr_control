@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-namespace protocols::motors::dm {
+namespace protocols {
 
 struct DmMotorFeedback1To4 {
 	uint16_t encoder;
@@ -67,12 +67,17 @@ struct DmMitRange {
 	float t_max;
 };
 
-int DecodeFeedback1To4(const uint8_t *data, uint8_t dlc, DmMotorFeedback1To4 *out);
-int DecodeFeedbackNormal(const uint8_t *data, uint8_t dlc, DmMotorFeedbackNormal *out);
-int GetControlCommandFrame(DmControlCommand cmd, uint8_t out[8]);
-int PackMitCommand(const DmMitCommand *cmd, const DmMitRange *range, uint8_t out[8]);
-int Pack1To4CurrentFrame(uint16_t motor_can_id, int16_t current_ma, uint8_t frame_payload[8]);
+int DecodeDmFeedback1To4(const uint8_t *data, uint8_t dlc, DmMotorFeedback1To4 *out);
+int DecodeDmFeedbackNormal(const uint8_t *data, uint8_t dlc, DmMotorFeedbackNormal *out);
+float DecodeDmMitValue(uint16_t value, float minimum, float maximum, uint8_t bits);
+float DmFeedbackPosition(const DmMotorFeedbackNormal &feedback, const DmMitRange &range);
+float DmFeedbackVelocity(const DmMotorFeedbackNormal &feedback, const DmMitRange &range);
+float DmFeedbackTorque(const DmMotorFeedbackNormal &feedback, const DmMitRange &range);
+int GetDmControlCommandFrame(DmControlCommand cmd, uint8_t out[8]);
+int PackDmMitCommand(const DmMitCommand *cmd, const DmMitRange *range, uint8_t out[8]);
+int PackDm1To4CurrentFrame(uint16_t motor_can_id, int16_t current_ma,
+			  uint8_t frame_payload[8]);
 
-}  // namespace protocols::motors::dm
+}  // namespace protocols
 
 #endif /* RM_TEST_APP_PROTOCOLS_MOTORS_DM_MOTOR_PROTOCOL_H_ */

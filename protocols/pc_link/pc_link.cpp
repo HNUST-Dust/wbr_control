@@ -5,9 +5,9 @@
 #include <errno.h>
 #include <string.h>
 
-namespace protocols::pc_link {
+namespace protocols {
 
-int EncodeFrame(uint16_t cmd_id,
+int EncodePcFrame(uint16_t cmd_id,
 		const uint8_t *payload,
 		size_t payload_len,
 		uint8_t *out,
@@ -46,7 +46,7 @@ int EncodeFrame(uint16_t cmd_id,
 	return 0;
 }
 
-int DecodeFrame(const uint8_t *frame, size_t frame_len, PcFrame *out)
+int DecodePcFrame(const uint8_t *frame, size_t frame_len, PcFrame *out)
 {
 	if ((frame == nullptr) || (out == nullptr) || (frame_len < 7U)) {
 		return -EINVAL;
@@ -69,4 +69,4 @@ int DecodeFrame(const uint8_t *frame, size_t frame_len, PcFrame *out)
 	return 0;
 }
 
-}  // namespace protocols::pc_link
+}  // namespace protocols

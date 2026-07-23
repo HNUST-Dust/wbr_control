@@ -64,7 +64,7 @@ uint8_t PercentToDuty(uint8_t pct)
 
 }  // namespace
 
-namespace modules::sys_state {
+namespace modules {
 
 volatile uint32_t g_sys_state_diag_state = kSysStateDiagBoot;
 
@@ -268,4 +268,4 @@ void SysStateModule::RunLoop()
 	}
 }
 
-}  // namespace modules::sys_state
+}  // namespace modules

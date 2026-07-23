@@ -7,9 +7,9 @@
 #include <cerrno>
 #include <cstring>
 
-namespace protocols::telemetry::vofa {
+namespace protocols {
 
-int EncodeJustFloat(const float *channels,
+int EncodeVofaJustFloat(const float *channels,
 		    size_t channel_count,
 		    uint8_t *out,
 		    size_t out_capacity,
@@ -19,7 +19,7 @@ int EncodeJustFloat(const float *channels,
 		return -EINVAL;
 	}
 
-	const size_t required_size = JustFloatFrameSize(channel_count);
+	const size_t required_size = VofaJustFloatFrameSize(channel_count);
 	if (out_capacity < required_size) {
 		return -ENOSPC;
 	}
@@ -31,10 +31,10 @@ int EncodeJustFloat(const float *channels,
 		offset += sizeof(float);
 	}
 
-	std::memcpy(&out[offset], kJustFloatTail, sizeof(kJustFloatTail));
-	offset += sizeof(kJustFloatTail);
+	std::memcpy(&out[offset], kVofaJustFloatTail, sizeof(kVofaJustFloatTail));
+	offset += sizeof(kVofaJustFloatTail);
 	*out_size = offset;
 	return 0;
 }
 
-}  // namespace protocols::telemetry::vofa
+}  // namespace protocols

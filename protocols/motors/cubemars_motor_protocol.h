@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-namespace protocols::motors::cubemars {
+namespace protocols {
 
 struct CubemarsFeedback {
 	uint8_t id;
@@ -37,12 +37,13 @@ struct CubemarsMitRange {
 	float t_max;
 };
 
-int DecodeFeedback(const uint8_t *data, uint8_t dlc, CubemarsFeedback *out);
-int GetEnterFrame(uint8_t out[8]);
-int GetExitFrame(uint8_t out[8]);
-int GetSaveZeroFrame(uint8_t out[8]);
-int PackMitCommand(const CubemarsMitCommand *cmd, const CubemarsMitRange *range, uint8_t out[8]);
+int DecodeCubemarsFeedback(const uint8_t *data, uint8_t dlc, CubemarsFeedback *out);
+int GetCubemarsEnterFrame(uint8_t out[8]);
+int GetCubemarsExitFrame(uint8_t out[8]);
+int GetCubemarsSaveZeroFrame(uint8_t out[8]);
+int PackCubemarsMitCommand(const CubemarsMitCommand *cmd, const CubemarsMitRange *range,
+			   uint8_t out[8]);
 
-}  // namespace protocols::motors::cubemars
+}  // namespace protocols
 
 #endif /* RM_TEST_APP_PROTOCOLS_MOTORS_CUBEMARS_MOTOR_PROTOCOL_H_ */

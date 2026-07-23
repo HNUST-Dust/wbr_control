@@ -8,7 +8,7 @@
 
 #include <protocols/motors/cubemars_motor_protocol.h>
 
-namespace protocols::motors::cubemars {
+namespace protocols {
 
 namespace {
 
@@ -35,7 +35,7 @@ int GetFixedCommand(uint8_t tail, uint8_t out[8])
 
 }  // namespace
 
-int DecodeFeedback(const uint8_t *data, uint8_t dlc, CubemarsFeedback *out)
+int DecodeCubemarsFeedback(const uint8_t *data, uint8_t dlc, CubemarsFeedback *out)
 {
 	if ((data == nullptr) || (out == nullptr) || (dlc < 6U)) {
 		return -EINVAL;
@@ -48,22 +48,23 @@ int DecodeFeedback(const uint8_t *data, uint8_t dlc, CubemarsFeedback *out)
 	return 0;
 }
 
-int GetEnterFrame(uint8_t out[8])
+int GetCubemarsEnterFrame(uint8_t out[8])
 {
 	return GetFixedCommand(0xFCU, out);
 }
 
-int GetExitFrame(uint8_t out[8])
+int GetCubemarsExitFrame(uint8_t out[8])
 {
 	return GetFixedCommand(0xFDU, out);
 }
 
-int GetSaveZeroFrame(uint8_t out[8])
+int GetCubemarsSaveZeroFrame(uint8_t out[8])
 {
 	return GetFixedCommand(0xFEU, out);
 }
 
-int PackMitCommand(const CubemarsMitCommand *cmd, const CubemarsMitRange *range, uint8_t out[8])
+int PackCubemarsMitCommand(const CubemarsMitCommand *cmd, const CubemarsMitRange *range,
+			   uint8_t out[8])
 {
 	if ((cmd == nullptr) || (range == nullptr) || (out == nullptr)) {
 		return -EINVAL;
@@ -86,4 +87,4 @@ int PackMitCommand(const CubemarsMitCommand *cmd, const CubemarsMitRange *range,
 	return 0;
 }
 
-}  // namespace protocols::motors::cubemars
+}  // namespace protocols

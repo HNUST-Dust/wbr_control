@@ -7,7 +7,7 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
-namespace modules::oscilloscope {
+namespace modules {
 
 class OscilloscopeModule {
 public:
@@ -25,4 +25,4 @@ private:
 	uint32_t last_sequence_ = 0U;
 };
 
-}  // namespace modules::oscilloscope
+}  // namespace modules

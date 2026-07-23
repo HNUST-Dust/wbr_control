@@ -6,7 +6,7 @@
 
 #include <zephyr/sys/util.h>
 
-namespace protocols::remote_input::vt03 {
+namespace protocols {
 
 namespace {
 
@@ -32,9 +32,9 @@ float DecodeAxis(uint16_t raw)
 
 }  // namespace
 
-bool DecodeRemoteFrame(const uint8_t *data, size_t len, Vt03Frame *out)
+bool DecodeVt03RemoteFrame(const uint8_t *data, size_t len, Vt03Frame *out)
 {
-	if ((data == nullptr) || (out == nullptr) || (len < kRemoteFrameLength)) {
+	if ((data == nullptr) || (out == nullptr) || (len < kVt03RemoteFrameLength)) {
 		return false;
 	}
 
@@ -71,9 +71,9 @@ bool DecodeRemoteFrame(const uint8_t *data, size_t len, Vt03Frame *out)
 	return true;
 }
 
-bool DecodeCustomFrame(const uint8_t *data, size_t len, Vt03CustomFrame *out)
+bool DecodeVt03CustomFrame(const uint8_t *data, size_t len, Vt03CustomFrame *out)
 {
-	if ((data == nullptr) || (out == nullptr) || (len < kCustomFrameLength)) {
+	if ((data == nullptr) || (out == nullptr) || (len < kVt03CustomFrameLength)) {
 		return false;
 	}
 
@@ -94,4 +94,4 @@ bool DecodeCustomFrame(const uint8_t *data, size_t len, Vt03CustomFrame *out)
 	return true;
 }
 
-}  // namespace protocols::remote_input::vt03
+}  // namespace protocols

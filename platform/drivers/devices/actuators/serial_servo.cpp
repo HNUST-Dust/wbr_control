@@ -10,7 +10,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 
-namespace platform::drivers::devices::actuators::serial_servo {
+namespace platform {
 
 namespace {
 
@@ -205,7 +205,7 @@ int ReceivePacket(uint8_t *out_id,
 
 }  // namespace
 
-int Initialize()
+int InitializeSerialServo()
 {
 	if (g_initialized) {
 		return 0;
@@ -238,17 +238,17 @@ int Initialize()
 	return 0;
 }
 
-int MoveToAngle(uint8_t id, float degrees, uint16_t time_ms)
+int MoveSerialServoToAngle(uint8_t id, float degrees, uint16_t time_ms)
 {
 	return SendMoveToAnglePacket(id, degrees, time_ms);
 }
 
-int Stop(uint8_t id)
+int StopSerialServo(uint8_t id)
 {
 	return SendStopPacket(id);
 }
 
-int SetSpeed(uint8_t id, int16_t speed)
+int SetSerialServoSpeed(uint8_t id, int16_t speed)
 {
 	const uint16_t speed_u = static_cast<uint16_t>(speed);
 	const uint8_t params[4] = {
@@ -260,7 +260,7 @@ int SetSpeed(uint8_t id, int16_t speed)
 	return SendPacket(id, 29U, params, sizeof(params));
 }
 
-int ReadId(uint8_t query_id, uint8_t *out_id, uint32_t timeout_ms)
+int ReadSerialServoId(uint8_t query_id, uint8_t *out_id, uint32_t timeout_ms)
 {
 	if (out_id == nullptr) {
 		return -EINVAL;
@@ -288,4 +288,4 @@ int ReadId(uint8_t query_id, uint8_t *out_id, uint32_t timeout_ms)
 	return 0;
 }
 
-}  // namespace platform::drivers::devices::actuators::serial_servo
+}  // namespace platform

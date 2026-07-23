@@ -6,7 +6,7 @@
 
 #include <string.h>
 
-namespace protocols::imu::hi91 {
+namespace protocols {
 
 namespace {
 
@@ -39,18 +39,10 @@ void DecodeFloat3(const uint8_t *data, float value[3])
 	value[2] = ReadLeFloat(&data[8]);
 }
 
-uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
+uint16_t Crc16Update(uint16_t crc, const uint8_t *data, size_t size)
 {
-	uint8_t header[4] = {
-		kFrameSof0,
-		kFrameSof1,
-		static_cast<uint8_t>(payload_length & 0xFFU),
-		static_cast<uint8_t>((payload_length >> 8U) & 0xFFU),
-	};
-
-	uint16_t crc = Crc16CcittFalse(header, sizeof(header));
-	for (uint16_t i = 0U; i < payload_length; ++i) {
-		crc ^= static_cast<uint16_t>(payload[i]) << 8U;
+	for (size_t i = 0U; i < size; ++i) {
+		crc ^= static_cast<uint16_t>(data[i]) << 8U;
 		for (uint8_t bit = 0U; bit < 8U; ++bit) {
 			if ((crc & 0x8000U) != 0U) {
 				crc = static_cast<uint16_t>((crc << 1U) ^ 0x1021U);
@@ -62,15 +54,30 @@ uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
 	return crc;
 }
 
+uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
+{
+	const uint8_t header[4] = {
+		kHi91FrameSof0,
+		kHi91FrameSof1,
+		static_cast<uint8_t>(payload_length & 0xFFU),
+		static_cast<uint8_t>((payload_length >> 8U) & 0xFFU),
+	};
+	/* HiPNUC manual §5.10/§5.12.14: start from 0, then update over
+	 * SOF+LEN and payload separately.  CRC bytes themselves are excluded. */
+	uint16_t crc = 0U;
+	crc = Crc16Update(crc, header, sizeof(header));
+	return Crc16Update(crc, payload, payload_length);
+}
+
 }  // namespace
 
-Parser::Parser()
+Hi91Parser::Hi91Parser()
 {
 	Reset();
 	strict_crc_ = false;
 }
 
-void Parser::Reset()
+void Hi91Parser::Reset()
 {
 	state_ = State::kSof0;
 	payload_length_ = 0U;
@@ -78,24 +85,24 @@ void Parser::Reset()
 	payload_index_ = 0U;
 }
 
-void Parser::SetStrictCrc(bool strict_crc)
+void Hi91Parser::SetStrictCrc(bool strict_crc)
 {
 	strict_crc_ = strict_crc;
 }
 
-ParseResult Parser::Feed(uint8_t byte, Sample *sample)
+Hi91ParseResult Hi91Parser::Feed(uint8_t byte, Hi91Sample *sample)
 {
 	switch (state_) {
 	case State::kSof0:
-		if (byte == kFrameSof0) {
+		if (byte == kHi91FrameSof0) {
 			state_ = State::kSof1;
 		}
 		break;
 	case State::kSof1:
-		if (byte == kFrameSof1) {
+		if (byte == kHi91FrameSof1) {
 			state_ = State::kLen0;
 		} else {
-			state_ = (byte == kFrameSof0) ? State::kSof1 : State::kSof0;
+			state_ = (byte == kHi91FrameSof0) ? State::kSof1 : State::kSof0;
 		}
 		break;
 	case State::kLen0:
@@ -104,9 +111,9 @@ ParseResult Parser::Feed(uint8_t byte, Sample *sample)
 		break;
 	case State::kLen1:
 		payload_length_ |= static_cast<uint16_t>(byte) << 8U;
-		if ((payload_length_ == 0U) || (payload_length_ > kMaxPayloadLength)) {
+		if ((payload_length_ == 0U) || (payload_length_ > kHi91MaxPayloadLength)) {
 			Reset();
-			return ParseResult::kInvalidLength;
+			return Hi91ParseResult::kInvalidLength;
 		}
 		state_ = State::kCrc0;
 		break;
@@ -127,19 +134,19 @@ ParseResult Parser::Feed(uint8_t byte, Sample *sample)
 		break;
 	}
 
-	return ParseResult::kNone;
+	return Hi91ParseResult::kNone;
 }
 
-ParseResult Parser::FinishFrame(Sample *sample)
+Hi91ParseResult Hi91Parser::FinishFrame(Hi91Sample *sample)
 {
 	const uint16_t payload_length = payload_length_;
 	const uint16_t expected_crc = expected_crc_;
-	ParseResult result = ParseResult::kFrame;
+	Hi91ParseResult result = Hi91ParseResult::kFrame;
 
 	if (strict_crc_ && (CalculateFrameCrc(payload_length, payload_) != expected_crc)) {
-		result = ParseResult::kCrcError;
-	} else if ((payload_length < kDataLength) || (payload_[0] != kDataTag)) {
-		result = ParseResult::kUnsupportedFrame;
+		result = Hi91ParseResult::kCrcError;
+	} else if ((payload_length < kHi91DataLength) || (payload_[0] != kHi91DataTag)) {
+		result = Hi91ParseResult::kUnsupportedFrame;
 	} else if (sample != nullptr) {
 		sample->main_status = ReadLe16(&payload_[1]);
 		sample->temperature_c = static_cast<int8_t>(payload_[3]);
@@ -161,20 +168,9 @@ ParseResult Parser::FinishFrame(Sample *sample)
 	return result;
 }
 
-uint16_t Crc16CcittFalse(const uint8_t *data, size_t size)
+uint16_t Hi91Crc16CcittFalse(const uint8_t *data, size_t size)
 {
-	uint16_t crc = 0xFFFFU;
-	for (size_t i = 0U; i < size; ++i) {
-		crc ^= static_cast<uint16_t>(data[i]) << 8U;
-		for (uint8_t bit = 0U; bit < 8U; ++bit) {
-			if ((crc & 0x8000U) != 0U) {
-				crc = static_cast<uint16_t>((crc << 1U) ^ 0x1021U);
-			} else {
-				crc = static_cast<uint16_t>(crc << 1U);
-			}
-		}
-	}
-	return crc;
+	return Crc16Update(0U, data, size);
 }
 
-}  // namespace protocols::imu::hi91
+}  // namespace protocols

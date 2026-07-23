@@ -35,7 +35,7 @@ constexpr bool kHasUsbNode = false;
 constexpr uint8_t kCdcInEp = 0x81U;
 constexpr uint8_t kCdcOutEp = 0x01U;
 constexpr uint8_t kCdcIntEp = 0x83U;
-constexpr size_t kCdcBufferSize = channels::usb_raw_frame_queue::kUsbRawChunkSize;
+constexpr size_t kCdcBufferSize = channels::kUsbRawChunkSize;
 
 #define RM_TEST_USB_CONFIG_SIZE (9 + CDC_ACM_DESCRIPTOR_LEN)
 
@@ -191,10 +191,10 @@ void UsbBulkOutCallback(uint8_t busid, uint8_t ep, uint32_t nbytes)
 	const size_t copy_len = MIN(static_cast<size_t>(nbytes), kCdcBufferSize);
 
 	if (copy_len > 0U) {
-		channels::usb_raw_frame_queue::UsbRawFrameMessage frame = {};
+		channels::UsbRawFrameMessage frame = {};
 		frame.len = static_cast<uint16_t>(copy_len);
 		memcpy(frame.data, &g_read_buffer[index][0], copy_len);
-		(void)channels::usb_raw_frame_queue::EnqueueForCdcAcm(&frame);
+		(void)channels::EnqueueForCdcAcm(&frame);
 	}
 
 	g_read_index = (index == 0U) ? 1U : 0U;
@@ -232,9 +232,9 @@ static struct usbd_interface g_intf1;
 
 }  // namespace
 
-namespace platform::drivers::communication::usb_session {
+namespace platform {
 
-int Initialize()
+int InitializeUsbSession()
 {
 #if defined(CONFIG_CHERRYUSB) && CONFIG_CHERRYUSB && defined(CONFIG_CHERRYUSB_DEVICE) &&                 \
 	CONFIG_CHERRYUSB_DEVICE && defined(CONFIG_CHERRYUSB_DEVICE_CDC_ACM) &&                             \
@@ -265,7 +265,7 @@ int Initialize()
 #endif
 }
 
-bool IsConfigured()
+bool IsUsbConfigured()
 {
 #if defined(CONFIG_CHERRYUSB) && CONFIG_CHERRYUSB && defined(CONFIG_CHERRYUSB_DEVICE) &&                 \
 	CONFIG_CHERRYUSB_DEVICE && defined(CONFIG_CHERRYUSB_DEVICE_CDC_ACM) &&                             \
@@ -276,7 +276,7 @@ bool IsConfigured()
 #endif
 }
 
-int Send(const uint8_t *data, size_t len)
+int SendUsb(const uint8_t *data, size_t len)
 {
 #if defined(CONFIG_CHERRYUSB) && CONFIG_CHERRYUSB && defined(CONFIG_CHERRYUSB_DEVICE) &&                 \
 	CONFIG_CHERRYUSB_DEVICE && defined(CONFIG_CHERRYUSB_DEVICE_CDC_ACM) &&                             \
@@ -285,7 +285,7 @@ int Send(const uint8_t *data, size_t len)
 		return -EINVAL;
 	}
 
-	if (!IsConfigured()) {
+	if (!IsUsbConfigured()) {
 		return -EAGAIN;
 	}
 
@@ -314,7 +314,7 @@ int Send(const uint8_t *data, size_t len)
 #endif
 }
 
-int Receive(uint8_t *out, size_t capacity, size_t *out_len, int32_t timeout_ms)
+int ReceiveUsb(uint8_t *out, size_t capacity, size_t *out_len, int32_t timeout_ms)
 {
 	if ((out == nullptr) || (out_len == nullptr) || (capacity == 0U)) {
 		return -EINVAL;
@@ -325,8 +325,8 @@ int Receive(uint8_t *out, size_t capacity, size_t *out_len, int32_t timeout_ms)
 #if defined(CONFIG_CHERRYUSB) && CONFIG_CHERRYUSB && defined(CONFIG_CHERRYUSB_DEVICE) &&                 \
 	CONFIG_CHERRYUSB_DEVICE && defined(CONFIG_CHERRYUSB_DEVICE_CDC_ACM) &&                             \
 	CONFIG_CHERRYUSB_DEVICE_CDC_ACM
-	channels::usb_raw_frame_queue::UsbRawFrameMessage chunk = {};
-	const int rc = channels::usb_raw_frame_queue::DequeueForCdcAcm(&chunk, timeout_ms);
+	channels::UsbRawFrameMessage chunk = {};
+	const int rc = channels::DequeueForCdcAcm(&chunk, timeout_ms);
 	if (rc != 0) {
 		return rc;
 	}
@@ -341,4 +341,4 @@ int Receive(uint8_t *out, size_t capacity, size_t *out_len, int32_t timeout_ms)
 #endif
 }
 
-}  // namespace platform::drivers::communication::usb_session
+}  // namespace platform

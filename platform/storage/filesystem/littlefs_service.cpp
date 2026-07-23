@@ -7,11 +7,13 @@
 #include <zephyr/fs/fs.h>
 #include <zephyr/fs/littlefs.h>
 #include <zephyr/devicetree/fixed-partitions.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/storage/flash_map.h>
-#include <zephyr/sys/printk.h>
 
 #include "littlefs_service.h"
+
+LOG_MODULE_REGISTER(littlefs_service, LOG_LEVEL_INF);
 
 namespace {
 
@@ -94,9 +96,9 @@ int ProbeStoragePartitionIo()
 
 }  // namespace
 
-namespace platform::storage::filesystem::littlefs_service {
+namespace platform {
 
-int Initialize()
+int InitializeLittlefs()
 {
 	if (g_mounted) {
 		return 0;
@@ -109,7 +111,7 @@ int Initialize()
 
 	int rc = fs_mount(&g_lfs_mount);
 	if ((rc != 0) && (rc != -EALREADY)) {
-		printk("littlefs mount failed: %d, try mkfs\n", rc);
+		LOG_INF("littlefs mount failed: %d, try mkfs", rc);
 
 		int mkfs_rc = fs_mkfs(
 			FS_LITTLEFS,
@@ -117,14 +119,14 @@ int Initialize()
 			&rm_test_storage_lfs,
 			0);
 		if (mkfs_rc != 0) {
-			printk("littlefs mkfs failed: %d, erase partition and retry\n", mkfs_rc);
+			LOG_INF("littlefs mkfs failed: %d, erase partition and retry", mkfs_rc);
 
 			const int erase_rc = EraseStoragePartition();
 			if (erase_rc != 0) {
-				printk("littlefs erase storage failed: %d\n", erase_rc);
+				LOG_INF("littlefs erase storage failed: %d", erase_rc);
 				return erase_rc;
 			}
-			printk("littlefs erase storage ok\n");
+			LOG_INF("littlefs erase storage ok");
 
 			mkfs_rc = fs_mkfs(
 				FS_LITTLEFS,
@@ -133,14 +135,14 @@ int Initialize()
 				0);
 			if (mkfs_rc != 0) {
 				const int probe_rc = ProbeStoragePartitionIo();
-				printk("littlefs mkfs retry failed: %d\n", mkfs_rc);
+				LOG_INF("littlefs mkfs retry failed: %d", mkfs_rc);
 				return (probe_rc != 0) ? probe_rc : mkfs_rc;
 			}
 		}
 
 		rc = fs_mount(&g_lfs_mount);
 		if ((rc != 0) && (rc != -EALREADY)) {
-			printk("littlefs remount after mkfs failed: %d\n", rc);
+			LOG_INF("littlefs remount after mkfs failed: %d", rc);
 			return rc;
 		}
 	}
@@ -149,14 +151,14 @@ int Initialize()
 	return 0;
 }
 
-bool IsReady()
+bool IsLittlefsReady()
 {
 	return g_mounted;
 }
 
-const char *MountPoint()
+const char *LittlefsMountPoint()
 {
 	return g_lfs_mount.mnt_point;
 }
 
-}  // namespace platform::storage::filesystem::littlefs_service
+}  // namespace platform

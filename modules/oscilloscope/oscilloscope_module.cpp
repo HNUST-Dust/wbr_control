@@ -21,6 +21,14 @@ namespace {
 
 K_THREAD_STACK_DEFINE(g_oscilloscope_module_stack, 1536);
 
+#ifndef CONFIG_RM_TEST_OSCILLOSCOPE_PERIOD_MS
+#define CONFIG_RM_TEST_OSCILLOSCOPE_PERIOD_MS 10
+#endif
+
+#ifndef CONFIG_RM_TEST_OSCILLOSCOPE_UART_BAUDRATE
+#define CONFIG_RM_TEST_OSCILLOSCOPE_UART_BAUDRATE 921600
+#endif
+
 constexpr uint32_t kOutputPeriodMs = CONFIG_RM_TEST_OSCILLOSCOPE_PERIOD_MS;
 constexpr uint32_t kUartBaudrate = CONFIG_RM_TEST_OSCILLOSCOPE_UART_BAUDRATE;
 
@@ -42,7 +50,7 @@ void UartWrite(const struct device *dev, const uint8_t *data, size_t size)
 
 }  // namespace
 
-namespace modules::oscilloscope {
+namespace modules {
 
 int OscilloscopeModule::Initialize()
 {
@@ -110,10 +118,10 @@ int OscilloscopeModule::SendLatestSample()
 
 	const size_t channel_count = MIN(static_cast<size_t>(sample.channel_count),
 					 channels::kOscilloscopeMaxChannels);
-	uint8_t frame[protocols::telemetry::vofa::JustFloatFrameSize(
+	uint8_t frame[protocols::VofaJustFloatFrameSize(
 		channels::kOscilloscopeMaxChannels)] = {};
 	size_t frame_size = 0U;
-	const int rc = protocols::telemetry::vofa::EncodeJustFloat(
+	const int rc = protocols::EncodeVofaJustFloat(
 		sample.value, channel_count, frame, sizeof(frame), &frame_size);
 	if (rc != 0) {
 		return rc;
@@ -124,4 +132,4 @@ int OscilloscopeModule::SendLatestSample()
 	return 0;
 }
 
-}  // namespace modules::oscilloscope
+}  // namespace modules

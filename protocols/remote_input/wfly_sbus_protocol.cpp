@@ -2,7 +2,7 @@
 
 #include <protocols/remote_input/wfly_sbus_protocol.h>
 
-namespace protocols::remote_input::wfly_sbus {
+namespace protocols {
 
 namespace {
 
@@ -16,12 +16,12 @@ uint16_t U16(uint8_t value) { return static_cast<uint16_t>(value); }
 
 } // namespace
 
-bool DecodeFrame(const uint8_t *data, size_t len, WflySbusFrame *out) {
-  if ((data == nullptr) || (out == nullptr) || (len < kFrameLength)) {
+bool DecodeWflySbusFrame(const uint8_t *data, size_t len, WflySbusFrame *out) {
+  if ((data == nullptr) || (out == nullptr) || (len < kWflySbusFrameLength)) {
     return false;
   }
 
-  if ((data[0] != kStartByte) || (data[24] != kEndByte)) {
+  if ((data[0] != kWflySbusStartByte) || (data[24] != kWflySbusEndByte)) {
     return false;
   }
 
@@ -72,4 +72,4 @@ bool DecodeFrame(const uint8_t *data, size_t len, WflySbusFrame *out) {
   return true;
 }
 
-} // namespace protocols::remote_input::wfly_sbus
+} // namespace protocols

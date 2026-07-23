@@ -15,12 +15,12 @@ K_THREAD_STACK_DEFINE(g_referee_module_stack, 1024);
 
 } // namespace
 
-namespace modules::referee {
+namespace modules {
 
 int RefereeModule::Initialize() {
   started_ = false;
   sequence_ = 0U;
-  return platform::drivers::devices::system::referee_client::Initialize();
+  return platform::InitializeRefereeClient();
 }
 
 int RefereeModule::Start() {
@@ -49,15 +49,15 @@ void RefereeModule::RunLoop() {
 
 void RefereeModule::DecodeUartFramesInQueue() {
   while (true) {
-    channels::uart_raw_frame_queue::UartRawFrameMessage frame = {};
-    if (k_msgq_get(&channels::uart_raw_frame_queue::referee_uart_raw_msgq,
+    channels::UartRawFrameMessage frame = {};
+    if (k_msgq_get(&channels::referee_uart_raw_msgq,
                    &frame, K_NO_WAIT) != 0) {
       break;
     }
 
-    (void)platform::drivers::devices::system::referee_client::FeedBytes(
+    (void)platform::FeedRefereeBytes(
         frame.data, frame.len);
   }
 }
 
-} // namespace modules::referee
+} // namespace modules

@@ -7,15 +7,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace protocols::imu::hi91 {
+namespace protocols {
 
-constexpr uint8_t kFrameSof0 = 0x5AU;
-constexpr uint8_t kFrameSof1 = 0xA5U;
-constexpr uint8_t kDataTag = 0x91U;
-constexpr uint16_t kDataLength = 76U;
-constexpr uint16_t kMaxPayloadLength = 256U;
+constexpr uint8_t kHi91FrameSof0 = 0x5AU;
+constexpr uint8_t kHi91FrameSof1 = 0xA5U;
+constexpr uint8_t kHi91DataTag = 0x91U;
+constexpr uint16_t kHi91DataLength = 76U;
+constexpr uint16_t kHi91MaxPayloadLength = 256U;
 
-struct Sample {
+struct Hi91Sample {
 	uint16_t main_status;
 	int8_t temperature_c;
 	float air_pressure;
@@ -29,7 +29,7 @@ struct Sample {
 	float quat[4];
 };
 
-enum class ParseResult {
+enum class Hi91ParseResult {
 	kNone,
 	kFrame,
 	kCrcError,
@@ -37,13 +37,13 @@ enum class ParseResult {
 	kInvalidLength,
 };
 
-class Parser {
+class Hi91Parser {
 public:
-	Parser();
+	Hi91Parser();
 
 	void Reset();
 	void SetStrictCrc(bool strict_crc);
-	ParseResult Feed(uint8_t byte, Sample *sample);
+	Hi91ParseResult Feed(uint8_t byte, Hi91Sample *sample);
 
 private:
 	enum class State {
@@ -56,16 +56,17 @@ private:
 		kPayload,
 	};
 
-	ParseResult FinishFrame(Sample *sample);
+	Hi91ParseResult FinishFrame(Hi91Sample *sample);
 
 	State state_;
 	bool strict_crc_;
 	uint16_t payload_length_;
 	uint16_t expected_crc_;
 	uint16_t payload_index_;
-	uint8_t payload_[kMaxPayloadLength];
+	uint8_t payload_[kHi91MaxPayloadLength];
 };
 
-uint16_t Crc16CcittFalse(const uint8_t *data, size_t size);
+/* HiPNUC CRC-16/CCITT update with the manual's initial value 0x0000. */
+uint16_t Hi91Crc16CcittFalse(const uint8_t *data, size_t size);
 
-}  // namespace protocols::imu::hi91
+}  // namespace protocols

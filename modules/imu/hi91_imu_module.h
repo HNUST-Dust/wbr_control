@@ -13,7 +13,7 @@
 
 #include <protocols/imu/hi91_protocol.h>
 
-namespace modules::imu {
+namespace modules {
 
 class Hi91ImuModule {
 public:
@@ -33,8 +33,8 @@ private:
 	void HandleUartEvent(const struct device *dev, const struct uart_event *evt);
 	void InvalidateDmaRxCache(const uint8_t *data, size_t len);
 	void ProcessBytes(const uint8_t *data, size_t size);
-	void PublishSample(const protocols::imu::hi91::Sample &sample);
-	void ReportParseIssue(protocols::imu::hi91::ParseResult result);
+	void PublishSample(const protocols::Hi91Sample &sample);
+	void ReportParseIssue(protocols::Hi91ParseResult result);
 
 	bool started_;
 	const struct device *uart_dev_;
@@ -44,11 +44,11 @@ private:
 	uint8_t rx_ring_storage_[kRxRingSize];
 	alignas(kDmaCacheLineSize) uint8_t rx_buffers_[kRxBufferCount][kRxBufferSize];
 	uint8_t next_rx_buffer_index_;
-	protocols::imu::hi91::Parser parser_;
+	protocols::Hi91Parser parser_;
 	uint32_t sample_sequence_;
 	uint32_t parse_error_count_;
 	uint32_t rx_drop_count_;
 	uint32_t rx_stop_count_;
 };
 
-}  // namespace modules::imu
+}  // namespace modules

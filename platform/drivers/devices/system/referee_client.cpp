@@ -7,7 +7,7 @@
 
 #include <zephyr/kernel.h>
 
-namespace platform::drivers::devices::system::referee_client {
+namespace platform {
 
 namespace {
 
@@ -147,7 +147,7 @@ void TryParseStream()
 
 }  // namespace
 
-int Initialize()
+int InitializeRefereeClient()
 {
 	if (g_initialized) {
 		return 0;
@@ -160,14 +160,14 @@ int Initialize()
 	return 0;
 }
 
-int FeedBytes(const uint8_t *data, size_t len)
+int FeedRefereeBytes(const uint8_t *data, size_t len)
 {
 	if ((data == nullptr) || (len == 0U)) {
 		return -EINVAL;
 	}
 
 	if (!g_initialized) {
-		const int rc = Initialize();
+		const int rc = InitializeRefereeClient();
 		if (rc != 0) {
 			return rc;
 		}
@@ -188,4 +188,4 @@ int FeedBytes(const uint8_t *data, size_t len)
 
 
 
-}  // namespace platform::drivers::devices::system::referee_client
+}  // namespace platform

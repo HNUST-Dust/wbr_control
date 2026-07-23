@@ -5,6 +5,7 @@
 #include <modules/imu/hi91_imu_module.h>
 
 #include <errno.h>
+#include <cmath>
 #include <string.h>
 
 #include <zephyr/devicetree.h>
@@ -32,6 +33,9 @@ constexpr uint32_t kUartBaudrate = 921600U;
 constexpr bool kStrictCrc = IS_ENABLED(CONFIG_RM_TEST_HI91_IMU_STRICT_CRC);
 constexpr int32_t kRxIdleTimeoutUs = 1000;
 constexpr uint32_t kStartupDelayMs = 2000U;
+/* HI91 pitch is a physical Euler pitch angle.  Values outside this envelope
+ * are corrupted UART payloads, not a pose the balancing chassis can use. */
+constexpr float kMaximumValidPitchDeg = 100.0F;
 
 const struct device *FindInputUart()
 {
@@ -44,7 +48,7 @@ const struct device *FindInputUart()
 
 }  // namespace
 
-namespace modules::imu {
+namespace modules {
 
 int Hi91ImuModule::Initialize()
 {
@@ -90,7 +94,10 @@ int Hi91ImuModule::Start()
 		g_hi91_imu_module_stack,
 		K_THREAD_STACK_SIZEOF(g_hi91_imu_module_stack),
 		this,
-		K_PRIO_PREEMPT(14),
+		/* IMU parsing must preempt the 1 kHz chassis loop.  Otherwise an
+		 * unusually expensive control cycle can delay sample publication long
+		 * enough to trip the chassis freshness gate. */
+		K_PRIO_PREEMPT(7),
 		"hi91_imu_module");
 	started_ = true;
 	return 0;
@@ -183,18 +190,27 @@ void Hi91ImuModule::InvalidateDmaRxCache(const uint8_t *data, size_t len)
 void Hi91ImuModule::ProcessBytes(const uint8_t *data, size_t size)
 {
 	for (size_t i = 0U; i < size; ++i) {
-		protocols::imu::hi91::Sample sample = {};
+		protocols::Hi91Sample sample = {};
 		const auto result = parser_.Feed(data[i], &sample);
-		if (result == protocols::imu::hi91::ParseResult::kFrame) {
+		if (result == protocols::Hi91ParseResult::kFrame) {
 			PublishSample(sample);
-		} else if (result != protocols::imu::hi91::ParseResult::kNone) {
+		} else if (result != protocols::Hi91ParseResult::kNone) {
 			ReportParseIssue(result);
 		}
 	}
 }
 
-void Hi91ImuModule::PublishSample(const protocols::imu::hi91::Sample &sample)
+void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 {
+	if (!std::isfinite(sample.pitch_deg) ||
+		std::abs(sample.pitch_deg) > kMaximumValidPitchDeg) {
+		++parse_error_count_;
+		LOG_WRN("reject invalid HI91 pitch_mdeg=%d count=%u",
+			static_cast<int>(sample.pitch_deg * 1000.0F),
+			static_cast<unsigned int>(parse_error_count_));
+		return;
+	}
+
 	channels::Hi91ImuSample channel_sample = {};
 	channel_sample.sequence = ++sample_sequence_;
 	channel_sample.uptime_ms = k_uptime_get_32();
@@ -209,7 +225,7 @@ void Hi91ImuModule::PublishSample(const protocols::imu::hi91::Sample &sample)
 	channels::latest_hi91_imu_sample.write(channel_sample);
 }
 
-void Hi91ImuModule::ReportParseIssue(protocols::imu::hi91::ParseResult result)
+void Hi91ImuModule::ReportParseIssue(protocols::Hi91ParseResult result)
 {
 	++parse_error_count_;
 	if ((parse_error_count_ % 1000U) != 1U) {
@@ -221,4 +237,4 @@ void Hi91ImuModule::ReportParseIssue(protocols::imu::hi91::ParseResult result)
 		static_cast<unsigned int>(parse_error_count_));
 }
 
-}  // namespace modules::imu
+}  // namespace modules

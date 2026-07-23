@@ -12,7 +12,7 @@
 
 constexpr float kCelsiusToKelvin = 273.15f;
 
-namespace protocols::motors::dm {
+namespace protocols {
 
 namespace {
 
@@ -26,7 +26,7 @@ uint16_t FloatToUInt(float value, float min_value, float max_value, uint8_t bits
 
 }  // namespace
 
-int DecodeFeedback1To4(const uint8_t *data, uint8_t dlc, DmMotorFeedback1To4 *out)
+int DecodeDmFeedback1To4(const uint8_t *data, uint8_t dlc, DmMotorFeedback1To4 *out)
 {
 	if ((data == nullptr) || (out == nullptr) || (dlc < 8U)) {
 		return -EINVAL;
@@ -40,7 +40,7 @@ int DecodeFeedback1To4(const uint8_t *data, uint8_t dlc, DmMotorFeedback1To4 *ou
 	return 0;
 }
 
-int DecodeFeedbackNormal(const uint8_t *data, uint8_t dlc, DmMotorFeedbackNormal *out)
+int DecodeDmFeedbackNormal(const uint8_t *data, uint8_t dlc, DmMotorFeedbackNormal *out)
 {
 	if ((data == nullptr) || (out == nullptr) || (dlc < 8U)) {
 		return -EINVAL;
@@ -55,7 +55,28 @@ int DecodeFeedbackNormal(const uint8_t *data, uint8_t dlc, DmMotorFeedbackNormal
 	return 0;
 }
 
-int GetControlCommandFrame(DmControlCommand cmd, uint8_t out[8])
+float DecodeDmMitValue(uint16_t value, float minimum, float maximum, uint8_t bits)
+{
+	const float maximum_integer = static_cast<float>((1U << bits) - 1U);
+	return static_cast<float>(value) * (maximum - minimum) / maximum_integer + minimum;
+}
+
+float DmFeedbackPosition(const DmMotorFeedbackNormal &feedback, const DmMitRange &range)
+{
+	return DecodeDmMitValue(feedback.angle, range.p_min, range.p_max, 16U);
+}
+
+float DmFeedbackVelocity(const DmMotorFeedbackNormal &feedback, const DmMitRange &range)
+{
+	return DecodeDmMitValue(feedback.omega, range.v_min, range.v_max, 12U);
+}
+
+float DmFeedbackTorque(const DmMotorFeedbackNormal &feedback, const DmMitRange &range)
+{
+	return DecodeDmMitValue(feedback.torque, range.t_min, range.t_max, 12U);
+}
+
+int GetDmControlCommandFrame(DmControlCommand cmd, uint8_t out[8])
 {
 	if (out == nullptr) {
 		return -EINVAL;
@@ -85,7 +106,7 @@ int GetControlCommandFrame(DmControlCommand cmd, uint8_t out[8])
 	return 0;
 }
 
-int PackMitCommand(const DmMitCommand *cmd, const DmMitRange *range, uint8_t out[8])
+int PackDmMitCommand(const DmMitCommand *cmd, const DmMitRange *range, uint8_t out[8])
 {
 	if ((cmd == nullptr) || (range == nullptr) || (out == nullptr)) {
 		return -EINVAL;
@@ -108,7 +129,8 @@ int PackMitCommand(const DmMitCommand *cmd, const DmMitRange *range, uint8_t out
 	return 0;
 }
 
-int Pack1To4CurrentFrame(uint16_t motor_can_id, int16_t current_ma, uint8_t frame_payload[8])
+int PackDm1To4CurrentFrame(uint16_t motor_can_id, int16_t current_ma,
+			  uint8_t frame_payload[8])
 {
 	if (frame_payload == nullptr) {
 		return -EINVAL;
@@ -129,4 +151,4 @@ int Pack1To4CurrentFrame(uint16_t motor_can_id, int16_t current_ma, uint8_t fram
 	return 0;
 }
 
-}  // namespace protocols::motors::dm
+}  // namespace protocols

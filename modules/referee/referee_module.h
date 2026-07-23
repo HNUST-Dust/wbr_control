@@ -3,7 +3,7 @@
 #pragma once
 #include <zephyr/kernel.h>
 
-namespace modules::referee {
+namespace modules {
 
 class RefereeModule {
 public:
@@ -20,4 +20,4 @@ private:
 	uint32_t sequence_ = 0U;
 };
 
-}  // namespace modules::referee
+}  // namespace modules

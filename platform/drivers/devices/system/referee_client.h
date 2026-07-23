@@ -7,11 +7,11 @@
 #include <stdint.h>
 
 
-namespace platform::drivers::devices::system::referee_client {
+namespace platform {
 
-int Initialize();
-int FeedBytes(const uint8_t *data, size_t len);
+int InitializeRefereeClient();
+int FeedRefereeBytes(const uint8_t *data, size_t len);
 
-}  // namespace platform::drivers::devices::system::referee_client
+}  // namespace platform
 
 #endif /* RM_TEST_PLATFORM_DRIVERS_DEVICES_SYSTEM_REFEREE_CLIENT_H_ */

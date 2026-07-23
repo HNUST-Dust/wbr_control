@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace protocols::pc_link {
+namespace protocols {
 
 constexpr uint8_t kFrameSof = 0xa5U;
 
@@ -23,15 +23,15 @@ struct PcFrame {
 	uint16_t payload_len;
 };
 
-int EncodeFrame(uint16_t cmd_id,
+int EncodePcFrame(uint16_t cmd_id,
 		const uint8_t *payload,
 		size_t payload_len,
 		uint8_t *out,
 		size_t out_capacity,
 		size_t *out_len);
 
-int DecodeFrame(const uint8_t *frame, size_t frame_len, PcFrame *out);
+int DecodePcFrame(const uint8_t *frame, size_t frame_len, PcFrame *out);
 
-}  // namespace protocols::pc_link
+}  // namespace protocols
 
 #endif /* RM_TEST_APP_PROTOCOLS_PC_LINK_PC_LINK_H_ */

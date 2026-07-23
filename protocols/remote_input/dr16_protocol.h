@@ -6,9 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace protocols::remote_input::dr16 {
+namespace protocols {
 
-constexpr size_t kFrameLength = 18;
+constexpr size_t kDr16FrameLength = 18;
 
 struct Dr16Frame {
 	float right_stick_x;
@@ -21,8 +21,8 @@ struct Dr16Frame {
 	bool chassis_enable;
 };
 
-bool DecodeFrame(const uint8_t *data, size_t len, Dr16Frame *out);
+bool DecodeDr16Frame(const uint8_t *data, size_t len, Dr16Frame *out);
 
-}  // namespace protocols::remote_input::dr16
+}  // namespace protocols
 
 #endif /* RM_TEST_APP_PROTOCOLS_REMOTE_INPUT_DR16_PROTOCOL_H_ */

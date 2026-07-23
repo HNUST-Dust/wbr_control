@@ -2,7 +2,7 @@
 
 #include <protocols/remote_input/dr16_protocol.h>
 
-namespace protocols::remote_input::dr16 {
+namespace protocols {
 
 namespace {
 
@@ -15,9 +15,9 @@ int AbsI16(int16_t value)
 
 }  // namespace
 
-bool DecodeFrame(const uint8_t *data, size_t len, Dr16Frame *out)
+bool DecodeDr16Frame(const uint8_t *data, size_t len, Dr16Frame *out)
 {
-	if ((data == nullptr) || (out == nullptr) || (len < kFrameLength)) {
+	if ((data == nullptr) || (out == nullptr) || (len < kDr16FrameLength)) {
 		return false;
 	}
 
@@ -70,4 +70,4 @@ bool DecodeFrame(const uint8_t *data, size_t len, Dr16Frame *out)
 	return true;
 }
 
-}  // namespace protocols::remote_input::dr16
+}  // namespace protocols
