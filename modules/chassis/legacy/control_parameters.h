@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_CONTROL_PARAMETERS_H_
 #define WBR_CONTROL_CORE_CONTROL_PARAMETERS_H_
 
@@ -12,15 +13,15 @@ inline constexpr double kLengthCD = 0.116;
 inline constexpr double kLengthAD = 0.090;
 inline constexpr double kLengthAG = 0.210;
 inline constexpr double kLengthGH = 0.250;
-inline constexpr double kTargetHRadius = 0.34;
+inline constexpr double kTargetHRadius = 0.30347;
 inline constexpr double kJacobianStep = 1e-6;
 inline constexpr double kMinLegLength = 1e-4;
-inline constexpr double kMinTargetLegLength = 0.15;
+inline constexpr double kMinTargetLegLength = 0.15133;
 inline constexpr double kMaxTargetLegAngle = 0.6;
 
-inline constexpr double kLegLengthKp = 300.0;
-inline constexpr double kLegLengthKi = 400.0;//400
-inline constexpr double kLegLengthKd = 10.0;//20
+inline constexpr double kLegLengthKp = 600.0;
+inline constexpr double kLegLengthKi = 100.0;//400
+inline constexpr double kLegLengthKd = 120.0;//20
 inline constexpr double kLegRetractFeedforward = 10.0;
 inline constexpr double kLegRetractFeedforwardDeadband = 0.003;
 inline constexpr double kLegExtendVelocityFeedforward = 60.0;
@@ -30,9 +31,20 @@ inline constexpr double kLegForceLimit = 150.0;
 inline constexpr double kLegAngleKp = 10.0;
 inline constexpr double kLegAngleKd = 1.0;
 inline constexpr double kLegAngleTorqueLimit = 8.0;
+inline constexpr double kIndependentLegAngleHoldKp = 6.0;
+inline constexpr double kIndependentLegAngleHoldKd = 0.6;
+inline constexpr double kIndependentLegAngleHoldTorqueLimit = 5.0;
+inline constexpr double kWorldLegAngleKp = 12.0;
+inline constexpr double kWorldLegAngleKd = 2.0;
+inline constexpr double kWorldLegAngleTorqueLimit = 8.0;
+inline constexpr double kLegSplitHoldKp = 6.0;
+inline constexpr double kLegSplitHoldKd = 0.6;
+inline constexpr double kLegSplitHoldTorqueLimit = 4.0;
 inline constexpr double kJointTorqueLimit = 20.0;
 inline constexpr double kLegSpeedFilter = 0.2;
 inline constexpr double kStateSpeedFilter = 0.2;
+inline constexpr double kPitchRateFilterTimeConstant = 0.02;
+inline constexpr double kPitchRateControlLimit = 1.5;
 inline constexpr double kTargetLengthSlewRate = 0.15;
 inline constexpr double kTargetAngleSlewRate = 0.5;
 inline constexpr double kSupportFilterTimeConstant = 0.05;

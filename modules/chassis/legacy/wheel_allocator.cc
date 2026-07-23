@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #include "wheel_allocator.h"
 
 #include <cmath>
@@ -23,31 +24,31 @@ WheelAllocationOutput AllocateWheelTorque(const WheelAllocationInput& input) {
   }
   if (input.grounded[0] && !input.grounded[1]) {
     output.actuator_torque[0] = Clamp(
-        input.contact_state == WbrContactSafetyState::kSingleSupportFirst
-            ? input.balance_torque
-            : common_torque,
-        -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
-    output.applied_yaw_torque = 0.0;
-    return output;
-  }
-  if (!input.grounded[0] && input.grounded[1]) {
-    output.actuator_torque[1] = Clamp(
-        -(input.contact_state == WbrContactSafetyState::kSingleSupportSecond
+        -(input.contact_state == WbrContactSafetyState::kSingleSupportFirst
               ? input.balance_torque
               : common_torque),
         -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
     output.applied_yaw_torque = 0.0;
     return output;
   }
+  if (!input.grounded[0] && input.grounded[1]) {
+    output.actuator_torque[1] = Clamp(
+        input.contact_state == WbrContactSafetyState::kSingleSupportSecond
+            ? input.balance_torque
+            : common_torque,
+        -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
+    output.applied_yaw_torque = 0.0;
+    return output;
+  }
   if (input.contact_state == WbrContactSafetyState::kSingleSupportFirst) {
     output.actuator_torque[0] = Clamp(
-        input.balance_torque, -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
+        -input.balance_torque, -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
     output.applied_yaw_torque = 0.0;
     return output;
   }
   if (input.contact_state == WbrContactSafetyState::kSingleSupportSecond) {
     output.actuator_torque[1] = Clamp(
-        -input.balance_torque, -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
+        input.balance_torque, -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
     output.applied_yaw_torque = 0.0;
     return output;
   }
@@ -55,11 +56,14 @@ WheelAllocationOutput AllocateWheelTorque(const WheelAllocationInput& input) {
     output.applied_yaw_torque = 0.0;
     return output;
   }
+  // Direction probing established the chassis-forward raw-axis mapping as
+  // left negative and right positive.  Keep the yaw component equal on both
+  // mirrored motor axes, but map common balance torque with opposite signs.
   output.actuator_torque[0] = Clamp(
-      common_torque + differential_torque,
+      -common_torque + differential_torque,
       -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
   output.actuator_torque[1] = Clamp(
-      -common_torque + differential_torque,
+      common_torque + differential_torque,
       -kPerWheelTorqueLimit, kPerWheelTorqueLimit);
   return output;
 }

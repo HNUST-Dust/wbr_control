@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #include "robot_observer.h"
 
 #include <cmath>
@@ -9,6 +10,8 @@ namespace wbr::control {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
+constexpr int kLeftLegKinematicBranch = 1;
+constexpr int kRightLegKinematicBranch = -1;
 
 double WrapAngle(double angle) {
   return std::remainder(angle, 2.0 * kPi);
@@ -22,6 +25,13 @@ bool Fresh(bool valid, std::uint64_t timestamp_us, std::uint64_t now_us,
 
 int Index(MotorId id) {
   return static_cast<int>(id);
+}
+
+double FirstOrderAlpha(double dt, double time_constant) {
+  if (time_constant <= 0.0) {
+    return 1.0;
+  }
+  return v2::Clamp(dt / time_constant, 0.0, 1.0);
 }
 
 }  // namespace
@@ -51,23 +61,31 @@ ObservationResult RobotObserver::Update(
   const bool imu_fresh = Fresh(
       sample.imu.valid, sample.imu.timestamp_us, now_us,
       parameters.maximum_sample_age_us);
-  bool motors_fresh = true;
-  for (const MotorFeedback& motor : sample.motor) {
-    motors_fresh = motors_fresh && Fresh(
-        motor.valid, motor.timestamp_us, now_us,
+  bool leg_motors_fresh = true;
+  for (int motor = Index(MotorId::kLeftJointB);
+       motor <= Index(MotorId::kRightJointD); ++motor) {
+    leg_motors_fresh = leg_motors_fresh && Fresh(
+        sample.motor[motor].valid, sample.motor[motor].timestamp_us, now_us,
         parameters.maximum_sample_age_us);
   }
-  if (!imu_fresh || !motors_fresh) return result;
+  if (!imu_fresh || !leg_motors_fresh) return result;
 
   const double ax = sample.imu.acceleration[0];
   const double ay = sample.imu.acceleration[1];
   const double az = sample.imu.acceleration[2];
-  const double acceleration_norm = std::sqrt(ax * ax + ay * ay + az * az);
-  const bool accelerometer_trusted =
-      std::fabs(acceleration_norm - parameters.gravity) <=
-      parameters.acceleration_norm_tolerance;
-  const double accel_roll = std::atan2(ay, az);
-  const double accel_pitch = std::atan2(-ax, std::hypot(ay, az));
+  bool accelerometer_trusted = false;
+  double accel_roll = 0.0;
+  double accel_pitch = 0.0;
+  if (!sample.imu.attitude_valid) {
+    const double acceleration_norm = std::sqrt(ax * ax + ay * ay + az * az);
+    accelerometer_trusted =
+        std::fabs(acceleration_norm - parameters.gravity) <=
+        parameters.acceleration_norm_tolerance;
+    if (accelerometer_trusted) {
+      accel_roll = std::atan2(ay, az);
+      accel_pitch = std::atan2(-ax, std::hypot(ay, az));
+    }
+  }
 
   if (!initialized_) {
     if (sample.imu.attitude_valid) {
@@ -83,8 +101,8 @@ ObservationResult RobotObserver::Update(
   } else {
     roll_ = WrapAngle(roll_ + sample.imu.angular_velocity[0] * dt);
     pitch_ = WrapAngle(pitch_ + sample.imu.angular_velocity[1] * dt);
-    const double correction_alpha = 1.0 - std::exp(
-        -dt / parameters.attitude_correction_time_constant);
+    const double correction_alpha = FirstOrderAlpha(
+        dt, parameters.attitude_correction_time_constant);
     if (sample.imu.attitude_valid) {
       roll_ += correction_alpha * WrapAngle(sample.imu.roll - roll_);
       pitch_ += correction_alpha * WrapAngle(sample.imu.pitch - pitch_);
@@ -100,17 +118,28 @@ ObservationResult RobotObserver::Update(
   const MotorFeedback& right_d = sample.motor[Index(MotorId::kRightJointD)];
   result.input.leg_valid[0] = v2::ComputeLegKinematics(
       left_d.position, left_b.position, left_d.velocity, left_b.velocity,
-      1, result.input.leg[0]);
+      kLeftLegKinematicBranch, result.input.leg[0]);
   result.input.leg_valid[1] = v2::ComputeLegKinematics(
       right_d.position, right_b.position, right_d.velocity, right_b.velocity,
-      1, result.input.leg[1]);
+      kRightLegKinematicBranch, result.input.leg[1]);
 
   const double left_wheel_speed =
-      sample.motor[Index(MotorId::kLeftWheel)].velocity;
+      Fresh(sample.motor[Index(MotorId::kLeftWheel)].valid,
+            sample.motor[Index(MotorId::kLeftWheel)].timestamp_us, now_us,
+            parameters.maximum_sample_age_us)
+          ? sample.motor[Index(MotorId::kLeftWheel)].velocity
+          : 0.0;
   const double right_wheel_speed =
-      sample.motor[Index(MotorId::kRightWheel)].velocity;
+      Fresh(sample.motor[Index(MotorId::kRightWheel)].valid,
+            sample.motor[Index(MotorId::kRightWheel)].timestamp_us, now_us,
+            parameters.maximum_sample_age_us)
+          ? sample.motor[Index(MotorId::kRightWheel)].velocity
+          : 0.0;
+  // The wheel motors are mounted as mirrored axes.  The direction probe
+  // established that positive raw left-wheel speed is chassis-backward,
+  // while positive raw right-wheel speed is chassis-forward.
   const double wheel_odometry_speed = 0.5 * parameters.wheel_radius *
-      (left_wheel_speed + right_wheel_speed);
+      (-left_wheel_speed + right_wheel_speed);
   const double forward_acceleration =
       std::cos(pitch_) * ax + std::sin(pitch_) * az;
   if (!result.input.time_reset) {
@@ -118,8 +147,8 @@ ObservationResult RobotObserver::Update(
     const double minimum_contact = std::fmin(
         sample.contact.confidence[0], sample.contact.confidence[1]);
     if (minimum_contact >= parameters.contact_threshold) {
-      const double odometry_alpha = 1.0 - std::exp(
-          -dt / parameters.velocity_correction_time_constant);
+      const double odometry_alpha = FirstOrderAlpha(
+          dt, parameters.velocity_correction_time_constant);
       x_speed_ += odometry_alpha * (wheel_odometry_speed - x_speed_);
     }
     x_ += x_speed_ * dt;

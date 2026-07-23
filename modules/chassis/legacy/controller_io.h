@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_CONTROLLER_IO_H_
 #define WBR_CONTROL_CORE_CONTROLLER_IO_H_
 

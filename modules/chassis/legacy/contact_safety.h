@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_CONTACT_SAFETY_H_
 #define WBR_CONTROL_CORE_CONTACT_SAFETY_H_
 

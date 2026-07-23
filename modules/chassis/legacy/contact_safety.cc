@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #include "contact_safety.h"
 
 #include <cmath>

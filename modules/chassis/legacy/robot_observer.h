@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_ROBOT_OBSERVER_H_
 #define WBR_CONTROL_CORE_ROBOT_OBSERVER_H_
 
@@ -9,9 +10,9 @@
 namespace wbr::control {
 
 struct RobotParameters {
-  double total_mass = 8.18;
+  double total_mass = 10.1;
   double gravity = 9.80665;
-  double wheel_radius = 0.05;
+  double wheel_radius = 0.058;
   double attitude_correction_time_constant = 0.30;
   double velocity_correction_time_constant = 0.08;
   double acceleration_norm_tolerance = 3.0;

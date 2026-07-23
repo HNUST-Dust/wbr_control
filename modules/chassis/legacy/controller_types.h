@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_CONTROLLER_TYPES_H_
 #define WBR_CONTROL_CORE_CONTROLLER_TYPES_H_
 
@@ -22,9 +23,19 @@ struct WbrControllerV2Telemetry {
   double leg_angle_error[2] = {};
   double leg_angle_torque[2] = {};
   double requested_wheel_torque = 0.0;
+  double wheel_attitude_torque_contribution = 0.0;
+  double wheel_translation_torque_contribution = 0.0;
+  double filtered_pitch_rate = 0.0;
+  double world_leg_angle = 0.0;
+  double world_leg_angle_reference = 0.0;
+  double world_leg_angle_error = 0.0;
+  double world_leg_angle_torque = 0.0;
+  double leg_split_hold_error = 0.0;
+  double leg_split_hold_torque = 0.0;
   double requested_leg_angle_torque = 0.0;
   double applied_wheel_torque = 0.0;
   double applied_leg_angle_torque = 0.0;
+  double lqr_scale = 0.0;
   double yaw_rate = 0.0;
   double yaw_rate_error = 0.0;
   double yaw_authority_scale = 1.0;

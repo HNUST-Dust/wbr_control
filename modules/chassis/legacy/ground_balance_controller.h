@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #ifndef WBR_CONTROL_CORE_GROUND_BALANCE_CONTROLLER_H_
 #define WBR_CONTROL_CORE_GROUND_BALANCE_CONTROLLER_H_
 
@@ -49,6 +50,26 @@ class GroundBalanceController {
   GroundBalanceOutput Update(const GroundBalanceInput& input);
 
   void SetLqrEnabled(bool enabled) { lqr_enabled_ = enabled; }
+  void SetLqrScale(double scale) { lqr_scale_ = scale; }
+  void SetPitchOnlyWheelControl(bool enabled, double angle_scale_boost,
+                                double rate_scale_boost) {
+    pitch_only_wheel_control_ = enabled;
+    pitch_only_wheel_angle_scale_boost_ = angle_scale_boost;
+    pitch_only_wheel_rate_scale_boost_ = rate_scale_boost;
+  }
+  void SetLegAngleControlEnabled(bool enabled) {
+    leg_angle_control_enabled_ = enabled;
+  }
+  void SetIndependentLegAngleHoldEnabled(bool enabled) {
+    independent_leg_angle_hold_enabled_ = enabled;
+  }
+  void SetCommonLegLqrEnabled(bool enabled, double torque_limit) {
+    common_leg_lqr_enabled_ = enabled;
+    common_leg_lqr_torque_limit_ = torque_limit;
+  }
+  void SetWorldLegPoseControlEnabled(bool enabled) {
+    world_leg_pose_control_enabled_ = enabled;
+  }
   void SetYawEnabled(bool enabled) { yaw_enabled_ = enabled; }
   void SetVelocityCommand(double linear_velocity, double yaw_rate) {
     target_linear_velocity_ = linear_velocity;
@@ -61,6 +82,8 @@ class GroundBalanceController {
   double leg_speed_[2] = {};
   double leg_angle_speed_[2] = {};
   double filtered_yaw_speed_ = 0.0;
+  double filtered_pitch_speed_ = 0.0;
+  bool pitch_rate_filter_initialized_ = false;
   double filtered_yaw_acceleration_ = 0.0;
   double previous_yaw_speed_ = 0.0;
   double x_reference_ = 0.0;
@@ -79,6 +102,21 @@ class GroundBalanceController {
   bool command_initialized_ = false;
   bool lqr_initialized_ = false;
   bool lqr_enabled_ = true;
+  double lqr_scale_ = 1.0;
+  bool pitch_only_wheel_control_ = false;
+  double pitch_only_wheel_angle_scale_boost_ = 1.0;
+  double pitch_only_wheel_rate_scale_boost_ = 1.0;
+  bool leg_angle_control_enabled_ = true;
+  bool independent_leg_angle_hold_enabled_ = false;
+  bool independent_leg_angle_reference_initialized_ = false;
+  double independent_leg_angle_reference_[2] = {};
+  bool common_leg_lqr_enabled_ = false;
+  double common_leg_lqr_torque_limit_ = 4.0;
+  bool world_leg_pose_control_enabled_ = false;
+  bool world_leg_angle_reference_initialized_ = false;
+  double world_leg_angle_reference_ = 0.0;
+  bool leg_split_reference_initialized_ = false;
+  double leg_split_reference_ = 0.0;
   bool yaw_enabled_ = true;
   WbrContactSafetyState contact_safety_state_ =
       WbrContactSafetyState::kAirborne;

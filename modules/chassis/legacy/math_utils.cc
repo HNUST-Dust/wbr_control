@@ -1,3 +1,4 @@
+// Legacy controller stack; excluded from the firmware build.
 #include "math_utils.h"
 
 #include <cmath>
@@ -23,4 +24,3 @@ double RiseAuthority(double value, double hard_limit, double soft_limit) {
 }
 
 }  // namespace wbr::v2
-

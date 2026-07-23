@@ -1,7 +1,7 @@
 #ifndef WBR_CONTROL_CORE_LEG_KINEMATICS_H_
 #define WBR_CONTROL_CORE_LEG_KINEMATICS_H_
 
-namespace wbr::v2 {
+namespace modules {
 
 struct LegKinematics {
   double hx = 0.0;
@@ -13,26 +13,19 @@ struct LegKinematics {
   double jacobian[2][2] = {};
 };
 
-struct LegVmcOutput {
-  double axial_force = 0.0;
-  double joint_torque[2] = {};  // phi1, phi2
-};
-
 bool ForwardKinematics(double phi1, double phi2, int branch,
                        double& hx, double& hz);
+/* Solve the same five-bar geometry used by ForwardKinematics.  The caller
+ * supplies the current joint angles as the seed so the returned solution
+ * remains on the physical assembly branch already occupied by the leg. */
+bool InverseKinematics(double target_hx, double target_hz, int branch,
+                       double seed_phi1, double seed_phi2,
+                       double& phi1, double& phi2);
 bool NumericalJacobian(double phi1, double phi2, int branch,
                        double jacobian[2][2]);
 bool ComputeLegKinematics(double phi1, double phi2,
                           double dphi1, double dphi2, int branch,
                           LegKinematics& leg);
-LegVmcOutput ComputeLegVmc(const LegKinematics& leg,
-                           double target_leg_length,
-                           double support_feedforward,
-                           double integral_force,
-                           double leg_angle_torque,
-                           double filtered_leg_speed,
-                           double target_leg_length_rate);
-
-}  // namespace wbr::v2
+}  // namespace modules
 
 #endif  // WBR_CONTROL_CORE_LEG_KINEMATICS_H_
