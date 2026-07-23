@@ -9,7 +9,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 
-namespace channels::uart_raw_frame_queue {
+namespace channels {
 
 constexpr size_t kUartRawChunkSize = 32U;
 constexpr size_t kQueueDepth = 32U;
@@ -22,10 +22,8 @@ struct UartRawFrameMessage {
 
 extern struct ring_buf remote_input_ring_buf;
 extern struct k_sem remote_input_sem;
-extern struct k_msgq remote_input_uart_raw_msgq;
 extern struct k_msgq referee_uart_raw_msgq;
-extern struct k_msgq mavlink_uart_raw_msgq;
 
-} // namespace channels::uart_raw_frame_queue
+} // namespace channels
 
 #endif /* RM_TEST_APP_CHANNELS_UART_RAW_FRAME_QUEUE_H_ */
