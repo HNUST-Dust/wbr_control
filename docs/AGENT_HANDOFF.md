@@ -58,7 +58,7 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 - platform：board_identity
 
 条件构建：
-- UART dispatch：由 RM_TEST_RUNTIME_INIT_UART 控制
+- UART：由使用对应串口的模块独占管理，接收优先使用 UART async/DMA
 - CAN dispatch：由 RM_TEST_RUNTIME_INIT_CAN 控制
 - LittleFS service：由 RM_TEST_RUNTIME_INIT_LITTLEFS 或 RM_TEST_SHELL_CHASSIS_TUNING 控制
 - chassis tuning shell：由 RM_TEST_SHELL_CHASSIS_TUNING 控制
@@ -74,7 +74,6 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 - RM_TEST_SHELL_CHASSIS_TUNING
 
 runtime 初始化：
-- RM_TEST_RUNTIME_INIT_UART（depends on SERIAL）
 - RM_TEST_RUNTIME_INIT_CAN（depends on CAN）
 - RM_TEST_RUNTIME_INIT_LITTLEFS（depends on FILE_SYSTEM_LITTLEFS）
 
@@ -108,6 +107,12 @@ P2（演进）：
 - 已完成第一步：新增最小 smoke 回归脚本 `applications/rm_test/tools/smoke_regression.sh`（文档见 `applications/rm_test/docs/SMOKE_REGRESSION.md`）；后续仍需补齐行为一致性回放与实机时序测试。
 
 ## 7. 后续 agent 操作建议
+
+LQR 物理模型、增益重新计算、三次腿长拟合和固件同步的完整流程见：
+
+- `docs/LQR_GAIN_RECOMPUTATION.md`
+
+重新计算增益时必须先阅读该文档；不要把 `controller.m` 第 3 节的示例零数组当成正式 K 数据。
 
 1. 先看 CMake 与 Kconfig，再改业务代码
 - 当前工程功能由开关与条件编译驱动，先确认构建开关再动代码可减少返工。

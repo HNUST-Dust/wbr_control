@@ -113,10 +113,10 @@
 
 典型链路如下：
 
-1. `uart_dispatch` 收到 DR16 数据
+1. `remote_input_module` 通过独占 UART DMA 接收 DR16 数据
 2. `remote_input_module` 解析并发布 `remote_input_topic`
-3. `chassis_module`、`gimbal_module`、`arm_module` 分别订阅需要的输入
-4. 模块计算后发布 `chassis_command_topic`、`gimbal_command_topic`、`arm_command_topic`
+3. `chassis_module` 订阅需要的输入
+4. 模块计算后发布 `chassis_command_topic`
 5. 对应执行器封装把命令转换为 CAN/UART/PWM 输出
 
 ### 目录建议
@@ -171,7 +171,6 @@ applications/rm_test/
     drivers/
       communication/
         can_dispatch.*
-        uart_dispatch.*
         usb_session.*
     storage/
       filesystem/
@@ -205,7 +204,7 @@ applications/rm_test/
 对应关系建议如下：
 
 - `app_chassis.*` -> `modules/chassis/chassis_module.*`
-- `app_gimbal.*` -> `modules/gimbal/gimbal_module.*`
+- `app_gimbal.*` -> 当前旧实现已移除，后续按新需求重写
 - `app_gantry.*` -> `modules/gantry/gantry_module.*`
 - `app_arm.*` -> `modules/arm/arm_module.*`
 - `system_startup.*` -> 被 `bootstrap.*`、`module_manager.*`、`communication/*` 共同替代
