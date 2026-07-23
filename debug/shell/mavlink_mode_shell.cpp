@@ -114,8 +114,8 @@ void MavlinkRxThreadMain()
 			continue;
 		}
 
-		channels::uart_raw_frame_queue::UartRawFrameMessage frame = {};
-		if (channels::uart_raw_frame_queue::DequeueForMavlink(&frame) == 0) {
+		channels::UartRawFrameMessage frame = {};
+		if (channels::DequeueForMavlink(&frame) == 0) {
 			mavlink_message_t msg = {};
 			for (size_t i = 0U; i < frame.len; ++i) {
 				if (mavlink_parse_char(MAVLINK_COMM_0, frame.data[i], &msg, &g_mavlink_parse_status) != 0U) {
