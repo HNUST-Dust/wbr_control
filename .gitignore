@@ -1,3 +1,7 @@
 **/build/
 **/.DS_Store
 .cache/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
