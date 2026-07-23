@@ -21,19 +21,25 @@ public:
 
     bool read(T& out) const
     {
-        uint32_t before;
-        uint32_t after = 0;
-
-        do {
-            before = seq_.load(std::memory_order_acquire);
+        // A real-time reader must never spin forever waiting for a lower
+        // priority writer.  The writer is IRQ-protected on this single-core
+        // target, so contention is normally shorter than one attempt; retain
+        // a small retry budget for a writer that ran between the two loads.
+        constexpr uint32_t kMaximumAttempts = 3U;
+        for (uint32_t attempt = 0U; attempt < kMaximumAttempts; ++attempt) {
+            const uint32_t before = seq_.load(std::memory_order_acquire);
             if (before & 1U) {
                 continue;
             }
-            out = data_;
-            after = seq_.load(std::memory_order_acquire);
-        } while (before != after);
+            const T snapshot = data_;
+            const uint32_t after = seq_.load(std::memory_order_acquire);
+            if ((before == after) && ((after & 1U) == 0U)) {
+                out = snapshot;
+                return true;
+            }
+        }
 
-        return true;
+        return false;
     }
 
     uint32_t sequence() const
