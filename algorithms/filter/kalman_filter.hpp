@@ -19,74 +19,74 @@ typedef struct {
     float *pData;
 } mat;
 
-namespace alg::kf {
+namespace alg {
 
-using Mat = ::mat;
-using Status = int32_t;
+using MatrixView = ::mat;
+using MatrixStatus = int32_t;
 
-constexpr Status kStatusOk = 0;
-constexpr Status kStatusSizeMismatch = -3;
-constexpr Status kStatusArgError = -1;
+constexpr MatrixStatus kMatrixStatusOk = 0;
+constexpr MatrixStatus kMatrixStatusSizeMismatch = -3;
+constexpr MatrixStatus kMatrixStatusArgError = -1;
 
-inline void init(Mat &m, std::uint16_t rows, std::uint16_t cols, float *data)
+inline void InitializeMatrixView(MatrixView &m, std::uint16_t rows, std::uint16_t cols, float *data)
 {
     m.numRows = rows;
     m.numCols = cols;
     m.pData = data;
 }
 
-inline Status add(const Mat &a, const Mat &b, Mat &out)
+inline MatrixStatus AddMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
 {
     if (a.numRows != b.numRows || a.numCols != b.numCols ||
         out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kStatusSizeMismatch;
+        return kMatrixStatusSizeMismatch;
     }
 
     riscv_dsp_mat_add_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols);
-    return kStatusOk;
+    return kMatrixStatusOk;
 }
 
-inline Status sub(const Mat &a, const Mat &b, Mat &out)
+inline MatrixStatus SubtractMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
 {
     if (a.numRows != b.numRows || a.numCols != b.numCols ||
         out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kStatusSizeMismatch;
+        return kMatrixStatusSizeMismatch;
     }
 
     riscv_dsp_mat_sub_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols);
-    return kStatusOk;
+    return kMatrixStatusOk;
 }
 
-inline Status mul(const Mat &a, const Mat &b, Mat &out)
+inline MatrixStatus MultiplyMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
 {
     if (a.numCols != b.numRows || out.numRows != a.numRows || out.numCols != b.numCols) {
-        return kStatusSizeMismatch;
+        return kMatrixStatusSizeMismatch;
     }
 
     riscv_dsp_mat_mul_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols, b.numCols);
-    return kStatusOk;
+    return kMatrixStatusOk;
 }
 
-inline Status transpose(const Mat &a, Mat &out)
+inline MatrixStatus TransposeMatrix(const MatrixView &a, MatrixView &out)
 {
     if (out.numRows != a.numCols || out.numCols != a.numRows) {
-        return kStatusSizeMismatch;
+        return kMatrixStatusSizeMismatch;
     }
 
     riscv_dsp_mat_trans_f32(a.pData, out.pData, a.numRows, a.numCols);
-    return kStatusOk;
+    return kMatrixStatusOk;
 }
 
-inline Status inverse(const Mat &a, Mat &out)
+inline MatrixStatus InvertMatrix(const MatrixView &a, MatrixView &out)
 {
     if (a.numRows != a.numCols || out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kStatusSizeMismatch;
+        return kMatrixStatusSizeMismatch;
     }
 
     constexpr std::size_t kMaxElems = 64;
     const std::size_t elems = static_cast<std::size_t>(a.numRows) * a.numCols;
     if (elems > kMaxElems) {
-        return kStatusArgError;
+        return kMatrixStatusArgError;
     }
 
     float src_copy[kMaxElems] = {0.0f};
@@ -94,7 +94,7 @@ inline Status inverse(const Mat &a, Mat &out)
     return riscv_dsp_mat_inv_f32(src_copy, out.pData, a.numRows);
 }
 
-} // namespace alg::kf
+} // namespace alg
 
 namespace alg {
 
@@ -339,36 +339,36 @@ public:
 private:
     void InitMatrices_()
     {
-        kf::init(xhat_, XHAT, 1, xhat_data_.data());
-        kf::init(xhatminus_, XHAT, 1, xhatminus_data_.data());
+        InitializeMatrixView(xhat_, XHAT, 1, xhat_data_.data());
+        InitializeMatrixView(xhatminus_, XHAT, 1, xhatminus_data_.data());
         if constexpr (U > 0)
         {
-            kf::init(u_, U, 1, u_data_.data());
-            kf::init(b_, XHAT, U, b_data_.data());
+            InitializeMatrixView(u_, U, 1, u_data_.data());
+            InitializeMatrixView(b_, XHAT, U, b_data_.data());
         }
         else
         {
             static float dummy = 0.0f;
-            kf::init(u_, 0, 0, &dummy);
-            kf::init(b_, 0, 0, &dummy);
+            InitializeMatrixView(u_, 0, 0, &dummy);
+            InitializeMatrixView(b_, 0, 0, &dummy);
         }
-        kf::init(z_, Z, 1, z_data_.data());
+        InitializeMatrixView(z_, Z, 1, z_data_.data());
 
-        kf::init(p_, XHAT, XHAT, p_data_.data());
-        kf::init(pminus_, XHAT, XHAT, pminus_data_.data());
-        kf::init(f_, XHAT, XHAT, f_data_.data());
-        kf::init(ft_, XHAT, XHAT, ft_data_.data());
-        kf::init(h_, Z, XHAT, h_data_.data());
-        kf::init(ht_, XHAT, Z, ht_data_.data());
-        kf::init(q_, XHAT, XHAT, q_data_.data());
-        kf::init(r_, Z, Z, r_data_.data());
-        kf::init(k_, XHAT, Z, k_data_.data());
+        InitializeMatrixView(p_, XHAT, XHAT, p_data_.data());
+        InitializeMatrixView(pminus_, XHAT, XHAT, pminus_data_.data());
+        InitializeMatrixView(f_, XHAT, XHAT, f_data_.data());
+        InitializeMatrixView(ft_, XHAT, XHAT, ft_data_.data());
+        InitializeMatrixView(h_, Z, XHAT, h_data_.data());
+        InitializeMatrixView(ht_, XHAT, Z, ht_data_.data());
+        InitializeMatrixView(q_, XHAT, XHAT, q_data_.data());
+        InitializeMatrixView(r_, Z, Z, r_data_.data());
+        InitializeMatrixView(k_, XHAT, Z, k_data_.data());
 
-        kf::init(s_, XHAT, XHAT, s_data_.data());
-        kf::init(temp_matrix_, XHAT, XHAT, temp_matrix_data_.data());
-        kf::init(temp_matrix1_, XHAT, XHAT, temp_matrix_data1_.data());
-        kf::init(temp_vector_, XHAT, 1, temp_vector_data_.data());
-        kf::init(temp_vector1_, XHAT, 1, temp_vector_data1_.data());
+        InitializeMatrixView(s_, XHAT, XHAT, s_data_.data());
+        InitializeMatrixView(temp_matrix_, XHAT, XHAT, temp_matrix_data_.data());
+        InitializeMatrixView(temp_matrix1_, XHAT, XHAT, temp_matrix_data1_.data());
+        InitializeMatrixView(temp_vector_, XHAT, 1, temp_vector_data_.data());
+        InitializeMatrixView(temp_vector1_, XHAT, 1, temp_vector_data1_.data());
     }
 
     void Measure_()
@@ -394,15 +394,15 @@ private:
         {
             temp_vector_.numRows = XHAT;
             temp_vector_.numCols = 1;
-            mat_status_ = static_cast<int8_t>(kf::mul(f_, xhat_, temp_vector_));
+            mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, xhat_, temp_vector_));
             temp_vector1_.numRows = XHAT;
             temp_vector1_.numCols = 1;
-            mat_status_ = static_cast<int8_t>(kf::mul(b_, u_, temp_vector1_));
-            mat_status_ = static_cast<int8_t>(kf::add(temp_vector_, temp_vector1_, xhatminus_));
+            mat_status_ = static_cast<int8_t>(MultiplyMatrices(b_, u_, temp_vector1_));
+            mat_status_ = static_cast<int8_t>(AddMatrices(temp_vector_, temp_vector1_, xhatminus_));
         }
         else
         {
-            mat_status_ = static_cast<int8_t>(kf::mul(f_, xhat_, xhatminus_));
+            mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, xhat_, xhatminus_));
         }
     }
 
@@ -413,12 +413,12 @@ private:
             return;
         }
 
-        mat_status_ = static_cast<int8_t>(kf::transpose(f_, ft_));
-        mat_status_ = static_cast<int8_t>(kf::mul(f_, p_, pminus_));
+        mat_status_ = static_cast<int8_t>(TransposeMatrix(f_, ft_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, p_, pminus_));
         temp_matrix_.numRows = pminus_.numRows;
         temp_matrix_.numCols = ft_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::mul(pminus_, ft_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(kf::add(temp_matrix_, q_, pminus_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(pminus_, ft_, temp_matrix_));
+        mat_status_ = static_cast<int8_t>(AddMatrices(temp_matrix_, q_, pminus_));
     }
 
     void SetK_()
@@ -428,21 +428,21 @@ private:
             return;
         }
 
-        mat_status_ = static_cast<int8_t>(kf::transpose(h_, ht_));
+        mat_status_ = static_cast<int8_t>(TransposeMatrix(h_, ht_));
         temp_matrix_.numRows = h_.numRows;
         temp_matrix_.numCols = pminus_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::mul(h_, pminus_, temp_matrix_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(h_, pminus_, temp_matrix_));
         temp_matrix1_.numRows = temp_matrix_.numRows;
         temp_matrix1_.numCols = ht_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::mul(temp_matrix_, ht_, temp_matrix1_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, ht_, temp_matrix1_));
         s_.numRows = r_.numRows;
         s_.numCols = r_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::add(temp_matrix1_, r_, s_));
-        mat_status_ = static_cast<int8_t>(kf::inverse(s_, temp_matrix1_));
+        mat_status_ = static_cast<int8_t>(AddMatrices(temp_matrix1_, r_, s_));
+        mat_status_ = static_cast<int8_t>(InvertMatrix(s_, temp_matrix1_));
         temp_matrix_.numRows = pminus_.numRows;
         temp_matrix_.numCols = ht_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::mul(pminus_, ht_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(kf::mul(temp_matrix_, temp_matrix1_, k_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(pminus_, ht_, temp_matrix_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, temp_matrix1_, k_));
     }
 
     void XhatUpdate_()
@@ -454,14 +454,14 @@ private:
 
         temp_vector_.numRows = h_.numRows;
         temp_vector_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(kf::mul(h_, xhatminus_, temp_vector_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(h_, xhatminus_, temp_vector_));
         temp_vector1_.numRows = z_.numRows;
         temp_vector1_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(kf::sub(z_, temp_vector_, temp_vector1_));
+        mat_status_ = static_cast<int8_t>(SubtractMatrices(z_, temp_vector_, temp_vector1_));
         temp_vector_.numRows = k_.numRows;
         temp_vector_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(kf::mul(k_, temp_vector1_, temp_vector_));
-        mat_status_ = static_cast<int8_t>(kf::add(xhatminus_, temp_vector_, xhat_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(k_, temp_vector1_, temp_vector_));
+        mat_status_ = static_cast<int8_t>(AddMatrices(xhatminus_, temp_vector_, xhat_));
     }
 
     void PUpdate_()
@@ -475,9 +475,9 @@ private:
         temp_matrix_.numCols = h_.numCols;
         temp_matrix1_.numRows = temp_matrix_.numRows;
         temp_matrix1_.numCols = pminus_.numCols;
-        mat_status_ = static_cast<int8_t>(kf::mul(k_, h_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(kf::mul(temp_matrix_, pminus_, temp_matrix1_));
-        mat_status_ = static_cast<int8_t>(kf::sub(pminus_, temp_matrix1_, p_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(k_, h_, temp_matrix_));
+        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, pminus_, temp_matrix1_));
+        mat_status_ = static_cast<int8_t>(SubtractMatrices(pminus_, temp_matrix1_, p_));
     }
 
     std::uint8_t use_auto_adjustment_ = 0;

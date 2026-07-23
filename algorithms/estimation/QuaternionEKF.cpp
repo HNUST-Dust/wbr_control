@@ -159,17 +159,17 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
     auto &ins = InsFromKf(&kf);
     volatile float q0, q1, q2, q3;
 
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::transpose(kf.H(), kf.HT())); // z|x => x|z
+    kf.MatStatus() = static_cast<int8_t>(alg::TransposeMatrix(kf.H(), kf.HT())); // z|x => x|z
     kf.TempMatrix().numRows = kf.H().numRows;
     kf.TempMatrix().numCols = kf.Pminus().numCols;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.H(), kf.Pminus(), kf.TempMatrix()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.H(), kf.Pminus(), kf.TempMatrix()));
     kf.TempMatrix1().numRows = kf.TempMatrix().numRows;
     kf.TempMatrix1().numCols = kf.HT().numCols;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.TempMatrix(), kf.HT(), kf.TempMatrix1()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.TempMatrix(), kf.HT(), kf.TempMatrix1()));
     kf.S().numRows = kf.R().numRows;
     kf.S().numCols = kf.R().numCols;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::add(kf.TempMatrix1(), kf.R(), kf.S()));
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::inverse(kf.S(), kf.TempMatrix1()));
+    kf.MatStatus() = static_cast<int8_t>(alg::AddMatrices(kf.TempMatrix1(), kf.R(), kf.S()));
+    kf.MatStatus() = static_cast<int8_t>(alg::InvertMatrix(kf.S(), kf.TempMatrix1()));
 
     q0 = kf.XhatMinusData()[0];
     q1 = kf.XhatMinusData()[1];
@@ -192,16 +192,16 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
     // 利用加速度计数据修正
     kf.TempVector1().numRows = kf.z().numRows;
     kf.TempVector1().numCols = 1;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::sub(kf.z(), kf.TempVector(), kf.TempVector1()));
+    kf.MatStatus() = static_cast<int8_t>(alg::SubtractMatrices(kf.z(), kf.TempVector(), kf.TempVector1()));
 
     // chi-square test,卡方检验
     kf.TempMatrix().numRows = kf.TempVector1().numRows;
     kf.TempMatrix().numCols = 1;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.TempMatrix1(), kf.TempVector1(), kf.TempMatrix()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.TempMatrix1(), kf.TempVector1(), kf.TempMatrix()));
     kf.TempVector().numRows = 1;
     kf.TempVector().numCols = kf.TempVector1().numRows;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::transpose(kf.TempVector1(), kf.TempVector()));
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.TempVector(), kf.TempMatrix(), ins.chi_square));
+    kf.MatStatus() = static_cast<int8_t>(alg::TransposeMatrix(kf.TempVector1(), kf.TempVector()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.TempVector(), kf.TempMatrix(), ins.chi_square));
     // rk is small,filter converged/converging
     if (ins.chi_square_data[0] < 0.5f * ins.chi_square_test_threshold)
     {
@@ -254,8 +254,8 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
     // cal kf-gain K
     kf.TempMatrix().numRows = kf.Pminus().numRows;
     kf.TempMatrix().numCols = kf.HT().numCols;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.Pminus(), kf.HT(), kf.TempMatrix()));
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.TempMatrix(), kf.TempMatrix1(), kf.K()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.Pminus(), kf.HT(), kf.TempMatrix()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.TempMatrix(), kf.TempMatrix1(), kf.K()));
 
     // implement adaptive
     for (uint8_t i = 0; i < kf.K().numRows * kf.K().numCols; i++)
@@ -272,7 +272,7 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
 
     kf.TempVector().numRows = kf.K().numRows;
     kf.TempVector().numCols = 1;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::mul(kf.K(), kf.TempVector1(), kf.TempVector()));
+    kf.MatStatus() = static_cast<int8_t>(alg::MultiplyMatrices(kf.K(), kf.TempVector1(), kf.TempVector()));
 
     // 零漂修正限幅,一般不会有过大的漂移
     if (ins.converge_flag)
@@ -292,7 +292,7 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
 
     // 不修正yaw轴数据
     kf.TempVector().pData[3] = 0;
-    kf.MatStatus() = static_cast<int8_t>(alg::kf::add(kf.xhatminus(), kf.TempVector(), kf.xhat()));
+    kf.MatStatus() = static_cast<int8_t>(alg::AddMatrices(kf.xhatminus(), kf.TempVector(), kf.xhat()));
 }
 
 /**
@@ -337,7 +337,7 @@ void QuaternionEkf::Init(const Params &params)
     ins_.lambda = 1.f / lambda; //倒数
 
     // 初始化矩阵维度信息（静态尺寸 KalmanFilter<6,0,3>）
-    alg::kf::init(ins_.chi_square, 1, 1, (float *)ins_.chi_square_data);
+    alg::InitializeMatrixView(ins_.chi_square, 1, 1, (float *)ins_.chi_square_data);
 
     // 姿态初始化
     ins_.imu_quaternion_ekf.XhatData()[0] = 1;
