@@ -6,9 +6,11 @@ list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hi91_imu_test)
 
-target_include_directories(app PRIVATE ../..)
+target_include_directories(app PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../../src
+)
 
 target_sources(app PRIVATE
   src/main.cpp
-  ../../protocols/imu/hi91_protocol.cpp
+  ../../src/protocols/imu/hi91_protocol.cpp
 )

@@ -16,11 +16,12 @@
 
 #include <channels/oscilloscope_sample.hpp>
 #include <channels/remote_input_state.hpp>
+#include <protocols/motors/dji_motor_protocol.h>
 #include <modules/oscilloscope/oscilloscope_module.h>
 #include <modules/remote_input/remote_input_module.h>
-#include <protocols/motors/dji_motor_protocol.h>
 
-namespace {
+namespace
+{
 
 constexpr uint8_t kLeftBus = 0U;
 constexpr uint8_t kRightBus = 1U;
@@ -44,13 +45,13 @@ struct TestStep {
 };
 
 constexpr TestStep kSteps[] = {
-	{0, kInitialSettleMs},
-	{200, kPulseMs}, {0, kZeroMs}, {-200, kPulseMs}, {0, kZeroMs},
-	{400, kPulseMs}, {0, kZeroMs}, {-400, kPulseMs}, {0, kZeroMs},
-	{800, kPulseMs}, {0, kZeroMs}, {-800, kPulseMs}, {0, kZeroMs},
-	{1200, kPulseMs}, {0, kZeroMs}, {-1200, kPulseMs}, {0, kZeroMs},
-	{1600, kPulseMs}, {0, kZeroMs}, {-1600, kPulseMs}, {0, kZeroMs},
-	{2000, kPulseMs}, {0, kZeroMs}, {-2000, kPulseMs}, {0, kZeroMs},
+	{0, kInitialSettleMs}, {200, kPulseMs},  {0, kZeroMs}, {-200, kPulseMs},
+	{0, kZeroMs},          {400, kPulseMs},  {0, kZeroMs}, {-400, kPulseMs},
+	{0, kZeroMs},          {800, kPulseMs},  {0, kZeroMs}, {-800, kPulseMs},
+	{0, kZeroMs},          {1200, kPulseMs}, {0, kZeroMs}, {-1200, kPulseMs},
+	{0, kZeroMs},          {1600, kPulseMs}, {0, kZeroMs}, {-1600, kPulseMs},
+	{0, kZeroMs},          {2000, kPulseMs}, {0, kZeroMs}, {-2000, kPulseMs},
+	{0, kZeroMs},
 };
 
 static_assert(kMaximumCommand <= 2048,
@@ -76,9 +77,6 @@ const struct device *g_can_devices[2] = {};
 BusContext g_bus_contexts[2] = {{kLeftBus}, {kRightBus}};
 FeedbackSlot g_feedback[2];
 struct k_spinlock g_feedback_lock;
-
-modules::RemoteInputModule g_remote_input_module;
-modules::OscilloscopeModule g_oscilloscope_module;
 
 uint32_t g_oscilloscope_sequence = 0U;
 uint32_t g_last_remote_sequence = 0U;
@@ -116,8 +114,7 @@ void OnCanRx(const struct device *dev, struct can_frame *frame, void *user_data)
 	}
 
 	protocols::DjiMotorFeedback decoded = {};
-	if (protocols::DecodeDjiFeedback(
-		    frame->data, frame->dlc, &decoded) != 0) {
+	if (protocols::DecodeDjiFeedback(frame->data, frame->dlc, &decoded) != 0) {
 		return;
 	}
 
@@ -149,8 +146,7 @@ int SendCurrent(uint8_t bus, int16_t command)
 	}
 
 	uint8_t payload[8] = {};
-	const int rc = protocols::WriteDjiCurrentCommandToSlot(
-		kWheelCanId, command, payload);
+	const int rc = protocols::WriteDjiCurrentCommandToSlot(kWheelCanId, command, payload);
 	if (rc != 0) {
 		return rc;
 	}
@@ -176,8 +172,7 @@ int ConfigureCan()
 {
 	for (uint8_t bus = kLeftBus; bus <= kRightBus; ++bus) {
 		g_can_devices[bus] = CanDeviceForBus(bus);
-		if ((g_can_devices[bus] == nullptr) ||
-		    !device_is_ready(g_can_devices[bus])) {
+		if ((g_can_devices[bus] == nullptr) || !device_is_ready(g_can_devices[bus])) {
 			return -ENODEV;
 		}
 
@@ -185,8 +180,8 @@ int ConfigureCan()
 		filter.flags = 0U;
 		filter.id = kWheelCanId;
 		filter.mask = CAN_STD_ID_MASK;
-		if (can_add_rx_filter(g_can_devices[bus], OnCanRx,
-				      &g_bus_contexts[bus], &filter) < 0) {
+		if (can_add_rx_filter(g_can_devices[bus], OnCanRx, &g_bus_contexts[bus], &filter) <
+		    0) {
 			return -EIO;
 		}
 
@@ -203,13 +198,11 @@ bool ReadFreshRemote(uint32_t now_ms, channels::RemoteInputState &state)
 	if (!latest_remote_state.read(state)) {
 		return false;
 	}
-	if ((state.sequence != 0U) &&
-	    (state.sequence != g_last_remote_sequence)) {
+	if ((state.sequence != 0U) && (state.sequence != g_last_remote_sequence)) {
 		g_last_remote_sequence = state.sequence;
 		g_last_remote_update_ms = now_ms;
 	}
-	return (state.sequence != 0U) &&
-	       ((now_ms - g_last_remote_update_ms) <= kRemoteTimeoutMs);
+	return (state.sequence != 0U) && ((now_ms - g_last_remote_update_ms) <= kRemoteTimeoutMs);
 }
 
 void ResetAccelerationEstimator()
@@ -264,18 +257,14 @@ void AdvanceStep(uint32_t now_ms)
 
 bool StepMayAdvance(const FeedbackSnapshot &feedback, uint32_t now_ms)
 {
-	if ((now_ms - g_step_started_ms) <
-	    kSteps[g_step_index].duration_ms) {
+	if ((now_ms - g_step_started_ms) < kSteps[g_step_index].duration_ms) {
 		return false;
 	}
 
 	const bool next_step_is_nonzero =
-		(g_step_index + 1U < std::size(kSteps)) &&
-		(kSteps[g_step_index + 1U].command != 0);
-	if ((kSteps[g_step_index].command == 0) &&
-	    next_step_is_nonzero &&
-	    (std::abs(static_cast<int>(feedback.value.omega)) >
-	     kSafeReverseMotorRpm)) {
+		(g_step_index + 1U < std::size(kSteps)) && (kSteps[g_step_index + 1U].command != 0);
+	if ((kSteps[g_step_index].command == 0) && next_step_is_nonzero &&
+	    (std::abs(static_cast<int>(feedback.value.omega)) > kSafeReverseMotorRpm)) {
 		return false;
 	}
 	return true;
@@ -293,20 +282,17 @@ float StageValue()
 	return static_cast<float>(base + static_cast<uint32_t>(g_step_index));
 }
 
-void PublishOscilloscope(const FeedbackSnapshot &feedback,
-			 double acceleration_rad_s2)
+void PublishOscilloscope(const FeedbackSnapshot &feedback, double acceleration_rad_s2)
 {
 	channels::OscilloscopeSample sample = {};
 	sample.sequence = ++g_oscilloscope_sequence;
 	sample.uptime_ms = k_uptime_get_32();
 	sample.channel_count = 6U;
 	sample.value[0] = static_cast<float>(g_command);
-	sample.value[1] =
-		static_cast<float>(feedback.value.current);
-	sample.value[2] =
-		static_cast<float>(feedback.value.omega);
-	sample.value[3] = static_cast<float>(
-		static_cast<double>(feedback.value.omega) / kReductionRatio);
+	sample.value[1] = static_cast<float>(feedback.value.current);
+	sample.value[2] = static_cast<float>(feedback.value.omega);
+	sample.value[3] =
+		static_cast<float>(static_cast<double>(feedback.value.omega) / kReductionRatio);
 	sample.value[4] = static_cast<float>(acceleration_rad_s2);
 	sample.value[5] = StageValue();
 	channels::latest_oscilloscope_sample.write(sample);
@@ -314,28 +300,22 @@ void PublishOscilloscope(const FeedbackSnapshot &feedback,
 
 double UpdateAcceleration(const FeedbackSnapshot &feedback)
 {
-	if ((feedback.sequence == 0U) ||
-	    (feedback.timestamp_ms == g_previous_speed_timestamp_ms)) {
+	if ((feedback.sequence == 0U) || (feedback.timestamp_ms == g_previous_speed_timestamp_ms)) {
 		return g_filtered_acceleration_rad_s2;
 	}
 
 	const double output_speed_rad_s =
-		static_cast<double>(feedback.value.omega) *
-		kRpmToRadPerSec / kReductionRatio;
+		static_cast<double>(feedback.value.omega) * kRpmToRadPerSec / kReductionRatio;
 	if (g_previous_speed_timestamp_ms != 0U) {
-		const uint32_t elapsed_ms =
-			feedback.timestamp_ms - g_previous_speed_timestamp_ms;
+		const uint32_t elapsed_ms = feedback.timestamp_ms - g_previous_speed_timestamp_ms;
 		if ((elapsed_ms > 0U) && (elapsed_ms <= kFeedbackTimeoutMs)) {
 			const double dt = static_cast<double>(elapsed_ms) / 1000.0;
 			const double raw_acceleration =
-				(output_speed_rad_s -
-				 g_previous_speed_rad_s) / dt;
+				(output_speed_rad_s - g_previous_speed_rad_s) / dt;
 			const double alpha =
-				1.0 - std::exp(-dt /
-					kAccelerationFilterTimeConstantSec);
+				1.0 - std::exp(-dt / kAccelerationFilterTimeConstantSec);
 			g_filtered_acceleration_rad_s2 +=
-				alpha * (raw_acceleration -
-					 g_filtered_acceleration_rad_s2);
+				alpha * (raw_acceleration - g_filtered_acceleration_rad_s2);
 		}
 	}
 	g_previous_speed_rad_s = output_speed_rad_s;
@@ -375,9 +355,8 @@ void RunControlIteration()
 	}
 
 	FeedbackSnapshot feedback = ReadFeedback(g_active_bus);
-	const bool feedback_fresh =
-		(feedback.sequence != 0U) &&
-		((now_ms - feedback.timestamp_ms) <= kFeedbackTimeoutMs);
+	const bool feedback_fresh = (feedback.sequence != 0U) &&
+				    ((now_ms - feedback.timestamp_ms) <= kFeedbackTimeoutMs);
 	if (!feedback_fresh) {
 		StopRun();
 		PublishOscilloscope(feedback, 0.0);
@@ -393,12 +372,10 @@ void RunControlIteration()
 		return;
 	}
 
-	g_command = std::clamp(
-		kSteps[g_step_index].command,
-		static_cast<int16_t>(-kMaximumCommand), kMaximumCommand);
+	g_command = std::clamp(kSteps[g_step_index].command, static_cast<int16_t>(-kMaximumCommand),
+			       kMaximumCommand);
 	const int active_send_rc = SendCurrent(g_active_bus, g_command);
-	const int idle_send_rc = SendCurrent(
-		g_active_bus == kLeftBus ? kRightBus : kLeftBus, 0);
+	const int idle_send_rc = SendCurrent(g_active_bus == kLeftBus ? kRightBus : kLeftBus, 0);
 	if ((active_send_rc != 0) || (idle_send_rc != 0)) {
 		StopRun();
 		PublishOscilloscope(feedback, 0.0);
@@ -410,7 +387,7 @@ void RunControlIteration()
 	PublishOscilloscope(feedback, acceleration);
 }
 
-}  // namespace
+} // namespace
 
 int main()
 {
@@ -420,22 +397,15 @@ int main()
 		return rc;
 	}
 
-	rc = g_remote_input_module.Initialize();
+	static modules::RemoteInputModule remote_input_module;
+	rc = remote_input_module.Start();
 	if (rc != 0) {
 		SendAllZero();
 		return rc;
 	}
-	rc = g_oscilloscope_module.Initialize();
-	if (rc != 0) {
-		SendAllZero();
-		return rc;
-	}
-	rc = g_remote_input_module.Start();
-	if (rc != 0) {
-		SendAllZero();
-		return rc;
-	}
-	rc = g_oscilloscope_module.Start();
+
+	static modules::OscilloscopeModule oscilloscope_module;
+	rc = oscilloscope_module.Start();
 	if (rc != 0) {
 		SendAllZero();
 		return rc;

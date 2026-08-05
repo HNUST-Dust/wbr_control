@@ -6,10 +6,12 @@ list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(leg_feedforward_test)
 
-target_include_directories(app PRIVATE ../..)
+target_include_directories(app PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../../src
+)
 
 target_sources(app PRIVATE
   src/main.cpp
-  ../../protocols/motors/dm_motor_protocol.cpp
-  ../../modules/chassis/leg_kinematics.cc
+  ../../src/protocols/motors/dm_motor_protocol.cpp
+  ../../src/modules/chassis/leg_kinematics.cc
 )

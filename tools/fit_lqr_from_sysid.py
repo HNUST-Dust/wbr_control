@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Identify per-leg-length LQR gains from physical sysid logs.
 
-Input CSV is produced by test/lqr_gain_sample_test after filtering out the
-leading "lqr_sysid_csv," prefix. The script fits, for each leg-length point:
+Input CSV uses the legacy ``lqr_sysid_csv`` log format. After filtering out
+the leading prefix, the script fits, for each leg-length point:
 
     x[k+1] = A x[k] + B u[k] + c
 
