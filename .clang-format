@@ -1,0 +1,14 @@
+# 与 Zephyr 工程保持一致的核心 C/C++ 格式规则。
+BasedOnStyle: LLVM
+AccessModifierOffset: -8
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Linux
+ColumnLimit: 100
+ContinuationIndentWidth: 8
+IndentWidth: 8
+SortIncludes: Never
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+UseTab: ForContinuationAndIndentation
