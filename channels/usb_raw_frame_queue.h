@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef RM_TEST_APP_CHANNELS_USB_RAW_FRAME_QUEUE_H_
-#define RM_TEST_APP_CHANNELS_USB_RAW_FRAME_QUEUE_H_
+#ifndef WBR_CONTROL_CHANNELS_USB_RAW_FRAME_QUEUE_H_
+#define WBR_CONTROL_CHANNELS_USB_RAW_FRAME_QUEUE_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -20,4 +20,4 @@ int DequeueForCdcAcm(UsbRawFrameMessage *frame, int32_t timeout_ms);
 
 }  // namespace channels
 
-#endif /* RM_TEST_APP_CHANNELS_USB_RAW_FRAME_QUEUE_H_ */
+#endif /* WBR_CONTROL_CHANNELS_USB_RAW_FRAME_QUEUE_H_ */

@@ -5,7 +5,7 @@ This is a candidate generator, not an automatic firmware writer.  It uses the
 same physical model and state/input conventions as
 ``derive_physical_lqr_schedule.py``:
 
-    x = [theta, theta_rate, position, speed, pitch, pitch_rate]
+    x = [theta, theta_rate, body_position, body_speed, pitch, pitch_rate]
     u = [left/right total wheel torque, left/right total leg posture torque]
 
 Every candidate is evaluated at the short, middle, and long CAD leg lengths.
@@ -18,11 +18,11 @@ The physical model is only the first stage of the workflow.  Before trusting
 the ranking on hardware, identify/validate A and B with CSV data containing:
 
     timestamp, leg length,
-    theta, theta_rate, x, x_rate, pitch, pitch_rate,
+    theta, theta_rate, body_position, body_speed, pitch, pitch_rate,
     total wheel torque actually sent, total leg posture torque actually sent.
 
-The existing ``test/lqr_gain_sample_test`` logger and
-``tools/fit_lqr_from_sysid.py`` already use this state/input convention.
+Legacy ``lqr_sysid_csv`` logs consumed by ``tools/fit_lqr_from_sysid.py`` use
+this state/input convention.
 """
 
 from __future__ import annotations

@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef RM_TEST_PLATFORM_BOARD_IDENTITY_H_
-#define RM_TEST_PLATFORM_BOARD_IDENTITY_H_
+#ifndef WBR_CONTROL_PLATFORM_BOARD_IDENTITY_H_
+#define WBR_CONTROL_PLATFORM_BOARD_IDENTITY_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,4 +15,4 @@ const char *board_identity_name(void);
 }
 #endif
 
-#endif /* RM_TEST_PLATFORM_BOARD_IDENTITY_H_ */
+#endif /* WBR_CONTROL_PLATFORM_BOARD_IDENTITY_H_ */

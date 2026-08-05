@@ -2,5 +2,6 @@ if(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS OR CONFIG_RM_TEST_SHELL_CHASSIS_TUNING)
   file(GLOB_RECURSE RM_TEST_STORAGE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/filesystem/littlefs_service.cpp
   )
-  target_sources(app PRIVATE ${RM_TEST_STORAGE_SOURCES})
+  target_sources(wbr_platform PRIVATE ${RM_TEST_STORAGE_SOURCES})
+  target_link_libraries(wbr_platform PRIVATE LITTLEFS)
 endif()

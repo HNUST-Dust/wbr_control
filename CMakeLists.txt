@@ -17,18 +17,17 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wbr_control)
 
 target_include_directories(app PRIVATE
-  .
-  algorithms
-  ${HPM_SDK_DIR}/middleware/hpm_math/nds_dsp
+  ${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/src
 )
 
-if(CONFIG_RM_TEST_SHELL_MAVLINK_CONTROL)
-  target_link_libraries(app PRIVATE mavlink)
+if(CONFIG_CPU_HAS_FPU_DOUBLE_PRECISION)
+  set(HPM_DSP_LIBRARY libdspd.a)
+elseif(CONFIG_FPU)
+  set(HPM_DSP_LIBRARY libdspf.a)
+else()
+  set(HPM_DSP_LIBRARY libdsp.a)
 endif()
-
-target_link_libraries(app PRIVATE
-  ${HPM_SDK_DIR}/middleware/hpm_math/nds_dsp/gcc/libdsp.a
-)
 
 if(CONFIG_CHERRYUSB)
   set(CHERRYUSB_CONFIG_DIR ${HPM_ZEPHYR_DIR}/samples/cherryusb/config)
@@ -40,9 +39,26 @@ target_sources(app PRIVATE
   src/main.cpp
 )
 
-add_subdirectory(modules)
-add_subdirectory(algorithms)
+# 模块仅由 main 线程顺序构造，关闭局部静态对象的线程安全初始化守卫。
+target_compile_options(app PRIVATE
+  -fno-threadsafe-statics
+)
+
+add_subdirectory(src/algorithms)
 add_subdirectory(channels)
-add_subdirectory(protocols)
-add_subdirectory(debug)
+add_subdirectory(src/protocols)
+add_subdirectory(src/scheduling)
 add_subdirectory(platform)
+add_subdirectory(src/modules)
+add_subdirectory(debug)
+
+# 应用入口只直接依赖模块、通道和平台；算法与协议由模块目标自行声明。
+target_link_libraries(app PRIVATE
+  wbr_channels
+  wbr_modules
+  wbr_platform
+)
+
+if(TARGET wbr_debug)
+  target_link_libraries(app PRIVATE wbr_debug)
+endif()

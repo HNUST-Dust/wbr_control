@@ -11,8 +11,7 @@ namespace channels {
 
 enum BootPhase : uint8_t {
 	kBooting = 0,
-	kModulesInitialized = 1,
-	kRunning = 2,
+	kRunning = 1,
 };
 
 struct SystemStatusMessage {

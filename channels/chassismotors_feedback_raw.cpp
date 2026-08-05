@@ -6,8 +6,7 @@
 
 SeqlockValue<ChassisMotorFeedbackRawFrame> left_wheel_feedback_raw;
 SeqlockValue<ChassisMotorFeedbackRawFrame> right_wheel_feedback_raw;
-SeqlockValue<ChassisMotorFeedbackRawFrame> left_B_motor_feedback_raw;
-SeqlockValue<ChassisMotorFeedbackRawFrame> left_D_motor_feedback_raw;
-SeqlockValue<ChassisMotorFeedbackRawFrame> right_B_motor_feedback_raw;
-SeqlockValue<ChassisMotorFeedbackRawFrame> right_D_motor_feedback_raw;
-
+SeqlockValue<ChassisMotorFeedbackRawFrame> left_b_motor_feedback_raw;
+SeqlockValue<ChassisMotorFeedbackRawFrame> left_d_motor_feedback_raw;
+SeqlockValue<ChassisMotorFeedbackRawFrame> right_b_motor_feedback_raw;
+SeqlockValue<ChassisMotorFeedbackRawFrame> right_d_motor_feedback_raw;

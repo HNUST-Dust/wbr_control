@@ -22,11 +22,12 @@
 
 | 层级 | 职责 |
 |------|------|
-| `src/` | Zephyr 入口，`main()` 完成启动编排 |
-| `modules/` | 业务模块（remote_input、chassis 等）与模块线程辅助 |
-| `services/` | 调参等领域服务 |
+| `src/main.cpp` | Zephyr 入口，`main()` 完成启动编排 |
+| `src/modules/` | 业务模块（remote_input、chassis 等）与 ModuleBase |
+| `src/algorithms/` | 可复用算法实现 |
+| `src/protocols/` | 电机、遥控和遥测协议实现 |
+| 各组件所属目录中的头文件 | 仓库内部接口，头文件跟随模块或库 |
 | `channels/` | zbus 消息主题定义 |
-| `protocols/` | 电机协议（DJI、DM、Cubemars） |
 | `platform/` | 板级、驱动、存储适配 |
 | `debug/shell/` | Shell 调试命令 |
 

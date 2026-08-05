@@ -2,14 +2,14 @@ if(CONFIG_RM_TEST_RUNTIME_INIT_CAN)
   file(GLOB_RECURSE RM_TEST_CAN_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/communication/can_dispatch.cpp
   )
-  target_sources(app PRIVATE ${RM_TEST_CAN_SOURCES})
+  target_sources(wbr_platform PRIVATE ${RM_TEST_CAN_SOURCES})
 endif()
 
 if(CONFIG_RM_TEST_RUNTIME_INIT_USB)
   file(GLOB_RECURSE RM_TEST_USB_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/communication/usb_session.cpp
   )
-  target_sources(app PRIVATE ${RM_TEST_USB_SOURCES})
+  target_sources(wbr_platform PRIVATE ${RM_TEST_USB_SOURCES})
 endif()
 
 file(GLOB_RECURSE RM_TEST_DEVICE_SOURCES CONFIGURE_DEPENDS
@@ -18,4 +18,4 @@ file(GLOB_RECURSE RM_TEST_DEVICE_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/devices/*.cpp
 )
 
-target_sources(app PRIVATE ${RM_TEST_DEVICE_SOURCES})
+target_sources(wbr_platform PRIVATE ${RM_TEST_DEVICE_SOURCES})

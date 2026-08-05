@@ -3,6 +3,7 @@
  */
 
 #pragma once
+
 #include <cstdint>
 
 namespace platform {
@@ -27,20 +28,28 @@ struct CanBusHealth {
 
 struct CanTxSlotStats {
 	uint32_t submitted_count = 0U;
-	// Frames accepted into the CAN driver's transmit queue.
 	uint32_t enqueued_count = 0U;
-	// Frames whose CAN transmit callback completed without an error.
 	uint32_t completed_count = 0U;
-	// Feedback frames routed to this actuator.
 	uint32_t received_count = 0U;
 	uint32_t coalesced_count = 0U;
+	uint32_t max_rx_interval_us = 0U;
+};
+
+struct CanTxQueueStats {
+	uint32_t current_depth = 0U;
+	uint32_t max_depth = 0U;
+	uint32_t capacity = 0U;
 };
 
 int InitializeCanDispatch();
 void NotifyCanTxPending();
 int SubmitCanStandardFrame(CanTxSlot slot, uint8_t bus, uint16_t can_id,
-			const uint8_t *data, uint8_t dlc);
+			   const uint8_t *data, uint8_t dlc);
 int ReadCanBusHealth(uint8_t bus, CanBusHealth *health);
+uint32_t ReadCanAsyncTxErrorCount(uint8_t bus);
 int ReadCanTxSlotStats(CanTxSlot slot, CanTxSlotStats *stats);
+int ReadCanTxQueueStats(uint8_t bus, CanTxQueueStats *stats);
+void ResetCanRxIntervalStats();
+void ResetCanTxDiagnosticStats();
 
 }  // namespace platform

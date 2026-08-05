@@ -15,7 +15,7 @@ struct ChassisMotorSendRawFrame {
 
 extern SeqlockValue<ChassisMotorSendRawFrame> left_wheel_send_raw;
 extern SeqlockValue<ChassisMotorSendRawFrame> right_wheel_send_raw;
-extern SeqlockValue<ChassisMotorSendRawFrame> left_B_motor_send_raw;
-extern SeqlockValue<ChassisMotorSendRawFrame> left_D_motor_send_raw;
-extern SeqlockValue<ChassisMotorSendRawFrame> right_B_motor_send_raw;
-extern SeqlockValue<ChassisMotorSendRawFrame> right_D_motor_send_raw;
+extern SeqlockValue<ChassisMotorSendRawFrame> left_b_motor_send_raw;
+extern SeqlockValue<ChassisMotorSendRawFrame> left_d_motor_send_raw;
+extern SeqlockValue<ChassisMotorSendRawFrame> right_b_motor_send_raw;
+extern SeqlockValue<ChassisMotorSendRawFrame> right_d_motor_send_raw;

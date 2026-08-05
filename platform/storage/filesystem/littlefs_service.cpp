@@ -11,7 +11,7 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/storage/flash_map.h>
 
-#include "littlefs_service.h"
+#include <platform/storage/filesystem/littlefs_service.h>
 
 LOG_MODULE_REGISTER(littlefs_service, LOG_LEVEL_INF);
 

@@ -6,13 +6,19 @@ sync steps, and validation checklist:
 
     docs/LQR_GAIN_RECOMPUTATION.md
 
-The equations are the linearization of controller.m at:
+The nonlinear equations are Chen Yang et al. equations (3)--(9), linearized
+at:
 
     theta = phi = theta_dot = x_dot = phi_dot = 0
     T = Tp = 0
 
 State:
-    [theta, theta_dot, x, x_dot, phi, phi_dot]
+    [theta, theta_dot, x_body, x_body_dot, phi, phi_dot]
+
+The paper first writes the classical-mechanics equations with the wheel-axis
+position x_wheel, then changes coordinates before forming the state vector:
+
+    x_wheel = x_body - h * sin(theta)
 
 Input:
     [T, Tp]
@@ -45,12 +51,12 @@ GAIN_HALF_RANGE_M = 0.15
 @dataclass(frozen=True)
 class RobotParameters:
     wheel_mass_total_kg: float = 1.2
-    wheel_inertia_total_kg_m2: float = 0.00682
+    wheel_inertia_total_kg_m2: float = 0.0005046
     wheel_radius_m: float = 0.058
     leg_mass_total_kg: float = 2.0
     body_mass_kg: float = 6.9
     body_pitch_inertia_kg_m2: float = 0.066012040
-    body_com_offset_m: float = -0.0497
+    body_com_offset_m: float = -0.0483 #-0.0497
     gravity_m_s2: float = 9.80665
 
 
@@ -60,8 +66,10 @@ ARTICLE_R_DIAG = np.array([1.0, 0.25])
 # whose larger weight supplies damping for the observed common-theta mode.
 # CURRENT_Q_DIAG = np.array([3000.0, 400.0, 1500.0, 50.0, 16000.0, 100.0])
 # CURRENT_R_DIAG = np.array([150.0, 1.0])
-CURRENT_Q_DIAG = np.array([4000.0, 1.0, 1500.0, 1.0, 20000.0, 1.0])
-CURRENT_R_DIAG = np.array([90.0, 1.0])
+# CURRENT_Q_DIAG = np.array([3000.0, 1.0, 1500.0, 50.0, 3000.0, 1.0])
+# CURRENT_R_DIAG = np.array([80.0, 1.0])
+CURRENT_Q_DIAG = np.array([1000.0, 1.0, 1500.0, 1.0, 20000.0, 1.0])
+CURRENT_R_DIAG = np.array([60.0, 1.0])
 
 
 def read_leg_samples(path: Path) -> list[dict[str, float]]:
@@ -90,13 +98,18 @@ def read_leg_samples(path: Path) -> list[dict[str, float]]:
     return sorted(samples, key=lambda sample: sample["leg_length_m"])
 
 
-def derive_continuous_model(
+def derive_wheel_coordinate_linear_model(
     parameters: RobotParameters,
     leg_length_m: float,
     leg_com_from_wheel_m: float,
     single_leg_inertia_kg_m2: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return continuous A/B for the left/right combined sagittal model."""
+    """Return the analytic linear model using wheel-axis position.
+
+    This is retained as an independent regression oracle.  The production
+    model below is linearized from the paper's classical-mechanics equations
+    and uses body/hip position as the translational state.
+    """
     mw = parameters.wheel_mass_total_kg
     iw = parameters.wheel_inertia_total_kg_m2
     radius = parameters.wheel_radius_m
@@ -169,6 +182,247 @@ def derive_continuous_model(
         b[state_row, :] = acceleration_from_input[generalized_row, :]
 
     return a, b
+
+
+def wheel_to_body_state_transform(
+    leg_length_m: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return P and P^-1 for x_body = P x_wheel at fixed leg length."""
+    transform = np.eye(STATE_SIZE)
+    inverse_transform = np.eye(STATE_SIZE)
+    transform[2, 0] = leg_length_m
+    transform[3, 1] = leg_length_m
+    inverse_transform[2, 0] = -leg_length_m
+    inverse_transform[3, 1] = -leg_length_m
+    return transform, inverse_transform
+
+
+def transform_wheel_model_to_body_state(
+    a_wheel: np.ndarray,
+    b_wheel: np.ndarray,
+    leg_length_m: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a fixed-leg-length linear model from x_wheel to x_body."""
+    transform, inverse_transform = wheel_to_body_state_transform(leg_length_m)
+    return (
+        transform @ a_wheel @ inverse_transform,
+        transform @ b_wheel,
+    )
+
+
+def paper_state_derivative(
+    parameters: RobotParameters,
+    leg_length_m: float,
+    leg_com_from_wheel_m: float,
+    single_leg_inertia_kg_m2: float,
+    state: np.ndarray,
+    control: np.ndarray,
+) -> np.ndarray:
+    """Evaluate the paper's nonlinear equations (3)--(9).
+
+    The seven solved unknowns are:
+
+        [x_wheel_ddot, theta_ddot, phi_ddot, N, P, N_M, P_M]
+
+    The returned state derivative uses the paper's final state coordinate
+    x_body rather than the intermediate wheel-axis coordinate x_wheel.
+    """
+    if state.shape != (STATE_SIZE,) or control.shape != (INPUT_SIZE,):
+        raise ValueError("state must have 6 values and control must have 2")
+
+    mw = parameters.wheel_mass_total_kg
+    iw = parameters.wheel_inertia_total_kg_m2
+    radius = parameters.wheel_radius_m
+    mp = parameters.leg_mass_total_kg
+    ip = 2.0 * single_leg_inertia_kg_m2
+    body_mass = parameters.body_mass_kg
+    body_inertia = parameters.body_pitch_inertia_kg_m2
+    body_offset = parameters.body_com_offset_m
+    gravity = parameters.gravity_m_s2
+
+    h = leg_length_m
+    leg_com = leg_com_from_wheel_m
+    leg_com_to_pivot = h - leg_com
+    if not (0.0 < leg_com < h):
+        raise ValueError("leg COM must lie between the wheel and upper pivot")
+
+    theta = float(state[0])
+    theta_rate = float(state[1])
+    phi = float(state[4])
+    phi_rate = float(state[5])
+    wheel_torque = float(control[0])
+    posture_torque = float(control[1])
+
+    sin_theta = np.sin(theta)
+    cos_theta = np.cos(theta)
+    sin_phi = np.sin(phi)
+    cos_phi = np.cos(phi)
+
+    # Column order:
+    # [x_wheel_ddot, theta_ddot, phi_ddot, N, P, N_M, P_M].
+    coefficients = np.zeros((7, 7))
+    right_hand_side = np.zeros(7)
+
+    # Paper equation (3), obtained by combining wheel equations (1) and (2).
+    coefficients[0, 0] = iw / radius + mw * radius
+    coefficients[0, 3] = radius
+    right_hand_side[0] = wheel_torque
+
+    # Paper equations (4) and (5): equivalent-leg translation.
+    coefficients[1, 0] = -mp
+    coefficients[1, 1] = -mp * leg_com * cos_theta
+    coefficients[1, 3] = 1.0
+    coefficients[1, 5] = -1.0
+    right_hand_side[1] = -mp * leg_com * theta_rate**2 * sin_theta
+
+    coefficients[2, 1] = mp * leg_com * sin_theta
+    coefficients[2, 4] = 1.0
+    coefficients[2, 6] = -1.0
+    right_hand_side[2] = (
+        mp * gravity - mp * leg_com * theta_rate**2 * cos_theta)
+
+    # Paper equation (6): equivalent-leg rotation about its COM.
+    coefficients[3, 1] = ip
+    coefficients[3, 3] = leg_com * cos_theta
+    coefficients[3, 4] = -leg_com * sin_theta
+    coefficients[3, 5] = leg_com_to_pivot * cos_theta
+    coefficients[3, 6] = -leg_com_to_pivot * sin_theta
+    right_hand_side[3] = -wheel_torque + posture_torque
+
+    # Paper equations (7) and (8): body translation.
+    coefficients[4, 0] = -body_mass
+    coefficients[4, 1] = -body_mass * h * cos_theta
+    coefficients[4, 2] = body_mass * body_offset * cos_phi
+    coefficients[4, 5] = 1.0
+    right_hand_side[4] = body_mass * (
+        -h * theta_rate**2 * sin_theta
+        + body_offset * phi_rate**2 * sin_phi
+    )
+
+    coefficients[5, 1] = body_mass * h * sin_theta
+    coefficients[5, 2] = body_mass * body_offset * sin_phi
+    coefficients[5, 6] = 1.0
+    right_hand_side[5] = body_mass * (
+        gravity
+        - h * theta_rate**2 * cos_theta
+        - body_offset * phi_rate**2 * cos_phi
+    )
+
+    # Paper equation (9): body pitch rotation about its COM.
+    coefficients[6, 2] = body_inertia
+    coefficients[6, 5] = -body_offset * cos_phi
+    coefficients[6, 6] = -body_offset * sin_phi
+    right_hand_side[6] = posture_torque
+
+    solution = np.linalg.solve(coefficients, right_hand_side)
+    wheel_acceleration = solution[0]
+    theta_acceleration = solution[1]
+    phi_acceleration = solution[2]
+
+    # Paper coordinate change:
+    # x_wheel = x_body - h*sin(theta).
+    body_acceleration = (
+        wheel_acceleration
+        + h * theta_acceleration * cos_theta
+        - h * theta_rate**2 * sin_theta
+    )
+
+    return np.array([
+        theta_rate,
+        theta_acceleration,
+        state[3],
+        body_acceleration,
+        phi_rate,
+        phi_acceleration,
+    ])
+
+
+def derive_continuous_model(
+    parameters: RobotParameters,
+    leg_length_m: float,
+    leg_com_from_wheel_m: float,
+    single_leg_inertia_kg_m2: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Linearize the paper model in [theta, theta_dot, x_body, ...]."""
+    equilibrium_state = np.zeros(STATE_SIZE)
+    equilibrium_control = np.zeros(INPUT_SIZE)
+    difference_step = 1.0e-6
+
+    a = np.zeros((STATE_SIZE, STATE_SIZE))
+    b = np.zeros((STATE_SIZE, INPUT_SIZE))
+    for state_index in range(STATE_SIZE):
+        perturbation = np.zeros(STATE_SIZE)
+        perturbation[state_index] = difference_step
+        positive = paper_state_derivative(
+            parameters,
+            leg_length_m,
+            leg_com_from_wheel_m,
+            single_leg_inertia_kg_m2,
+            equilibrium_state + perturbation,
+            equilibrium_control,
+        )
+        negative = paper_state_derivative(
+            parameters,
+            leg_length_m,
+            leg_com_from_wheel_m,
+            single_leg_inertia_kg_m2,
+            equilibrium_state - perturbation,
+            equilibrium_control,
+        )
+        a[:, state_index] = (
+            positive - negative) / (2.0 * difference_step)
+
+    for input_index in range(INPUT_SIZE):
+        perturbation = np.zeros(INPUT_SIZE)
+        perturbation[input_index] = difference_step
+        positive = paper_state_derivative(
+            parameters,
+            leg_length_m,
+            leg_com_from_wheel_m,
+            single_leg_inertia_kg_m2,
+            equilibrium_state,
+            equilibrium_control + perturbation,
+        )
+        negative = paper_state_derivative(
+            parameters,
+            leg_length_m,
+            leg_com_from_wheel_m,
+            single_leg_inertia_kg_m2,
+            equilibrium_state,
+            equilibrium_control - perturbation,
+        )
+        b[:, input_index] = (
+            positive - negative) / (2.0 * difference_step)
+
+    return a, b
+
+
+def verify_paper_model_linearization(
+    parameters: RobotParameters,
+    samples: list[dict[str, float]],
+) -> float:
+    """Cross-check equations (3)--(9) against the analytic linear model."""
+    maximum_error = 0.0
+    for sample in samples:
+        leg_length = sample["leg_length_m"]
+        leg_com = sample["leg_com_from_wheel_m"]
+        single_inertia = sample["single_leg_inertia_kg_m2"]
+        a_paper, b_paper = derive_continuous_model(
+            parameters, leg_length, leg_com, single_inertia)
+        a_wheel, b_wheel = derive_wheel_coordinate_linear_model(
+            parameters, leg_length, leg_com, single_inertia)
+        a_expected, b_expected = transform_wheel_model_to_body_state(
+            a_wheel, b_wheel, leg_length)
+        maximum_error = max(
+            maximum_error,
+            float(np.max(np.abs(a_paper - a_expected))),
+            float(np.max(np.abs(b_paper - b_expected))),
+        )
+    if maximum_error > 1.0e-6:
+        raise ValueError(
+            "paper classical-equation linearization disagrees with the "
+            f"analytic coordinate transform: max error {maximum_error}")
+    return maximum_error
 
 
 def controllability_rank(a: np.ndarray, b: np.ndarray) -> int:
@@ -308,7 +562,8 @@ def write_samples(
         *gain_fields,
     ]
     with output_path.open("w", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(
+            file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
@@ -317,7 +572,7 @@ def write_samples(
 def write_coefficients(output_path: Path, coefficients: np.ndarray) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="") as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, lineterminator="\n")
         writer.writerow([
             "input_index",
             "state_index",
@@ -355,6 +610,8 @@ def main() -> None:
     verify_article_regression()
     parameters = RobotParameters()
     samples = read_leg_samples(args.input)
+    model_linearization_max_error = verify_paper_model_linearization(
+        parameters, samples)
     rows: list[dict[str, object]] = []
     gains: list[np.ndarray] = []
     leg_lengths: list[float] = []
@@ -443,12 +700,24 @@ def main() -> None:
             float(np.max(eigenvalues.real)),
         )
 
+    if maximum_fitted_closed_loop_real >= 0.0:
+        raise ValueError(
+            "fitted schedule is unstable at a measured point: "
+            f"max real pole {maximum_fitted_closed_loop_real}")
+    if dense_maximum_closed_loop_real >= 0.0:
+        raise ValueError(
+            "fitted schedule is unstable between measured points: "
+            f"max real pole {dense_maximum_closed_loop_real}")
+
     if args.output is not None:
         write_samples(args.output, rows)
     if args.coeff_output is not None:
         write_coefficients(args.coeff_output, coefficients)
 
     print(f"points={len(rows)}")
+    print(
+        "paper_model_linearization_max_abs_error="
+        f"{model_linearization_max_error:.9g}")
     print(
         f"leg_length_range_m={leg_lengths_array.min():.5f},"
         f"{leg_lengths_array.max():.5f}")

@@ -10,11 +10,10 @@
 #include <zephyr/sys/util.h>
 
 #include <channels/usb_raw_frame_queue.h>
+#include <platform/drivers/communication/usb_session.h>
 
 #include "usbd_core.h"
 #include "usbd_cdc_acm.h"
-
-#include "usb_session.h"
 
 namespace {
 

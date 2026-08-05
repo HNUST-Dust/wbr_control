@@ -30,6 +30,7 @@ clear; clc;
 % Tp 胯关节输出力矩 N·m
 
 syms theta dtheta ddtheta x dx ddx phi dphi ddphi real
+syms xb dxb real
 syms T Tp real
 syms mw Iw R mp Ip L LM M IM l g real
 syms N P NM PM real
@@ -60,24 +61,27 @@ sol = solve([eq1,eq2,eq3,eq4,eq5,eq6,eq7], ...
 
 f = [dtheta;
      simplify(sol.ddtheta);
-     dx;
-     simplify(sol.ddx);
+     dxb;
+     simplify(sol.ddx + (L+LM)*sol.ddtheta*cos(theta) ...
+                       - (L+LM)*dtheta^2*sin(theta));
      dphi;
      simplify(sol.ddphi)];
 
-X = [theta; dtheta; x; dx; phi; dphi];
+% 论文先以轮轴位置 x 建立经典力学方程，再使用
+% x = xb - (L+LM)*sin(theta) 转换到机体/髋部水平位置 xb。
+X = [theta; dtheta; xb; dxb; phi; dphi];
 U = [T; Tp];
 
 A_sym = jacobian(f, X);
 B_sym = jacobian(f, U);
 
-% 平衡点：theta=0,dtheta=0,dx=0,phi=0,dphi=0,T=0,Tp=0
+% 平衡点：theta=0,dtheta=0,dxb=0,phi=0,dphi=0,T=0,Tp=0
 A_eq = simplify(subs(A_sym, ...
-    [theta,dtheta,dx,phi,dphi,T,Tp], ...
+    [theta,dtheta,dxb,phi,dphi,T,Tp], ...
     [0,0,0,0,0,0,0]));
 
 B_eq = simplify(subs(B_sym, ...
-    [theta,dtheta,dx,phi,dphi,T,Tp], ...
+    [theta,dtheta,dxb,phi,dphi,T,Tp], ...
     [0,0,0,0,0,0,0]));
 
 disp('A symbolic ='); pretty(A_eq)

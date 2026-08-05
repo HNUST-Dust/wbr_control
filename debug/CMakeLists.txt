@@ -1,13 +1,13 @@
-if(CONFIG_SHELL)
-  file(GLOB_RECURSE RM_TEST_DEBUG_SHELL_SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/shell/shell_banner.cpp
-  )
-  target_sources(app PRIVATE ${RM_TEST_DEBUG_SHELL_SOURCES})
-endif()
+if(CONFIG_SHELL OR CONFIG_RM_TEST_SHELL_MAVLINK_CONTROL)
+  zephyr_library_named(wbr_debug)
+  target_include_directories(wbr_debug PRIVATE ${PROJECT_SOURCE_DIR})
 
-if(CONFIG_RM_TEST_SHELL_MAVLINK_CONTROL)
-  file(GLOB_RECURSE RM_TEST_DEBUG_MAVLINK_SHELL_SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/shell/mavlink_mode_shell.cpp
-  )
-  target_sources(app PRIVATE ${RM_TEST_DEBUG_MAVLINK_SHELL_SOURCES})
+  if(CONFIG_SHELL)
+    zephyr_library_sources(shell/shell_banner.cpp)
+  endif()
+
+  if(CONFIG_RM_TEST_SHELL_MAVLINK_CONTROL)
+    zephyr_library_sources(shell/mavlink_mode_shell.cpp)
+    target_link_libraries(wbr_debug PRIVATE wbr_channels mavlink)
+  endif()
 endif()

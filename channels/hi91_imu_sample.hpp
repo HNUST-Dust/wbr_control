@@ -13,6 +13,11 @@ namespace channels {
 struct Hi91ImuSample {
 	uint32_t sequence;
 	uint32_t uptime_ms;
+	uint64_t precise_timestamp_us;
+	uint32_t max_publish_interval_us;
+	uint32_t parse_error_count;
+	uint32_t rx_drop_count;
+	uint32_t rx_stop_count;
 	uint32_t system_time_ms;
 	bool valid;
 	float roll_deg;

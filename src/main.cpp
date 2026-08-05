@@ -8,13 +8,13 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
+#include "modules/chassis/chassis_module.h"
+#include "modules/imu/hi91_imu_module.h"
+#include "modules/oscilloscope/oscilloscope_module.h"
+#include "modules/referee/referee_module.h"
+#include "modules/remote_input/remote_input_module.h"
+#include "modules/sys_state/sys_state_module.h"
 #include <channels/system_status_channel.h>
-#include <modules/chassis/chassis_module.h>
-#include <modules/imu/hi91_imu_module.h>
-#include <modules/oscilloscope/oscilloscope_module.h>
-#include <modules/referee/referee_module.h>
-#include <modules/remote_input/remote_input_module.h>
-#include <modules/sys_state/sys_state_module.h>
 #include <platform/board/board_identity.h>
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
@@ -31,29 +31,24 @@ LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 #include <platform/drivers/communication/usb_session.h>
 #endif
 
-namespace {
+namespace
+{
 
-modules::SysStateModule g_sys_state_module;
-modules::RemoteInputModule g_remote_input_module;
-modules::ChassisModule g_chassis_module;
-modules::RefereeModule g_referee_module;
-modules::Hi91ImuModule g_hi91_imu_module;
-modules::OscilloscopeModule g_oscilloscope_module;
+void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
+{
+	const channels::SystemStatusMessage status = {
+		state,
+		module_count,
+	};
+	(void)zbus_chan_pub(&rm_test_system_status_chan, &status, K_NO_WAIT);
+}
 
-}  // namespace
+} // namespace
 
 int main(void)
 {
-	using channels::SystemStatusMessage;
-
 	LOG_INF("rm_test started on %s", board_identity_name());
-
-	const SystemStatusMessage booting_status = {
-		channels::kBooting,
-		0U,
-	};
-
-	(void)zbus_chan_pub(&rm_test_system_status_chan, &booting_status, K_NO_WAIT);
+	PublishSystemStatus(channels::kBooting, 0U);
 
 	int rc = 0;
 
@@ -96,121 +91,73 @@ int main(void)
 
 	uint32_t module_count = 0U;
 
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_SYS_STATE)) {
-		rc = g_sys_state_module.Initialize();
+#if defined(CONFIG_RM_TEST_MODULE_SYS_STATE) && CONFIG_RM_TEST_MODULE_SYS_STATE
+	{
+		static modules::SysStateModule sys_state_module;
+		rc = sys_state_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_sys_state_module.Name(), rc);
+			LOG_ERR("module start failed: sys_state (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_REMOTE_INPUT)) {
-		rc = g_remote_input_module.Initialize();
+#endif
+#if defined(CONFIG_RM_TEST_MODULE_REMOTE_INPUT) && CONFIG_RM_TEST_MODULE_REMOTE_INPUT
+	{
+		static modules::RemoteInputModule remote_input_module;
+		rc = remote_input_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_remote_input_module.Name(), rc);
+			LOG_ERR("module start failed: remote_input (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_CHASSIS)) {
-		rc = g_chassis_module.Initialize();
+#endif
+#if defined(CONFIG_RM_TEST_MODULE_CHASSIS) && CONFIG_RM_TEST_MODULE_CHASSIS
+	{
+		static modules::ChassisModule chassis_module;
+		rc = chassis_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_chassis_module.Name(), rc);
+			LOG_ERR("module start failed: chassis (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_REFEREE)) {
-		rc = g_referee_module.Initialize();
+#endif
+#if defined(CONFIG_RM_TEST_MODULE_REFEREE) && CONFIG_RM_TEST_MODULE_REFEREE
+	{
+		static modules::RefereeModule referee_module;
+		rc = referee_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_referee_module.Name(), rc);
+			LOG_ERR("module start failed: referee (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_HI91_IMU)) {
-		rc = g_hi91_imu_module.Initialize();
+#endif
+#if defined(CONFIG_RM_TEST_MODULE_OSCILLOSCOPE) && CONFIG_RM_TEST_MODULE_OSCILLOSCOPE
+	{
+		static modules::OscilloscopeModule oscilloscope_module;
+		rc = oscilloscope_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_hi91_imu_module.Name(), rc);
+			LOG_ERR("module start failed: oscilloscope (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_OSCILLOSCOPE)) {
-		rc = g_oscilloscope_module.Initialize();
+#endif
+#if defined(CONFIG_RM_TEST_MODULE_HI91_IMU) && CONFIG_RM_TEST_MODULE_HI91_IMU
+	{
+		static modules::Hi91ImuModule hi91_imu_module;
+		rc = hi91_imu_module.Start();
 		if (rc != 0) {
-			LOG_ERR("module init failed: %s (%d)", g_oscilloscope_module.Name(), rc);
+			LOG_ERR("module start failed: hi91_imu (%d)", rc);
 			return rc;
 		}
 		++module_count;
 	}
-
-	const SystemStatusMessage initialized_status = {
-		channels::kModulesInitialized,
-		module_count,
-	};
-
-	(void)zbus_chan_pub(&rm_test_system_status_chan, &initialized_status, K_NO_WAIT);
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_SYS_STATE)) {
-		rc = g_sys_state_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_sys_state_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_REMOTE_INPUT)) {
-		rc = g_remote_input_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_remote_input_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_CHASSIS)) {
-		rc = g_chassis_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_chassis_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_REFEREE)) {
-		rc = g_referee_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_referee_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_OSCILLOSCOPE)) {
-		rc = g_oscilloscope_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_oscilloscope_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_RM_TEST_MODULE_HI91_IMU)) {
-		rc = g_hi91_imu_module.Start();
-		if (rc != 0) {
-			LOG_ERR("module start failed: %s (%d)", g_hi91_imu_module.Name(), rc);
-			return rc;
-		}
-	}
-
-	const SystemStatusMessage running_status = {
-		channels::kRunning,
-		module_count,
-	};
-
-	(void)zbus_chan_pub(&rm_test_system_status_chan, &running_status, K_NO_WAIT);
+#endif
+	PublishSystemStatus(channels::kRunning, module_count);
 
 	while (true) {
 		k_sleep(K_SECONDS(1));

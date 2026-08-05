@@ -9,10 +9,12 @@
                   |
                   v
 derive_physical_lqr_schedule.py
-  每个腿长建立连续时间 A(L0), B(L0)
+  按陈阳论文式(3)~(9)求解经典力学方程
+  -> 从轮轴位置 x 转换到机体/髋部位置 xb
+  -> 每个腿长建立连续时间 A(L0), B(L0)
   -> 检查可控性
   -> 解连续时间 LQR
-  -> 得到 10 组 K(L0)
+  -> 得到 11 组 K(L0)
                   |
                   v
 对归一化腿长做三次最小二乘拟合
@@ -33,8 +35,8 @@ physical_lqr_samples.csv + physical_lqr_cubic.csv
 - 腿部 CAD 输入：`tools/data/leg_mass_properties.csv`
 - 每个腿长的 A、B、K 和闭环检查结果：`tools/generated/physical_lqr_samples.csv`
 - 三次拟合系数：`tools/generated/physical_lqr_cubic.csv`
-- 固件系数与求值函数：`modules/chassis/lqr_schedule.cc`
-- 当前实机调用：`modules/chassis/chassis_module.cpp`
+- 固件系数与求值函数：`src/modules/chassis/lqr_schedule.cc`
+- 当前实机调用：`src/modules/chassis/chassis_module.cpp`
 - 符号方程参考：`controller.m`
 
 ## 2. 状态、输入与控制律约定
@@ -43,7 +45,7 @@ physical_lqr_samples.csv + physical_lqr_cubic.csv
 
 \[
 X=\begin{bmatrix}
-\theta & \dot\theta & x & \dot x & \phi & \dot\phi
+\theta & \dot\theta & x_b & \dot x_b & \phi & \dot\phi
 \end{bmatrix}^{T}
 \]
 
@@ -53,8 +55,8 @@ X=\begin{bmatrix}
 |---|---:|---|
 | \(\theta\) | rad | 等效腿相对竖直向上的倾角 |
 | \(\dot\theta\) | rad/s | 等效腿角速度 |
-| \(x\) | m | 轮轴水平位置 |
-| \(\dot x\) | m/s | 轮轴水平速度 |
+| \(x_b\) | m | 机体/髋部转轴水平位置 |
+| \(\dot x_b\) | m/s | 机体/髋部转轴水平速度 |
 | \(\phi\) | rad | 机体 pitch |
 | \(\dot\phi\) | rad/s | 机体 pitch 角速度 |
 
@@ -89,8 +91,8 @@ U=-KX
 {
     common_theta,
     common_theta_rate,
-    common_x_ - common_x_reference_,
-    body_speed_estimate_,
+    body_position_error,
+    body_speed,
     pitch,
     pitch_rate,
 }
@@ -115,12 +117,12 @@ T_{p,\mathrm{side}}=-\frac{1}{2}K_{1,:}e
 | 参数 | 当前值 | 含义与来源 |
 |---|---:|---|
 | `wheel_mass_total_kg` | 1.2 kg | 两个车轮总质量，单轮 0.6 kg |
-| `wheel_inertia_total_kg_m2` | 0.00682 kg·m² | 两侧轮毂与电机转子折算到轮端后的总等效惯量 |
+| `wheel_inertia_total_kg_m2` | 0.0005046 kg·m² | 两侧轮毂与电机转子折算到轮端后的总等效惯量 |
 | `wheel_radius_m` | 0.058 m | 轮半径 |
 | `leg_mass_total_kg` | 2.0 kg | 两条腿总质量，单腿 1.0 kg |
 | `body_mass_kg` | 6.9 kg | 机体质量 |
 | `body_pitch_inertia_kg_m2` | 0.066012040 kg·m² | CAD 坐标系 3 中绕 pitch 的 z 轴、关于机体质心的惯量；由 66012.040 kg·mm² 换算 |
-| `body_com_offset_m` | -0.0497 m | 腿转轴到机体质心的有符号距离；质心在转轴下方所以取负 |
+| `body_com_offset_m` | -0.0483 m | 腿转轴到机体质心的有符号距离；质心在转轴下方所以取负 |
 | `gravity_m_s2` | 9.80665 m/s² | 重力加速度 |
 
 质量核对：\(1.2+2.0+6.9=10.1\text{ kg}\)，与整车称重一致。
@@ -139,85 +141,61 @@ T_{p,\mathrm{side}}=-\frac{1}{2}K_{1,:}e
 应用平行轴定理；必须先换算回质心惯量。CSV 列名没有记录 CAD 的参考点，因此每次
 替换机械数据时都要向数据提供者再次确认。
 
-当前共有 10 个 CAD 点，腿长范围为 0.15133–0.30347 m。程序内部使用两腿总惯量：
+当前共有 11 个 CAD 点，腿长范围为 0.15105–0.30273 m。程序内部使用两腿总惯量：
 
 \[
 I_p=2I_{p,\mathrm{single}}
 \]
 
-## 4. 从物理参数建立 A、B
+## 4. 从论文经典力学方程建立 A、B
 
-计算程序等价于对 `controller.m` 的非线性方程在直立平衡点线性化。为便于复查，程序直接构造线性化后的质量矩阵。
-
-令广义坐标为：
-
-\[
-q=\begin{bmatrix}x&\theta&\phi\end{bmatrix}^{T}
-\]
-
-记：
-
-- \(m_w,I_w\)：左右车轮总质量和总等效惯量；
-- \(m_p,I_p\)：左右腿总质量和总质心惯量；
-- \(M,I_M\)：机体质量和机体质心处 pitch 惯量；
-- \(R\)：轮半径；
-- \(h\)：轮心到腿转轴的腿长；
-- \(L\)：轮心到腿质心的距离；
-- \(l\)：腿转轴到机体质心的有符号距离。
-
-线性化质量矩阵为：
+程序以陈阳论文式（3）~（9）作为生产模型。每次状态求值解一个 7×7
+线性方程组，未知量为：
 
 \[
-\mathcal M=
 \begin{bmatrix}
-I_w/R^2+m_w+m_p+M & m_pL+Mh & -Ml\\
-m_pL+Mh & I_p+m_pL^2+Mh^2 & -Mlh\\
--Ml & -Mlh & I_M+Ml^2
-\end{bmatrix}
+\ddot x&\ddot\theta&\ddot\phi&N&P&N_M&P_M
+\end{bmatrix}^{T}
 \]
 
-小角度重力项为：
+其中 \(x\) 是论文经典力学分析中使用的轮轴水平位置。求出加速度后，按论文给出的
+运动学关系转换到最终状态中的机体/髋部位置：
 
 \[
-\mathcal G=
-\begin{bmatrix}
-0&0&0\\
-g(m_pL+Mh)&0&0\\
-0&0&Mgl
-\end{bmatrix}
+x=x_b-h\sin\theta
 \]
-
-输入矩阵为：
 
 \[
-\mathcal S=
-\begin{bmatrix}
-1/R&0\\
--1&1\\
-0&1
-\end{bmatrix}
+\dot x_b=\dot x+h\dot\theta\cos\theta
 \]
-
-于是：
 
 \[
-\ddot q=\mathcal M^{-1}\mathcal G
-\begin{bmatrix}\theta&x&\phi\end{bmatrix}^{T}
-+\mathcal M^{-1}\mathcal S
-\begin{bmatrix}T&T_p\end{bmatrix}^{T}
+\ddot x_b=\ddot x+h\ddot\theta\cos\theta
+-h\dot\theta^2\sin\theta
 \]
 
-再按状态顺序
-\([\theta,\dot\theta,x,\dot x,\phi,\dot\phi]\)
-将 \(\ddot x,\ddot\theta,\ddot\phi\) 填入 A、B 的第 4、2、6 行。程序中的 `state_acceleration_rows = [3, 1, 5]` 是零下标下的这个映射。
+由此得到非线性状态导数
+\([\dot\theta,\ddot\theta,\dot x_b,\ddot x_b,\dot\phi,\ddot\phi]^T\)，
+再在直立平衡点用中心差分计算雅可比 \(A,B\)。
+
+为防止经典方程转录、力矩符号或 \(x\to x_b\) 变换出错，程序还保留一套独立的
+解析线性质量矩阵作为回归参考。令轮轴状态为 \(X_w\)、论文最终状态为 \(X_b\)，则
+
+\[
+X_b=P X_w,\qquad
+A_b=P A_wP^{-1},\qquad B_b=P B_w
+\]
+
+每次正式生成前，11 个腿长点的经典方程雅可比必须与解析坐标变换结果在
+\(10^{-6}\) 以内一致；当前最大绝对误差为 \(9.6949293\times10^{-10}\)。
 
 平衡点为：
 
 \[
-\theta=\dot\theta=\dot x=\phi=\dot\phi=T=T_p=0
+\theta=\dot\theta=\dot x_b=\phi=\dot\phi=T=T_p=0
 \]
 
-位置 \(x\) 可取任意常数，因为模型具有平移不变性。
+位置 \(x_b\) 可取任意常数，因为模型具有平移不变性。
 
 ## 5. LQR 求解
 
@@ -234,14 +212,16 @@ R=\operatorname{diag}(1,0.25)
 当前 `chassis` 为抑制实机的公共 \(\theta\) 摆动并增加腿部姿态分担，采用：
 
 \[
-\boxed{Q=\operatorname{diag}(1,9,500,100,1000,10)}
+\boxed{Q=\operatorname{diag}(1500,100,500,300,24000,800)}
 \]
 
 \[
-\boxed{R=\operatorname{diag}(1,0.125)}
+\boxed{R=\operatorname{diag}(90,1)}
 \]
 
-\(\dot\theta\) 权重从 1 提高到 9，使 LQR 增加对公共腿角振荡的角速度阻尼；\(\phi\) 权重保持 1000，避免过度提高俯仰刚度；\(\dot\phi\) 权重提高到 10，直接阻尼已观测到的 pitch 振荡；轮端输入代价保持 1，以保留 DJI ±16384 电流范围内的姿态纠正能力；腿端输入代价从 0.25 降为 0.125，使姿态控制优先分配给腿部。后续改动必须通过脚本重算，不能只手动修改某一列固件增益。
+这是当前脚本中的实机整定值。状态坐标从轮轴位置修正为论文的机体位置后，Q
+中的第 3、4 项也明确对应 \(x_b,\dot x_b\)。后续改动必须通过脚本重算，不能只
+手动修改某一列固件增益。
 
 每个腿长点执行：
 
@@ -271,17 +251,18 @@ K_{ij}(L_0)=p_3s^3+p_2s^2+p_1s+p_0
 固件会先把腿长限制在 CAD 数据范围：
 
 \[
-L_0\in[0.15133,0.30347]\text{ m}
+L_0\in[0.15105,0.30273]\text{ m}
 \]
 
 超出范围时不会外推，而是使用最近端点的增益。
 
 当前结果的验证指标为：
 
-- CAD 点数量：10；
-- 最大增益拟合绝对误差：0.0180281667；
-- CAD 点上拟合闭环极点最大实部：−2.21817436；
-- 在整个范围内取 401 个点检查，闭环极点最大实部：−2.21775173。
+- CAD 点数量：11；
+- 经典方程与解析坐标变换最大绝对误差：\(9.6949293\times10^{-10}\)；
+- 最大增益拟合绝对误差：0.026149243；
+- CAD 点上拟合闭环极点最大实部：−1.8181402；
+- 在整个范围内取 401 个点检查，闭环极点最大实部：−1.8181402。
 
 ## 7. 完整重算命令
 
@@ -299,8 +280,8 @@ python3 tools/derive_physical_lqr_schedule.py \
 ```bash
 python3 tools/derive_physical_lqr_schedule.py \
   --input tools/data/leg_mass_properties.csv \
-  --q 1,9,500,100,1000,10 \
-  --r 1,0.125 \
+  --q 1500,100,500,300,24000,800 \
+  --r 90,1 \
   --output tools/generated/physical_lqr_samples.csv \
   --coeff-output tools/generated/physical_lqr_cubic.csv
 ```
@@ -308,11 +289,12 @@ python3 tools/derive_physical_lqr_schedule.py \
 程序会在终端打印：
 
 - 样本数和腿长范围；
+- 论文七方程数值线性化与独立解析坐标变换模型的最大绝对误差；
 - 最大拟合误差；
 - 样本点和密集插值点的最差闭环极点实部；
 - 可直接复制到 C++ 的 `kGainPolynomial[2][6][4]` 初始化器。
 
-只有在命令成功退出、所有腿长点可控、所有验证指标通过后，才能把打印出的初始化器替换到 `modules/chassis/lqr_schedule.cc`。
+只有在命令成功退出、所有腿长点可控、所有验证指标通过后，才能把打印出的初始化器替换到 `src/modules/chassis/lqr_schedule.cc`。
 
 ## 8. 固件同步与核对
 
@@ -392,7 +374,7 @@ EvaluateLqrGain(common_leg_length, gain);
 - [ ] `theta = alpha - pitch` 的正方向已在悬空实验中验证。
 - [ ] 正轮力矩对应的实际车辆运动方向已验证。
 - [ ] 正腿姿态力矩对应的实际机体/腿运动方向已验证。
-- [ ] 10 个模型的可控矩阵秩均为 6。
+- [ ] 11 个模型的可控矩阵秩均为 6。
 - [ ] 所有样本点和密集验证点的 `max(real(eig(A-BK))) < 0`。
 - [ ] 生成 CSV 与 C++ 的 48 个系数一致。
 - [ ] C++ 和 Python 使用相同的腿长归一化与裁剪范围。
