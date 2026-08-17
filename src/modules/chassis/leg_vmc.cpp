@@ -4,6 +4,8 @@
 
 #include "leg_vmc.h"
 
+#include <Eigen/Core>
+
 #include <algorithm>
 
 namespace
@@ -52,10 +54,17 @@ LegVmcOutput ComputeLegVmc(const LegKinematics &leg, double target_leg_length,
 	const double radial_x = leg.hx / leg.length;
 	const double radial_z = leg.hz / leg.length;
 	const double tangential_force = leg_angle_torque / leg.length;
-	const double force_x = output.axial_force * radial_x - tangential_force * radial_z;
-	const double force_z = output.axial_force * radial_z + tangential_force * radial_x;
-	output.phi1_torque = leg.jacobian[0][0] * force_x + leg.jacobian[1][0] * force_z;
-	output.phi2_torque = leg.jacobian[0][1] * force_x + leg.jacobian[1][1] * force_z;
+	// 轴向力与切向力合成末端力 F，再经雅可比转置映射到关节力矩：tau = J^T F。
+	const Eigen::Vector2d radial(radial_x, radial_z);
+	const Eigen::Vector2d tangential(-radial_z, radial_x);
+	const Eigen::Vector2d force =
+		output.axial_force * radial + tangential_force * tangential;
+	Eigen::Matrix2d J;
+	J << leg.jacobian[0][0], leg.jacobian[0][1],
+	     leg.jacobian[1][0], leg.jacobian[1][1];
+	const Eigen::Vector2d tau = J.transpose() * force;
+	output.phi1_torque = tau[0];
+	output.phi2_torque = tau[1];
 	return output;
 }
 

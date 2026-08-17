@@ -7,12 +7,16 @@ file(GLOB_RECURSE RM_TEST_ALGORITHMS_SOURCES CONFIGURE_DEPENDS
 zephyr_library_named(wbr_algorithms)
 zephyr_library_sources(${RM_TEST_ALGORITHMS_SOURCES})
 
-# DSP matrix types are part of a small number of public algorithm templates,
-# so consumers of those templates need the DSP headers and implementation.
+# 算法层公共依赖：项目头文件。
 target_include_directories(wbr_algorithms PUBLIC
   ${PROJECT_SOURCE_DIR}/src
-  ${HPM_SDK_DIR}/middleware/hpm_math/nds_dsp
 )
-target_link_libraries(wbr_algorithms PUBLIC
-  ${HPM_SDK_DIR}/middleware/hpm_math/nds_dsp/gcc/${HPM_DSP_LIBRARY}
+# Eigen 作为系统头文件引入，屏蔽其内部告警（如 C++17 下的 std::binder* 弃用告警）。
+target_include_directories(wbr_algorithms SYSTEM PUBLIC
+  ${EIGEN_DIR}
+)
+# Eigen 固定尺寸矩阵专用：禁止堆分配、关闭 SIMD（RISC-V 上无 3.4 向量化后端）。
+target_compile_definitions(wbr_algorithms PUBLIC
+  EIGEN_NO_MALLOC
+  EIGEN_DONT_VECTORIZE
 )

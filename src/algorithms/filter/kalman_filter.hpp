@@ -1,102 +1,19 @@
 /**
  ******************************************************************************
  * @file    kalman_filter.h
- * @brief   Pure C++ kalman filter (static-size, no heap, no legacy C API)
+ * @brief   Pure C++ kalman filter (static-size, no heap) backed by Eigen
  ******************************************************************************
  */
 
 #pragma once
 
-// Public fixed-size Kalman filter template.
+// 固定尺寸、无堆分配的卡尔曼滤波器。矩阵/向量全部使用编译期固定尺寸的 Eigen
+// 类型；配合 EIGEN_NO_MALLOC 可保证运行期不触发任何堆分配。
 
-#include <array>
+#include <Eigen/Core>
+#include <Eigen/LU>
+
 #include <cstdint>
-#include <cstring>
-
-#include "riscv_dsp_matrix_math.h"
-
-typedef struct {
-    std::uint16_t numRows;
-    std::uint16_t numCols;
-    float *pData;
-} mat;
-
-namespace alg {
-
-using MatrixView = ::mat;
-using MatrixStatus = int32_t;
-
-constexpr MatrixStatus kMatrixStatusOk = 0;
-constexpr MatrixStatus kMatrixStatusSizeMismatch = -3;
-constexpr MatrixStatus kMatrixStatusArgError = -1;
-
-inline void InitializeMatrixView(MatrixView &m, std::uint16_t rows, std::uint16_t cols, float *data)
-{
-    m.numRows = rows;
-    m.numCols = cols;
-    m.pData = data;
-}
-
-inline MatrixStatus AddMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
-{
-    if (a.numRows != b.numRows || a.numCols != b.numCols ||
-        out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kMatrixStatusSizeMismatch;
-    }
-
-    riscv_dsp_mat_add_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols);
-    return kMatrixStatusOk;
-}
-
-inline MatrixStatus SubtractMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
-{
-    if (a.numRows != b.numRows || a.numCols != b.numCols ||
-        out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kMatrixStatusSizeMismatch;
-    }
-
-    riscv_dsp_mat_sub_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols);
-    return kMatrixStatusOk;
-}
-
-inline MatrixStatus MultiplyMatrices(const MatrixView &a, const MatrixView &b, MatrixView &out)
-{
-    if (a.numCols != b.numRows || out.numRows != a.numRows || out.numCols != b.numCols) {
-        return kMatrixStatusSizeMismatch;
-    }
-
-    riscv_dsp_mat_mul_f32(a.pData, b.pData, out.pData, a.numRows, a.numCols, b.numCols);
-    return kMatrixStatusOk;
-}
-
-inline MatrixStatus TransposeMatrix(const MatrixView &a, MatrixView &out)
-{
-    if (out.numRows != a.numCols || out.numCols != a.numRows) {
-        return kMatrixStatusSizeMismatch;
-    }
-
-    riscv_dsp_mat_trans_f32(a.pData, out.pData, a.numRows, a.numCols);
-    return kMatrixStatusOk;
-}
-
-inline MatrixStatus InvertMatrix(const MatrixView &a, MatrixView &out)
-{
-    if (a.numRows != a.numCols || out.numRows != a.numRows || out.numCols != a.numCols) {
-        return kMatrixStatusSizeMismatch;
-    }
-
-    constexpr std::size_t kMaxElems = 64;
-    const std::size_t elems = static_cast<std::size_t>(a.numRows) * a.numCols;
-    if (elems > kMaxElems) {
-        return kMatrixStatusArgError;
-    }
-
-    float src_copy[kMaxElems] = {0.0f};
-    std::memcpy(src_copy, a.pData, elems * sizeof(float));
-    return riscv_dsp_mat_inv_f32(src_copy, out.pData, a.numRows);
-}
-
-} // namespace alg
 
 namespace alg {
 
@@ -108,66 +25,52 @@ public:
     static constexpr std::uint8_t u_size = static_cast<std::uint8_t>(U);
     static constexpr std::uint8_t z_size = static_cast<std::uint8_t>(Z);
 
+    // U 可能为 0；将无输入维度的类型退化为 1，避免 Eigen 的 0 尺寸矩阵。
+    using VecX = Eigen::Matrix<float, XHAT, 1>;
+    using VecU = Eigen::Matrix<float, (U > 0 ? U : 1), 1>;
+    using VecZ = Eigen::Matrix<float, Z, 1>;
+    using MatX = Eigen::Matrix<float, XHAT, XHAT>;
+    using MatXU = Eigen::Matrix<float, XHAT, (U > 0 ? U : 1)>;
+    using MatZX = Eigen::Matrix<float, Z, XHAT>;
+    using MatXZ = Eigen::Matrix<float, XHAT, Z>;
+    using MatZ = Eigen::Matrix<float, Z, Z>;
+
     using Callback = void (*)(KalmanFilter &);
 
-    KalmanFilter() { InitMatrices_(); }
+    KalmanFilter() = default;
 
     void Reset()
     {
-        skip_eq1_ = 0;
-        skip_eq2_ = 0;
-        skip_eq3_ = 0;
-        skip_eq4_ = 0;
-        skip_eq5_ = 0;
-
-        std::memset(filtered_value_.data(), 0, sizeof(float) * XHAT);
-        std::memset(measured_vector_.data(), 0, sizeof(float) * Z);
+        skip_eq1_ = skip_eq2_ = skip_eq3_ = skip_eq4_ = skip_eq5_ = 0;
+        filtered_value_.setZero();
+        measured_vector_.setZero();
         if constexpr (U > 0)
         {
-            std::memset(control_vector_.data(), 0, sizeof(float) * U);
+            control_vector_.setZero();
         }
 
-        std::memset(xhat_data_.data(), 0, sizeof(float) * XHAT);
-        std::memset(xhatminus_data_.data(), 0, sizeof(float) * XHAT);
+        xhat_.setZero();
+        xhatminus_.setZero();
         if constexpr (U > 0)
         {
-            std::memset(u_data_.data(), 0, sizeof(float) * U);
+            u_.setZero();
         }
-        std::memset(z_data_.data(), 0, sizeof(float) * Z);
+        z_.setZero();
 
-        std::memset(p_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(pminus_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(f_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(ft_data_.data(), 0, sizeof(float) * XHAT * XHAT);
+        p_.setZero();
+        pminus_.setZero();
+        f_.setZero();
         if constexpr (U > 0)
         {
-            std::memset(b_data_.data(), 0, sizeof(float) * XHAT * U);
+            b_.setZero();
         }
-        std::memset(h_data_.data(), 0, sizeof(float) * Z * XHAT);
-        std::memset(ht_data_.data(), 0, sizeof(float) * XHAT * Z);
-        std::memset(q_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(r_data_.data(), 0, sizeof(float) * Z * Z);
-        std::memset(k_data_.data(), 0, sizeof(float) * XHAT * Z);
+        h_.setZero();
+        q_.setZero();
+        r_.setZero();
+        k_.setZero();
+        s_.setZero();
 
-        std::memset(state_min_variance_.data(), 0, sizeof(float) * XHAT);
-
-        std::memset(s_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(temp_matrix_data_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(temp_matrix_data1_.data(), 0, sizeof(float) * XHAT * XHAT);
-        std::memset(temp_vector_data_.data(), 0, sizeof(float) * XHAT);
-        std::memset(temp_vector_data1_.data(), 0, sizeof(float) * XHAT);
-
-        // Reset dynamic dims back to defaults (fixed maximum).
-        h_.numRows = Z;
-        h_.numCols = XHAT;
-        ht_.numRows = XHAT;
-        ht_.numCols = Z;
-        r_.numRows = Z;
-        r_.numCols = Z;
-        k_.numRows = XHAT;
-        k_.numCols = Z;
-        z_.numRows = Z;
-        z_.numCols = 1;
+        state_min_variance_.setZero();
     }
 
     float *Update()
@@ -198,24 +101,23 @@ public:
         }
         else
         {
-            std::memcpy(xhat_data_.data(), xhatminus_data_.data(), sizeof(float) * XHAT);
-            std::memcpy(p_data_.data(), pminus_data_.data(), sizeof(float) * XHAT * XHAT);
+            xhat_ = xhatminus_;
+            p_ = pminus_;
         }
 
         if (user_func5_ != nullptr)
             user_func5_(*this);
 
-        // suppress filter excessive convergence
-        for (std::size_t i = 0; i < XHAT; i++)
+        // 抑制滤波器过度收敛：限制协方差对角下界。
+        for (std::size_t i = 0; i < XHAT; ++i)
         {
-            float &p_ii = p_data_[i * XHAT + i];
-            if (p_ii < state_min_variance_[i])
+            if (p_(i, i) < state_min_variance_(i))
             {
-                p_ii = state_min_variance_[i];
+                p_(i, i) = state_min_variance_(i);
             }
         }
 
-        std::memcpy(filtered_value_.data(), xhat_data_.data(), sizeof(float) * XHAT);
+        filtered_value_ = xhat_;
 
         if (user_func6_ != nullptr)
             user_func6_(*this);
@@ -223,7 +125,7 @@ public:
         return filtered_value_.data();
     }
 
-    // Flags / configuration
+    // 标志位 / 配置
     void SetUseAutoAdjustment(bool enabled) { use_auto_adjustment_ = enabled ? 1U : 0U; }
     std::uint8_t UseAutoAdjustment() const { return use_auto_adjustment_; }
 
@@ -247,141 +149,43 @@ public:
     void SetUserFunc5(Callback cb) { user_func5_ = cb; }
     void SetUserFunc6(Callback cb) { user_func6_ = cb; }
 
-    // Vectors
-    float *FilteredValue() { return filtered_value_.data(); }
-    const float *FilteredValue() const { return filtered_value_.data(); }
-    float *MeasuredVector() { return measured_vector_.data(); }
-    const float *MeasuredVector() const { return measured_vector_.data(); }
-    float *ControlVector()
-    {
-        if constexpr (U > 0)
-        {
-            return control_vector_.data();
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
+    // 向量访问
+    VecX &xhat() { return xhat_; }
+    const VecX &xhat() const { return xhat_; }
+    VecX &xhatminus() { return xhatminus_; }
+    const VecX &xhatminus() const { return xhatminus_; }
+    VecU &u() { return u_; }
+    VecZ &z() { return z_; }
+    const VecZ &z() const { return z_; }
 
-    const float *ControlVector() const
-    {
-        if constexpr (U > 0)
-        {
-            return control_vector_.data();
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
+    // 矩阵访问
+    MatX &P() { return p_; }
+    MatX &Pminus() { return pminus_; }
+    MatX &F() { return f_; }
+    MatXU &B() { return b_; }
+    MatZX &H() { return h_; }
+    MatX &Q() { return q_; }
+    MatZ &R() { return r_; }
+    MatXZ &K() { return k_; }
+    MatZ &S() { return s_; }
 
-    // Raw data access (for EKF custom steps).
-    float *XhatData() { return xhat_data_.data(); }
-    float *XhatMinusData() { return xhatminus_data_.data(); }
-    float *UData()
-    {
-        if constexpr (U > 0)
-        {
-            return u_data_.data();
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
-    float *ZData() { return z_data_.data(); }
-    float *PData() { return p_data_.data(); }
-    float *PminusData() { return pminus_data_.data(); }
-    float *FData() { return f_data_.data(); }
-    float *FTData() { return ft_data_.data(); }
-    float *BData()
-    {
-        if constexpr (U > 0)
-        {
-            return b_data_.data();
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
-    float *HData() { return h_data_.data(); }
-    float *HTData() { return ht_data_.data(); }
-    float *QData() { return q_data_.data(); }
-    float *RData() { return r_data_.data(); }
-    float *KData() { return k_data_.data(); }
+    // 测量 / 控制 / 输出
+    VecZ &MeasuredVector() { return measured_vector_; }
+    VecU &ControlVector() { return control_vector_; }
+    VecX &FilteredValue() { return filtered_value_; }
+    const VecX &FilteredValue() const { return filtered_value_; }
 
-    // Matrices
-    ::mat &xhat() { return xhat_; }
-    ::mat &xhatminus() { return xhatminus_; }
-    ::mat &u() { return u_; }
-    ::mat &z() { return z_; }
-    ::mat &P() { return p_; }
-    ::mat &Pminus() { return pminus_; }
-    ::mat &F() { return f_; }
-    ::mat &FT() { return ft_; }
-    ::mat &B() { return b_; }
-    ::mat &H() { return h_; }
-    ::mat &HT() { return ht_; }
-    ::mat &Q() { return q_; }
-    ::mat &R() { return r_; }
-    ::mat &K() { return k_; }
-    ::mat &S() { return s_; }
-    ::mat &TempMatrix() { return temp_matrix_; }
-    ::mat &TempMatrix1() { return temp_matrix1_; }
-    ::mat &TempVector() { return temp_vector_; }
-    ::mat &TempVector1() { return temp_vector1_; }
-
-    int8_t &MatStatus() { return mat_status_; }
     std::uint8_t &MeasurementValidNum() { return measurement_valid_num_; }
-    const std::array<float, XHAT> &StateMinVariance() const { return state_min_variance_; }
-    std::array<float, XHAT> &StateMinVariance() { return state_min_variance_; }
 
 private:
-    void InitMatrices_()
-    {
-        InitializeMatrixView(xhat_, XHAT, 1, xhat_data_.data());
-        InitializeMatrixView(xhatminus_, XHAT, 1, xhatminus_data_.data());
-        if constexpr (U > 0)
-        {
-            InitializeMatrixView(u_, U, 1, u_data_.data());
-            InitializeMatrixView(b_, XHAT, U, b_data_.data());
-        }
-        else
-        {
-            static float dummy = 0.0f;
-            InitializeMatrixView(u_, 0, 0, &dummy);
-            InitializeMatrixView(b_, 0, 0, &dummy);
-        }
-        InitializeMatrixView(z_, Z, 1, z_data_.data());
-
-        InitializeMatrixView(p_, XHAT, XHAT, p_data_.data());
-        InitializeMatrixView(pminus_, XHAT, XHAT, pminus_data_.data());
-        InitializeMatrixView(f_, XHAT, XHAT, f_data_.data());
-        InitializeMatrixView(ft_, XHAT, XHAT, ft_data_.data());
-        InitializeMatrixView(h_, Z, XHAT, h_data_.data());
-        InitializeMatrixView(ht_, XHAT, Z, ht_data_.data());
-        InitializeMatrixView(q_, XHAT, XHAT, q_data_.data());
-        InitializeMatrixView(r_, Z, Z, r_data_.data());
-        InitializeMatrixView(k_, XHAT, Z, k_data_.data());
-
-        InitializeMatrixView(s_, XHAT, XHAT, s_data_.data());
-        InitializeMatrixView(temp_matrix_, XHAT, XHAT, temp_matrix_data_.data());
-        InitializeMatrixView(temp_matrix1_, XHAT, XHAT, temp_matrix_data1_.data());
-        InitializeMatrixView(temp_vector_, XHAT, 1, temp_vector_data_.data());
-        InitializeMatrixView(temp_vector1_, XHAT, 1, temp_vector_data1_.data());
-    }
-
     void Measure_()
     {
-        // Auto adjustment not implemented in this static-size filter.
-        std::memcpy(z_data_.data(), measured_vector_.data(), sizeof(float) * Z);
-        std::memset(measured_vector_.data(), 0, sizeof(float) * Z);
+        z_ = measured_vector_;
+        measured_vector_.setZero();
         if constexpr (U > 0)
         {
-            std::memcpy(u_data_.data(), control_vector_.data(), sizeof(float) * U);
-            std::memset(control_vector_.data(), 0, sizeof(float) * U);
+            u_ = control_vector_;
+            control_vector_.setZero();
         }
     }
 
@@ -391,20 +195,13 @@ private:
         {
             return;
         }
-
         if constexpr (U > 0)
         {
-            temp_vector_.numRows = XHAT;
-            temp_vector_.numCols = 1;
-            mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, xhat_, temp_vector_));
-            temp_vector1_.numRows = XHAT;
-            temp_vector1_.numCols = 1;
-            mat_status_ = static_cast<int8_t>(MultiplyMatrices(b_, u_, temp_vector1_));
-            mat_status_ = static_cast<int8_t>(AddMatrices(temp_vector_, temp_vector1_, xhatminus_));
+            xhatminus_ = f_ * xhat_ + b_ * u_;
         }
         else
         {
-            mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, xhat_, xhatminus_));
+            xhatminus_ = f_ * xhat_;
         }
     }
 
@@ -414,13 +211,7 @@ private:
         {
             return;
         }
-
-        mat_status_ = static_cast<int8_t>(TransposeMatrix(f_, ft_));
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(f_, p_, pminus_));
-        temp_matrix_.numRows = pminus_.numRows;
-        temp_matrix_.numCols = ft_.numCols;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(pminus_, ft_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(AddMatrices(temp_matrix_, q_, pminus_));
+        pminus_ = f_ * p_ * f_.transpose() + q_;
     }
 
     void SetK_()
@@ -429,22 +220,8 @@ private:
         {
             return;
         }
-
-        mat_status_ = static_cast<int8_t>(TransposeMatrix(h_, ht_));
-        temp_matrix_.numRows = h_.numRows;
-        temp_matrix_.numCols = pminus_.numCols;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(h_, pminus_, temp_matrix_));
-        temp_matrix1_.numRows = temp_matrix_.numRows;
-        temp_matrix1_.numCols = ht_.numCols;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, ht_, temp_matrix1_));
-        s_.numRows = r_.numRows;
-        s_.numCols = r_.numCols;
-        mat_status_ = static_cast<int8_t>(AddMatrices(temp_matrix1_, r_, s_));
-        mat_status_ = static_cast<int8_t>(InvertMatrix(s_, temp_matrix1_));
-        temp_matrix_.numRows = pminus_.numRows;
-        temp_matrix_.numCols = ht_.numCols;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(pminus_, ht_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, temp_matrix1_, k_));
+        s_ = h_ * pminus_ * h_.transpose() + r_;
+        k_ = pminus_ * h_.transpose() * s_.inverse();
     }
 
     void XhatUpdate_()
@@ -453,17 +230,7 @@ private:
         {
             return;
         }
-
-        temp_vector_.numRows = h_.numRows;
-        temp_vector_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(h_, xhatminus_, temp_vector_));
-        temp_vector1_.numRows = z_.numRows;
-        temp_vector1_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(SubtractMatrices(z_, temp_vector_, temp_vector1_));
-        temp_vector_.numRows = k_.numRows;
-        temp_vector_.numCols = 1;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(k_, temp_vector1_, temp_vector_));
-        mat_status_ = static_cast<int8_t>(AddMatrices(xhatminus_, temp_vector_, xhat_));
+        xhat_ = xhatminus_ + k_ * (z_ - h_ * xhatminus_);
     }
 
     void PUpdate_()
@@ -472,14 +239,7 @@ private:
         {
             return;
         }
-
-        temp_matrix_.numRows = k_.numRows;
-        temp_matrix_.numCols = h_.numCols;
-        temp_matrix1_.numRows = temp_matrix_.numRows;
-        temp_matrix1_.numCols = pminus_.numCols;
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(k_, h_, temp_matrix_));
-        mat_status_ = static_cast<int8_t>(MultiplyMatrices(temp_matrix_, pminus_, temp_matrix1_));
-        mat_status_ = static_cast<int8_t>(SubtractMatrices(pminus_, temp_matrix1_, p_));
+        p_ = pminus_ - k_ * h_ * pminus_;
     }
 
     std::uint8_t use_auto_adjustment_ = 0;
@@ -499,56 +259,26 @@ private:
     Callback user_func5_ = nullptr;
     Callback user_func6_ = nullptr;
 
-    int8_t mat_status_ = 0;
+    VecX filtered_value_;
+    VecZ measured_vector_;
+    VecU control_vector_;
 
-    std::array<float, XHAT> filtered_value_{};
-    std::array<float, Z> measured_vector_{};
-    std::array<float, U> control_vector_{};
+    VecX xhat_;
+    VecX xhatminus_;
+    VecU u_;
+    VecZ z_;
 
-    std::array<float, XHAT> xhat_data_{};
-    std::array<float, XHAT> xhatminus_data_{};
-    std::array<float, U> u_data_{};
-    std::array<float, Z> z_data_{};
+    MatX p_;
+    MatX pminus_;
+    MatX f_;
+    MatXU b_;
+    MatZX h_;
+    MatX q_;
+    MatZ r_;
+    MatXZ k_;
+    MatZ s_;
 
-    std::array<float, XHAT * XHAT> p_data_{};
-    std::array<float, XHAT * XHAT> pminus_data_{};
-    std::array<float, XHAT * XHAT> f_data_{};
-    std::array<float, XHAT * XHAT> ft_data_{};
-    std::array<float, XHAT * U> b_data_{};
-    std::array<float, Z * XHAT> h_data_{};
-    std::array<float, XHAT * Z> ht_data_{};
-    std::array<float, XHAT * XHAT> q_data_{};
-    std::array<float, Z * Z> r_data_{};
-    std::array<float, XHAT * Z> k_data_{};
-
-    std::array<float, XHAT> state_min_variance_{};
-
-    // Workspace buffers (sized to XHAT; supports Z<=XHAT use-cases like QuaternionEKF).
-    std::array<float, XHAT * XHAT> s_data_{};
-    std::array<float, XHAT * XHAT> temp_matrix_data_{};
-    std::array<float, XHAT * XHAT> temp_matrix_data1_{};
-    std::array<float, XHAT> temp_vector_data_{};
-    std::array<float, XHAT> temp_vector_data1_{};
-
-    ::mat xhat_{};
-    ::mat xhatminus_{};
-    ::mat u_{};
-    ::mat z_{};
-    ::mat p_{};
-    ::mat pminus_{};
-    ::mat f_{};
-    ::mat ft_{};
-    ::mat b_{};
-    ::mat h_{};
-    ::mat ht_{};
-    ::mat q_{};
-    ::mat r_{};
-    ::mat k_{};
-    ::mat s_{};
-    ::mat temp_matrix_{};
-    ::mat temp_matrix1_{};
-    ::mat temp_vector_{};
-    ::mat temp_vector1_{};
+    VecX state_min_variance_;
 };
 
 } // namespace alg

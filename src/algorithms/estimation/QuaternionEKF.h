@@ -86,8 +86,7 @@ private:
         float r;
 
         float dt;
-        mat chi_square;
-        float chi_square_data[1];
+        float chi_square;
         float chi_square_test_threshold;
         float lambda;
 

@@ -7,6 +7,8 @@ cmake_minimum_required(VERSION 3.20.0)
 set(HPM_ZEPHYR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../hpm_support)
 set(HPM_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk_env/hpm_sdk)
 set(HPM_ENV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk_env)
+# Eigen：纯头文件线性代数库，位于 workspace 根（../eigen）。
+set(EIGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../eigen)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -20,14 +22,6 @@ target_include_directories(app PRIVATE
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
 )
-
-if(CONFIG_CPU_HAS_FPU_DOUBLE_PRECISION)
-  set(HPM_DSP_LIBRARY libdspd.a)
-elseif(CONFIG_FPU)
-  set(HPM_DSP_LIBRARY libdspf.a)
-else()
-  set(HPM_DSP_LIBRARY libdsp.a)
-endif()
 
 if(CONFIG_CHERRYUSB)
   set(CHERRYUSB_CONFIG_DIR ${HPM_ZEPHYR_DIR}/samples/cherryusb/config)

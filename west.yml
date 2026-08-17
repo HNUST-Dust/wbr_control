@@ -24,6 +24,9 @@ manifest:
       url-base: https://github.com/NoneOfEver
     - name: dust-hpm
       url-base: https://github.com/NoneOfEver
+    # Eigen 官方仓库在 GitLab（GitHub 的 eigenteam/eigen-git-mirror 已停更在 3.3.7）。
+    - name: eigen
+      url-base: https://gitlab.com
 
   defaults:
     remote: github
@@ -77,6 +80,14 @@ manifest:
       repo-path: dust_mavlink
       path: mavlink
       revision: main
+
+    # Eigen：纯头文件线性代数库（MPL-2.0），用于状态估计 / MPC / 坐标系变换。
+    # 3.4.0 为当前最新稳定版，对应 commit 3147391d946bb4b6c68edd901f2add6ac1f31f8c。
+    - name: eigen
+      remote: eigen
+      repo-path: libeigen/eigen
+      path: eigen
+      revision: 3.4.0
 
   self:
     path: wbr_control

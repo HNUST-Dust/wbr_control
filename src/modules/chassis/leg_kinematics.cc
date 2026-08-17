@@ -1,5 +1,8 @@
 #include "leg_kinematics.h"
 
+#include <Eigen/Core>
+#include <Eigen/Cholesky>
+
 #include <algorithm>
 #include <cmath>
 
@@ -86,22 +89,21 @@ bool InverseKinematics(double target_hx, double target_hz, int branch, double se
 		}
 
 		// 阻尼最小二乘：dq = J^T (J J^T + lambda I)^-1 e。
-		const double a00 = jacobian[0][0] * jacobian[0][0] +
-				   jacobian[0][1] * jacobian[0][1] + kDamping;
-		const double a01 =
-			jacobian[0][0] * jacobian[1][0] + jacobian[0][1] * jacobian[1][1];
-		const double a11 = jacobian[1][0] * jacobian[1][0] +
-				   jacobian[1][1] * jacobian[1][1] + kDamping;
-		const double determinant = a00 * a11 - a01 * a01;
-		if (std::abs(determinant) < 1e-12) {
-			return false;
-		}
-		const double y0 = (a11 * error_x - a01 * error_z) / determinant;
-		const double y1 = (-a01 * error_x + a00 * error_z) / determinant;
-		const double step_phi1 = std::clamp(jacobian[0][0] * y0 + jacobian[1][0] * y1,
-						    -kMaxJointStep, kMaxJointStep);
-		const double step_phi2 = std::clamp(jacobian[0][1] * y0 + jacobian[1][1] * y1,
-						    -kMaxJointStep, kMaxJointStep);
+		// J J^T + lambda I（lambda > 0）恒为对称正定，LLT 分解始终成立。
+		Eigen::Matrix2d J;
+		J << jacobian[0][0], jacobian[0][1],
+		     jacobian[1][0], jacobian[1][1];
+		const Eigen::Vector2d e(error_x, error_z);
+		const Eigen::Matrix2d damped =
+			J * J.transpose() + kDamping * Eigen::Matrix2d::Identity();
+		// 求解 damped * y = e；damped 对称正定，用 LLT 分解原地求解。
+		Eigen::Vector2d y = e;
+		damped.llt().solveInPlace(y);
+		const Eigen::Vector2d dq = J.transpose() * y;
+		const double step_phi1 =
+			std::clamp(dq[0], -kMaxJointStep, kMaxJointStep);
+		const double step_phi2 =
+			std::clamp(dq[1], -kMaxJointStep, kMaxJointStep);
 		phi1 += step_phi1;
 		phi2 += step_phi2;
 	}
@@ -144,11 +146,16 @@ bool ComputeLegKinematics(double phi1, double phi2, double dphi1, double dphi2, 
 	if (leg.length < kMinLegLength) {
 		return false;
 	}
-	const double velocity_x = leg.jacobian[0][0] * dphi1 + leg.jacobian[0][1] * dphi2;
-	const double velocity_z = leg.jacobian[1][0] * dphi1 + leg.jacobian[1][1] * dphi2;
-	leg.length_rate = (leg.hx * velocity_x + leg.hz * velocity_z) / leg.length;
+	// 雅可比与关节速度的乘积：v = J * dq。
+	Eigen::Matrix2d J;
+	J << leg.jacobian[0][0], leg.jacobian[0][1],
+	     leg.jacobian[1][0], leg.jacobian[1][1];
+	const Eigen::Vector2d dq(dphi1, dphi2);
+	const Eigen::Vector2d velocity = J * dq;
+	leg.length_rate = (leg.hx * velocity[0] + leg.hz * velocity[1]) / leg.length;
 	leg.angle = std::atan2(leg.hx, -leg.hz);
-	leg.angle_rate = (-leg.hz * velocity_x + leg.hx * velocity_z) / (leg.length * leg.length);
+	leg.angle_rate =
+		(-leg.hz * velocity[0] + leg.hx * velocity[1]) / (leg.length * leg.length);
 	return true;
 }
 
