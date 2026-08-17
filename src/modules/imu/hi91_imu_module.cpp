@@ -66,8 +66,6 @@ Hi91ImuModule::Hi91ImuModule()
 {
 	k_sem_init(&rx_sem_, 0, 1);
 	ring_buf_init(&rx_ring_, sizeof(rx_ring_storage_), rx_ring_storage_);
-	parser_.Reset();
-	parser_.SetStrictCrc(kStrictCrc);
 }
 
 int Hi91ImuModule::Start()
@@ -195,13 +193,69 @@ void Hi91ImuModule::InvalidateDmaRxCache(const uint8_t *data, size_t len)
 void Hi91ImuModule::ProcessBytes(const uint8_t *data, size_t size)
 {
 	for (size_t i = 0U; i < size; ++i) {
-		protocols::Hi91Sample sample = {};
-		const auto result = parser_.Feed(data[i], &sample);
-		if (result == protocols::Hi91ParseResult::kFrame) {
-			PublishSample(sample);
-		} else if (result != protocols::Hi91ParseResult::kNone) {
-			ReportParseIssue(result);
+		ProcessByte(data[i]);
+	}
+}
+
+void Hi91ImuModule::ProcessByte(uint8_t byte)
+{
+	switch (frame_state_) {
+	case 0U: /* wait SOF0 */
+		if (byte == protocols::kHi91FrameSof0) {
+			frame_buf_[0] = byte;
+			frame_pos_ = 1U;
+			frame_state_ = 1U;
 		}
+		break;
+	case 1U: /* wait SOF1 */
+		if (byte == protocols::kHi91FrameSof1) {
+			frame_buf_[1] = byte;
+			frame_pos_ = 2U;
+			frame_state_ = 2U;
+		} else if (byte == protocols::kHi91FrameSof0) {
+			frame_buf_[0] = byte;
+			frame_pos_ = 1U;
+		} else {
+			frame_state_ = 0U;
+			frame_pos_ = 0U;
+		}
+		break;
+	case 2U: /* collect length */
+		frame_buf_[frame_pos_++] = byte;
+		if (frame_pos_ == 4U) {
+			const uint16_t payload_length =
+				static_cast<uint16_t>(frame_buf_[2]) |
+				(static_cast<uint16_t>(frame_buf_[3]) << 8U);
+			if ((payload_length == 0U) ||
+			    (payload_length > protocols::kHi91MaxPayloadLength)) {
+				ReportParseIssue(-EBADMSG);
+				frame_state_ = 0U;
+				frame_pos_ = 0U;
+			} else {
+				frame_remaining_ = 2U + payload_length; /* crc + payload */
+				frame_state_ = 3U;
+			}
+		}
+		break;
+	case 3U: /* collect crc + payload */
+		frame_buf_[frame_pos_++] = byte;
+		if (--frame_remaining_ == 0U) {
+			protocols::Hi91Sample sample = {};
+			const int rc = protocols::DecodeHi91Frame(
+				frame_buf_, frame_pos_, kStrictCrc, &sample);
+			if (rc == 0) {
+				PublishSample(sample);
+			} else {
+				ReportParseIssue(rc);
+			}
+			frame_state_ = 0U;
+			frame_pos_ = 0U;
+		}
+		break;
+	default:
+		frame_state_ = 0U;
+		frame_pos_ = 0U;
+		break;
 	}
 }
 
@@ -243,14 +297,14 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 	channels::latest_hi91_imu_sample.write(channel_sample);
 }
 
-void Hi91ImuModule::ReportParseIssue(protocols::Hi91ParseResult result)
+void Hi91ImuModule::ReportParseIssue(int error)
 {
 	++parse_error_count_;
 	if ((parse_error_count_ % 1000U) != 1U) {
 		return;
 	}
 
-	LOG_WRN("hi91 parse issue result=%u count=%u", static_cast<unsigned int>(result),
+	LOG_WRN("hi91 parse issue error=%d count=%u", error,
 		static_cast<unsigned int>(parse_error_count_));
 }
 

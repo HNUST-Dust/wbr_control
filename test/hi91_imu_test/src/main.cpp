@@ -58,7 +58,75 @@ float g_sof_5aa5_hz = 0.0F;
 float g_byte_a5_hz = 0.0F;
 float g_byte_5a_hz = 0.0F;
 
-protocols::Hi91Parser g_parser;
+uint8_t g_frame_buf[protocols::kHi91FrameHeaderSize + protocols::kHi91MaxPayloadLength] = {};
+uint8_t g_frame_state = 0U;
+uint8_t g_frame_pos = 0U;
+uint16_t g_frame_remaining = 0U;
+
+void DecodeHi91Byte(uint8_t byte)
+{
+	switch (g_frame_state) {
+	case 0U: /* wait SOF0 */
+		if (byte == protocols::kHi91FrameSof0) {
+			g_frame_buf[0] = byte;
+			g_frame_pos = 1U;
+			g_frame_state = 1U;
+		}
+		break;
+	case 1U: /* wait SOF1 */
+		if (byte == protocols::kHi91FrameSof1) {
+			g_frame_buf[1] = byte;
+			g_frame_pos = 2U;
+			g_frame_state = 2U;
+		} else if (byte == protocols::kHi91FrameSof0) {
+			g_frame_buf[0] = byte;
+			g_frame_pos = 1U;
+		} else {
+			g_frame_state = 0U;
+			g_frame_pos = 0U;
+		}
+		break;
+	case 2U: /* collect length */
+		g_frame_buf[g_frame_pos++] = byte;
+		if (g_frame_pos == 4U) {
+			const uint16_t payload_length =
+				static_cast<uint16_t>(g_frame_buf[2]) |
+				(static_cast<uint16_t>(g_frame_buf[3]) << 8U);
+			if ((payload_length == 0U) ||
+			    (payload_length > protocols::kHi91MaxPayloadLength)) {
+				++g_parse_error_count;
+				g_frame_state = 0U;
+				g_frame_pos = 0U;
+			} else {
+				g_frame_remaining = 2U + payload_length; /* crc + payload */
+				g_frame_state = 3U;
+			}
+		}
+		break;
+	case 3U: /* collect crc + payload */
+		g_frame_buf[g_frame_pos++] = byte;
+		if (--g_frame_remaining == 0U) {
+			protocols::Hi91Sample sample = {};
+			const int rc = protocols::DecodeHi91Frame(
+				g_frame_buf, g_frame_pos, false, &sample);
+			if (rc == 0) {
+				g_roll_deg = sample.roll_deg;
+				g_pitch_deg = sample.pitch_deg;
+				g_yaw_deg = sample.yaw_deg;
+				++g_frame_count;
+			} else {
+				++g_parse_error_count;
+			}
+			g_frame_state = 0U;
+			g_frame_pos = 0U;
+		}
+		break;
+	default:
+		g_frame_state = 0U;
+		g_frame_pos = 0U;
+		break;
+	}
+}
 
 void InvalidateDmaRxCache(const uint8_t *data, size_t len)
 {
@@ -102,16 +170,7 @@ void ProcessBytes(const uint8_t *data, size_t size)
 		}
 		g_previous_byte = data[i];
 
-		protocols::Hi91Sample sample = {};
-		const auto result = g_parser.Feed(data[i], &sample);
-		if (result == protocols::Hi91ParseResult::kFrame) {
-			g_roll_deg = sample.roll_deg;
-			g_pitch_deg = sample.pitch_deg;
-			g_yaw_deg = sample.yaw_deg;
-			++g_frame_count;
-		} else if (result != protocols::Hi91ParseResult::kNone) {
-			++g_parse_error_count;
-		}
+		DecodeHi91Byte(data[i]);
 	}
 }
 
@@ -182,8 +241,6 @@ int main()
 	printk("uart2 async rx, printing first %u dumps of %u bytes\n",
 		static_cast<unsigned int>(kMaxDumpFrames),
 		static_cast<unsigned int>(kDumpBytes));
-
-	g_parser.SetStrictCrc(false);
 
 	const int rc = ConfigureImuUart();
 	if (rc != 0) {

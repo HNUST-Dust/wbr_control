@@ -4,6 +4,7 @@
 
 #include <protocols/imu/hi91_protocol.h>
 
+#include <errno.h>
 #include <string.h>
 
 namespace protocols {
@@ -71,101 +72,53 @@ uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
 
 }  // namespace
 
-Hi91Parser::Hi91Parser()
+int DecodeHi91Frame(const uint8_t *data, size_t len, bool strict_crc, Hi91Sample *out)
 {
-	Reset();
-	strict_crc_ = false;
-}
-
-void Hi91Parser::Reset()
-{
-	state_ = State::kSof0;
-	payload_length_ = 0U;
-	expected_crc_ = 0U;
-	payload_index_ = 0U;
-}
-
-void Hi91Parser::SetStrictCrc(bool strict_crc)
-{
-	strict_crc_ = strict_crc;
-}
-
-Hi91ParseResult Hi91Parser::Feed(uint8_t byte, Hi91Sample *sample)
-{
-	switch (state_) {
-	case State::kSof0:
-		if (byte == kHi91FrameSof0) {
-			state_ = State::kSof1;
-		}
-		break;
-	case State::kSof1:
-		if (byte == kHi91FrameSof1) {
-			state_ = State::kLen0;
-		} else {
-			state_ = (byte == kHi91FrameSof0) ? State::kSof1 : State::kSof0;
-		}
-		break;
-	case State::kLen0:
-		payload_length_ = byte;
-		state_ = State::kLen1;
-		break;
-	case State::kLen1:
-		payload_length_ |= static_cast<uint16_t>(byte) << 8U;
-		if ((payload_length_ == 0U) || (payload_length_ > kHi91MaxPayloadLength)) {
-			Reset();
-			return Hi91ParseResult::kInvalidLength;
-		}
-		state_ = State::kCrc0;
-		break;
-	case State::kCrc0:
-		expected_crc_ = byte;
-		state_ = State::kCrc1;
-		break;
-	case State::kCrc1:
-		expected_crc_ |= static_cast<uint16_t>(byte) << 8U;
-		payload_index_ = 0U;
-		state_ = State::kPayload;
-		break;
-	case State::kPayload:
-		payload_[payload_index_++] = byte;
-		if (payload_index_ >= payload_length_) {
-			return FinishFrame(sample);
-		}
-		break;
+	if ((data == nullptr) || (out == nullptr)) {
+		return -EINVAL;
 	}
 
-	return Hi91ParseResult::kNone;
-}
-
-Hi91ParseResult Hi91Parser::FinishFrame(Hi91Sample *sample)
-{
-	const uint16_t payload_length = payload_length_;
-	const uint16_t expected_crc = expected_crc_;
-	Hi91ParseResult result = Hi91ParseResult::kFrame;
-
-	if (strict_crc_ && (CalculateFrameCrc(payload_length, payload_) != expected_crc)) {
-		result = Hi91ParseResult::kCrcError;
-	} else if ((payload_length < kHi91DataLength) || (payload_[0] != kHi91DataTag)) {
-		result = Hi91ParseResult::kUnsupportedFrame;
-	} else if (sample != nullptr) {
-		sample->main_status = ReadLe16(&payload_[1]);
-		sample->temperature_c = static_cast<int8_t>(payload_[3]);
-		sample->air_pressure = ReadLeFloat(&payload_[4]);
-		sample->system_time_ms = ReadLe32(&payload_[8]);
-		DecodeFloat3(&payload_[12], sample->accel_g);
-		DecodeFloat3(&payload_[24], sample->gyro_dps);
-		DecodeFloat3(&payload_[36], sample->mag_ut);
-		sample->roll_deg = ReadLeFloat(&payload_[48]);
-		sample->pitch_deg = ReadLeFloat(&payload_[52]);
-		sample->yaw_deg = ReadLeFloat(&payload_[56]);
-		sample->quat[0] = ReadLeFloat(&payload_[60]);
-		sample->quat[1] = ReadLeFloat(&payload_[64]);
-		sample->quat[2] = ReadLeFloat(&payload_[68]);
-		sample->quat[3] = ReadLeFloat(&payload_[72]);
+	if (len < kHi91FrameHeaderSize) {
+		return -EINVAL;
 	}
 
-	Reset();
-	return result;
+	if ((data[0] != kHi91FrameSof0) || (data[1] != kHi91FrameSof1)) {
+		return -EBADMSG;
+	}
+
+	const uint16_t payload_length = ReadLe16(&data[2]);
+	if ((payload_length == 0U) || (payload_length > kHi91MaxPayloadLength)) {
+		return -EBADMSG;
+	}
+
+	if (len < kHi91FrameHeaderSize + payload_length) {
+		return -EMSGSIZE;
+	}
+
+	const uint8_t *payload = &data[kHi91FrameHeaderSize];
+	if (strict_crc && (CalculateFrameCrc(payload_length, payload) != ReadLe16(&data[4]))) {
+		return -EBADMSG;
+	}
+
+	if ((payload_length < kHi91DataLength) || (payload[0] != kHi91DataTag)) {
+		return -EBADMSG;
+	}
+
+	out->main_status = ReadLe16(&payload[1]);
+	out->temperature_c = static_cast<int8_t>(payload[3]);
+	out->air_pressure = ReadLeFloat(&payload[4]);
+	out->system_time_ms = ReadLe32(&payload[8]);
+	DecodeFloat3(&payload[12], out->accel_g);
+	DecodeFloat3(&payload[24], out->gyro_dps);
+	DecodeFloat3(&payload[36], out->mag_ut);
+	out->roll_deg = ReadLeFloat(&payload[48]);
+	out->pitch_deg = ReadLeFloat(&payload[52]);
+	out->yaw_deg = ReadLeFloat(&payload[56]);
+	out->quat[0] = ReadLeFloat(&payload[60]);
+	out->quat[1] = ReadLeFloat(&payload[64]);
+	out->quat[2] = ReadLeFloat(&payload[68]);
+	out->quat[3] = ReadLeFloat(&payload[72]);
+	return 0;
 }
 
 uint16_t Hi91Crc16CcittFalse(const uint8_t *data, size_t size)

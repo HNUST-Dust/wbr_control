@@ -16,6 +16,7 @@ constexpr uint8_t kHi91FrameSof1 = 0xA5U;
 constexpr uint8_t kHi91DataTag = 0x91U;
 constexpr uint16_t kHi91DataLength = 76U;
 constexpr uint16_t kHi91MaxPayloadLength = 256U;
+constexpr size_t kHi91FrameHeaderSize = 6U; /* SOF0 SOF1 len(2) crc(2) */
 
 struct Hi91Sample {
 	uint16_t main_status;
@@ -31,42 +32,17 @@ struct Hi91Sample {
 	float quat[4];
 };
 
-enum class Hi91ParseResult {
-	kNone,
-	kFrame,
-	kCrcError,
-	kUnsupportedFrame,
-	kInvalidLength,
-};
-
-class Hi91Parser {
-public:
-	Hi91Parser();
-
-	void Reset();
-	void SetStrictCrc(bool strict_crc);
-	Hi91ParseResult Feed(uint8_t byte, Hi91Sample *sample);
-
-private:
-	enum class State {
-		kSof0,
-		kSof1,
-		kLen0,
-		kLen1,
-		kCrc0,
-		kCrc1,
-		kPayload,
-	};
-
-	Hi91ParseResult FinishFrame(Hi91Sample *sample);
-
-	State state_;
-	bool strict_crc_;
-	uint16_t payload_length_;
-	uint16_t expected_crc_;
-	uint16_t payload_index_;
-	uint8_t payload_[kHi91MaxPayloadLength];
-};
+/*
+ * Decode one complete HI91 frame (SOF + len + crc + payload).
+ *
+ * `strict_crc` rejects frames whose CRC16 does not match the device
+ * (see Kconfig RM_TEST_HI91_IMU_STRICT_CRC); keep it false until the exact
+ * CRC variant is confirmed.
+ *
+ * Returns 0 on success, or a negative errno value (-EINVAL / -EMSGSIZE /
+ * -EBADMSG) on failure.
+ */
+int DecodeHi91Frame(const uint8_t *data, size_t len, bool strict_crc, Hi91Sample *out);
 
 /* HiPNUC CRC-16/CCITT update with the manual's initial value 0x0000. */
 uint16_t Hi91Crc16CcittFalse(const uint8_t *data, size_t size);

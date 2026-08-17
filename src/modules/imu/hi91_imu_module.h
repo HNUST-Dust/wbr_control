@@ -35,13 +35,16 @@ private:
 	static constexpr size_t kRxBufferCount = 2U;
 	static constexpr size_t kRxRingSize = 8192U;
 	static constexpr size_t kDmaCacheLineSize = 64U;
+	static constexpr size_t kFrameBufferSize =
+		protocols::kHi91FrameHeaderSize + protocols::kHi91MaxPayloadLength;
 
 	static void UartCallback(const struct device *dev, struct uart_event *evt, void *user_data);
 	void HandleUartEvent(const struct device *dev, const struct uart_event *evt);
 	void InvalidateDmaRxCache(const uint8_t *data, size_t len);
 	void ProcessBytes(const uint8_t *data, size_t size);
+	void ProcessByte(uint8_t byte);
 	void PublishSample(const protocols::Hi91Sample &sample);
-	void ReportParseIssue(protocols::Hi91ParseResult result);
+	void ReportParseIssue(int error);
 
 	const struct device *uart_dev_ = nullptr;
 	struct k_sem rx_sem_;
@@ -49,7 +52,10 @@ private:
 	uint8_t rx_ring_storage_[kRxRingSize];
 	alignas(kDmaCacheLineSize) uint8_t rx_buffers_[kRxBufferCount][kRxBufferStorageSize];
 	uint8_t next_rx_buffer_index_ = 0U;
-	protocols::Hi91Parser parser_;
+	uint8_t frame_buf_[kFrameBufferSize] = {};
+	uint8_t frame_state_ = 0U;
+	uint8_t frame_pos_ = 0U;
+	uint16_t frame_remaining_ = 0U;
 	uint32_t sample_sequence_ = 0U;
 	uint32_t parse_error_count_ = 0U;
 	uint32_t rx_drop_count_ = 0U;
