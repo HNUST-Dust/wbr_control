@@ -99,6 +99,23 @@ config RM_TEST_RUNTIME_INIT_USB
 	help
 	  Enable CherryUSB CDC-ACM session initialization during runtime bootstrap.
 
+config RM_TEST_PC_LINK
+	bool "Enable PC link protocol over USB"
+	default y
+	depends on RM_TEST_RUNTIME_INIT_USB
+	help
+	  Enable the pc_link session worker inside usb_session. The worker
+	  assembles the auto-aim telemetry packet from the gimbal/booster/imu/
+	  remote_input channels at a fixed rate and parses auto-aim commands
+	  received from the PC over USB CDC-ACM.
+
+config RM_TEST_PC_LINK_PERIOD_MS
+	int "PC link send period in milliseconds"
+	default 1
+	depends on RM_TEST_PC_LINK
+	help
+	  Period at which the pc_link worker publishes the auto-aim state frame.
+
 config RM_TEST_RUNTIME_INIT_LITTLEFS
 	bool "Initialize LittleFS in bootstrap"
 	default n

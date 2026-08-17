@@ -16,6 +16,7 @@ namespace thread_phase_ms {
 
 constexpr uint32_t kChassis = 0U;
 constexpr uint32_t kOscilloscope = 2U;
+constexpr uint32_t kPcLink = 4U;
 constexpr uint32_t kSystemState = 5U;
 
 }  // namespace thread_phase_ms

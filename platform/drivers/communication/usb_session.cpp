@@ -7,13 +7,24 @@
 
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
+#include <channels/booster_state.hpp>
+#include <channels/gimbal_state.hpp>
+#include <channels/hi91_imu_sample.hpp>
+#include <channels/pc_auto_aim_command.hpp>
+#include <channels/remote_input_state.hpp>
 #include <channels/usb_raw_frame_queue.h>
 #include <platform/drivers/communication/usb_session.h>
+#include <protocols/pc_link/pc_link.h>
+#include <scheduling/periodic_schedule.h>
+#include <scheduling/thread_priorities.h>
 
 #include "usbd_core.h"
 #include "usbd_cdc_acm.h"
+
+LOG_MODULE_REGISTER(usb_session, LOG_LEVEL_INF);
 
 namespace {
 
@@ -227,6 +238,151 @@ struct usbd_endpoint g_cdc_in_ep = {
 static struct usbd_interface g_intf0;
 static struct usbd_interface g_intf1;
 
+#if defined(CONFIG_RM_TEST_PC_LINK) && CONFIG_RM_TEST_PC_LINK
+constexpr uint32_t kPcLinkPeriodMs = CONFIG_RM_TEST_PC_LINK_PERIOD_MS;
+
+K_THREAD_STACK_DEFINE(g_pc_link_stack, 1536);
+k_thread g_pc_link_thread;
+bool g_pc_link_started = false;
+
+uint8_t g_pc_rx_buf[protocols::kPcCommRecvPacketSize];
+uint8_t g_pc_rx_state = 0U;
+uint8_t g_pc_rx_pos = 0U;
+
+void PublishAutoAimCommand(const protocols::PCRecvAutoAimData *recv)
+{
+	channels::PcAutoAimCommand command = {};
+	command.mode = recv->mode;
+	command.yaw_angle = recv->yaw.yaw_ang;
+	command.yaw_velocity = recv->yaw.yaw_vel;
+	command.yaw_acceleration = recv->yaw.yaw_acc;
+	command.pitch_angle = recv->pitch.pitch_ang;
+	command.pitch_velocity = recv->pitch.pitch_vel;
+	command.pitch_acceleration = recv->pitch.pitch_acc;
+	channels::latest_pc_auto_aim_command.write(command);
+}
+
+void FeedPcRxByte(uint8_t byte)
+{
+	switch (g_pc_rx_state) {
+	case 0U: /* wait 'S' */
+		if (byte == 'S') {
+			g_pc_rx_buf[0] = byte;
+			g_pc_rx_pos = 1U;
+			g_pc_rx_state = 1U;
+		}
+		break;
+	case 1U: /* wait 'P' */
+		if (byte == 'P') {
+			g_pc_rx_buf[1] = byte;
+			g_pc_rx_pos = 2U;
+			g_pc_rx_state = 2U;
+		} else if (byte == 'S') {
+			g_pc_rx_buf[0] = byte;
+			g_pc_rx_pos = 1U;
+		} else {
+			g_pc_rx_state = 0U;
+			g_pc_rx_pos = 0U;
+		}
+		break;
+	case 2U: /* collect the rest of the fixed-size packet */
+		g_pc_rx_buf[g_pc_rx_pos++] = byte;
+		if (g_pc_rx_pos == protocols::kPcCommRecvPacketSize) {
+			protocols::PCRecvAutoAimData recv = {};
+			if (protocols::DecodePcCommRecv(g_pc_rx_buf, g_pc_rx_pos, &recv) == 0) {
+				PublishAutoAimCommand(&recv);
+			}
+			g_pc_rx_state = 0U;
+			g_pc_rx_pos = 0U;
+		}
+		break;
+	default:
+		g_pc_rx_state = 0U;
+		g_pc_rx_pos = 0U;
+		break;
+	}
+}
+
+void DrainPcRx()
+{
+	channels::UsbRawFrameMessage chunk = {};
+	while (channels::DequeueForCdcAcm(&chunk, 0) == 0) {
+		for (uint16_t i = 0U; i < chunk.len; ++i) {
+			FeedPcRxByte(chunk.data[i]);
+		}
+	}
+}
+
+void SendPcLinkFrame()
+{
+	protocols::PCSendAutoAimData data = {};
+
+	channels::RemoteInputState input = {};
+	if (::latest_remote_state.read(input)) {
+		data.mode = input.auto_aim ? 1U : 0U;
+	}
+
+	channels::Hi91ImuSample imu = {};
+	if (channels::latest_hi91_imu_sample.read(imu)) {
+		memcpy(data.q, imu.quat, sizeof(data.q));
+	}
+
+	channels::GimbalState gimbal = {};
+	if (channels::latest_gimbal_state.read(gimbal)) {
+		data.yaw.yaw_ang = gimbal.yaw_angle;
+		data.yaw.yaw_vel = gimbal.yaw_velocity;
+		data.pitch.pitch_ang = gimbal.pitch_angle;
+		data.pitch.pitch_vel = gimbal.pitch_velocity;
+	}
+
+	channels::BoosterState booster = {};
+	if (channels::latest_booster_state.read(booster)) {
+		data.bullet.bullet_speed = booster.bullet_speed;
+		data.bullet.bullet_count = booster.bullet_count;
+	}
+
+	uint8_t packet[protocols::kPcCommSendPacketSize];
+	size_t packet_len = 0U;
+	if (protocols::EncodePcCommSend(&data, packet, sizeof(packet), &packet_len) != 0) {
+		return;
+	}
+
+	(void)platform::SendUsb(packet, packet_len);
+}
+
+void PcLinkLoop(void *, void *, void *)
+{
+	wbr_control::scheduling::AbsolutePeriodicSchedule release(
+		kPcLinkPeriodMs, wbr_control::scheduling::thread_phase_ms::kPcLink);
+	for (;;) {
+		(void)release.WaitForNextRelease();
+		DrainPcRx();
+		SendPcLinkFrame();
+	}
+}
+
+int StartPcLinkWorker()
+{
+	if (g_pc_link_started) {
+		return 0;
+	}
+
+	const k_tid_t tid = k_thread_create(
+		&g_pc_link_thread, g_pc_link_stack, K_THREAD_STACK_SIZEOF(g_pc_link_stack),
+		PcLinkLoop, nullptr, nullptr, nullptr,
+		K_PRIO_PREEMPT(wbr_control::scheduling::thread_priority::kPcLink), 0, K_NO_WAIT);
+	if (tid == nullptr) {
+		return -EINVAL;
+	}
+
+	k_thread_name_set(tid, "pc_link");
+	g_pc_link_started = true;
+	LOG_INF("pc_link worker started period=%u ms",
+		static_cast<unsigned int>(kPcLinkPeriodMs));
+	return 0;
+}
+#endif /* CONFIG_RM_TEST_PC_LINK */
+
 #endif
 
 }  // namespace
@@ -258,6 +414,16 @@ int InitializeUsbSession()
 	}
 
 	g_started = true;
+
+#if defined(CONFIG_RM_TEST_PC_LINK) && CONFIG_RM_TEST_PC_LINK
+	{
+		const int pc_rc = StartPcLinkWorker();
+		if (pc_rc != 0) {
+			return pc_rc;
+		}
+	}
+#endif
+
 	return 0;
 #else
 	return -ENOTSUP;
