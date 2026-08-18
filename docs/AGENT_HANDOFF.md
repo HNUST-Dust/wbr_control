@@ -44,7 +44,7 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 - `core` 已彻底删除（无兼容层残留），统一使用 `modules/*`、`channels/*` 等根目录头路径。
 - 已去掉外层 `app/` 物理目录，语义目录直接位于应用根目录。
 - staged 模块已统一收敛到 `modules/staging/*`，active 与 staged 已物理分区。
-- 算法目录已完成当前轮次去重：移除 MahonyAHRS 占位重复文件与空壳 orientation 目录，并新增 `tools/algorithms_dedupe_audit.sh` 审计脚本。
+- 独立 `src/algorithms` 已拆除；算法随实际控制器或估计器维护。板载 IMU 的 Mahony 与 Quaternion EKF 位于 `src/modules/imu/onboard/`，不处理 HI91 数据。
 - 平台历史资产已建立 `platform/legacy/*` 归档分区；`legacy_dm_h723` 已归档到 `platform/legacy/board/legacy_dm_h723`。
 
 ## 3. 构建现状
@@ -54,7 +54,7 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 - services：chassis_tuning
 - channels：system_status、chassis_command、chassis_state、remote_input、motor_feedback
 - protocols/motors：dji、dm、cubemars（按具体协议直接接入）
-- algorithms：alg_pid、alg_math
+- 模块专用算法：随对应 module 一起构建
 - platform：board_identity
 
 条件构建：

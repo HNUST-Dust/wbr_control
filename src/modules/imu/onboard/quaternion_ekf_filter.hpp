@@ -1,69 +1,52 @@
 /**
  ******************************************************************************
- * @file    kalman_filter.h
- * @brief   Pure C++ kalman filter (static-size, no heap) backed by Eigen
+ * @file    quaternion_ekf_filter.hpp
+ * @brief   Fixed-size filter storage and update pipeline for QuaternionEkf
  ******************************************************************************
  */
 
 #pragma once
 
-// 固定尺寸、无堆分配的卡尔曼滤波器。矩阵/向量全部使用编译期固定尺寸的 Eigen
-// 类型；配合 EIGEN_NO_MALLOC 可保证运行期不触发任何堆分配。
+// This is deliberately specific to the onboard IMU: 6 states (quaternion + XY gyro bias)
+// and 3 accelerometer measurements. It is not a reusable Kalman library.
 
 #include <Eigen/Core>
 #include <Eigen/LU>
 
+#include <cstddef>
 #include <cstdint>
 
-namespace alg {
+namespace modules {
 
-template <std::size_t XHAT, std::size_t U, std::size_t Z>
-class KalmanFilter
+class QuaternionEkfFilter
 {
 public:
-    static constexpr std::uint8_t xhat_size = static_cast<std::uint8_t>(XHAT);
-    static constexpr std::uint8_t u_size = static_cast<std::uint8_t>(U);
-    static constexpr std::uint8_t z_size = static_cast<std::uint8_t>(Z);
+    static constexpr std::size_t kStateSize = 6U;
+    static constexpr std::size_t kMeasurementSize = 3U;
 
-    // U 可能为 0；将无输入维度的类型退化为 1，避免 Eigen 的 0 尺寸矩阵。
-    using VecX = Eigen::Matrix<float, XHAT, 1>;
-    using VecU = Eigen::Matrix<float, (U > 0 ? U : 1), 1>;
-    using VecZ = Eigen::Matrix<float, Z, 1>;
-    using MatX = Eigen::Matrix<float, XHAT, XHAT>;
-    using MatXU = Eigen::Matrix<float, XHAT, (U > 0 ? U : 1)>;
-    using MatZX = Eigen::Matrix<float, Z, XHAT>;
-    using MatXZ = Eigen::Matrix<float, XHAT, Z>;
-    using MatZ = Eigen::Matrix<float, Z, Z>;
+    using VecX = Eigen::Matrix<float, kStateSize, 1>;
+    using VecZ = Eigen::Matrix<float, kMeasurementSize, 1>;
+    using MatX = Eigen::Matrix<float, kStateSize, kStateSize>;
+    using MatZX = Eigen::Matrix<float, kMeasurementSize, kStateSize>;
+    using MatXZ = Eigen::Matrix<float, kStateSize, kMeasurementSize>;
+    using MatZ = Eigen::Matrix<float, kMeasurementSize, kMeasurementSize>;
 
-    using Callback = void (*)(KalmanFilter &);
+    using Callback = void (*)(QuaternionEkfFilter &);
 
-    KalmanFilter() = default;
+    QuaternionEkfFilter() = default;
 
     void Reset()
     {
         skip_eq1_ = skip_eq2_ = skip_eq3_ = skip_eq4_ = skip_eq5_ = 0;
         filtered_value_.setZero();
         measured_vector_.setZero();
-        if constexpr (U > 0)
-        {
-            control_vector_.setZero();
-        }
-
         xhat_.setZero();
         xhatminus_.setZero();
-        if constexpr (U > 0)
-        {
-            u_.setZero();
-        }
         z_.setZero();
 
         p_.setZero();
         pminus_.setZero();
         f_.setZero();
-        if constexpr (U > 0)
-        {
-            b_.setZero();
-        }
         h_.setZero();
         q_.setZero();
         r_.setZero();
@@ -109,7 +92,7 @@ public:
             user_func5_(*this);
 
         // 抑制滤波器过度收敛：限制协方差对角下界。
-        for (std::size_t i = 0; i < XHAT; ++i)
+        for (std::size_t i = 0; i < kStateSize; ++i)
         {
             if (p_(i, i) < state_min_variance_(i))
             {
@@ -154,7 +137,6 @@ public:
     const VecX &xhat() const { return xhat_; }
     VecX &xhatminus() { return xhatminus_; }
     const VecX &xhatminus() const { return xhatminus_; }
-    VecU &u() { return u_; }
     VecZ &z() { return z_; }
     const VecZ &z() const { return z_; }
 
@@ -162,7 +144,6 @@ public:
     MatX &P() { return p_; }
     MatX &Pminus() { return pminus_; }
     MatX &F() { return f_; }
-    MatXU &B() { return b_; }
     MatZX &H() { return h_; }
     MatX &Q() { return q_; }
     MatZ &R() { return r_; }
@@ -171,7 +152,6 @@ public:
 
     // 测量 / 控制 / 输出
     VecZ &MeasuredVector() { return measured_vector_; }
-    VecU &ControlVector() { return control_vector_; }
     VecX &FilteredValue() { return filtered_value_; }
     const VecX &FilteredValue() const { return filtered_value_; }
 
@@ -182,11 +162,6 @@ private:
     {
         z_ = measured_vector_;
         measured_vector_.setZero();
-        if constexpr (U > 0)
-        {
-            u_ = control_vector_;
-            control_vector_.setZero();
-        }
     }
 
     void XhatMinusUpdate_()
@@ -195,14 +170,7 @@ private:
         {
             return;
         }
-        if constexpr (U > 0)
-        {
-            xhatminus_ = f_ * xhat_ + b_ * u_;
-        }
-        else
-        {
-            xhatminus_ = f_ * xhat_;
-        }
+        xhatminus_ = f_ * xhat_;
     }
 
     void PminusUpdate_()
@@ -261,17 +229,13 @@ private:
 
     VecX filtered_value_;
     VecZ measured_vector_;
-    VecU control_vector_;
-
     VecX xhat_;
     VecX xhatminus_;
-    VecU u_;
     VecZ z_;
 
     MatX p_;
     MatX pminus_;
     MatX f_;
-    MatXU b_;
     MatZX h_;
     MatX q_;
     MatZ r_;
@@ -281,4 +245,4 @@ private:
     VecX state_min_variance_;
 };
 
-} // namespace alg
+} // namespace modules

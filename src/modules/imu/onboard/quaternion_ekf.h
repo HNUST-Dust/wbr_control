@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file    QuaternionEKF.h
+ * @file    quaternion_ekf.h
  * @author  Wang Hongxi
  * @version V1.2.0
  * @date    2022/3/8
@@ -13,9 +13,9 @@
 #include <array>
 #include <cstdint>
 
-#include <algorithms/filter/kalman_filter.hpp>
+#include <modules/imu/onboard/quaternion_ekf_filter.hpp>
 
-namespace alg {
+namespace modules {
 
 class QuaternionEkf
 {
@@ -30,6 +30,7 @@ public:
         float accel_lpf_coef_;
     };
 
+    // Update inputs: gyro in rad/s, acceleration in m/s^2.
     void Init(const Params &params);
     void Reset();
     void Update(float gx, float gy, float gz, float ax, float ay, float az);
@@ -51,7 +52,7 @@ public:
     QuaternionEkf &operator=(QuaternionEkf &&) = delete;
 
 private:
-    using ImuKf = alg::KalmanFilter<6, 0, 3>;
+    using ImuKf = QuaternionEkfFilter;
 
     struct QekfIns
     {
@@ -109,4 +110,4 @@ private:
     QekfIns ins_{};
 };
 
-} // namespace alg
+} // namespace modules

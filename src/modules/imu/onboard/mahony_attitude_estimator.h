@@ -1,32 +1,23 @@
 //=============================================================================================
-// MahonyAHRS.h
-//=============================================================================================
-//
-// Madgwick's implementation of Mahony's AHRS algorithm.
-// See: http://www.x-io.co.uk/open-source-imu-and-ahrs-algorithms/
-//
-// Date            Author          Notes
-// 29/09/2011      SOH Madgwick    Initial release
-// 02/10/2011      SOH Madgwick    Optimised for reduced CPU load
-//
+// Mahony attitude estimator for the onboard IMU pipeline.
+// Based on Madgwick's implementation of Mahony's AHRS algorithm.
 //=============================================================================================
 
 #pragma once
 
-// Public reusable attitude-estimation interface.
-
-#define ARM_MATH_CM7
-
 #include <array>
 
-namespace alg {
+namespace modules {
 
-class MahonyAhrs {
+class MahonyAttitudeEstimator {
 public:
-	void Init(float sampleFrequencyHz);
+	// Gyroscope inputs are rad/s. Accelerometer inputs are m/s^2 (only the
+	// direction is used). Magnetometer inputs may use any consistent unit.
+	void Init(float sample_frequency_hz);
 	void InitFromAccMag(float ax, float ay, float az, float mx, float my, float mz);
 
-	void Update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
+	void Update(float gx, float gy, float gz, float ax, float ay, float az,
+		    float mx, float my, float mz);
 	void UpdateImu(float gx, float gy, float gz, float ax, float ay, float az);
 
 	void ComputeAngles();
@@ -37,12 +28,13 @@ public:
 
 	std::array<float, 4> Quat() const { return {q0_, q1_, q2_, q3_}; }
 
+private:
 	static float InvSqrt(float x);
 
-private:
 	static constexpr float kRad2Deg = 57.29578f;
-	static constexpr float kTwoKp = (2.0f * 0.5f);
-	static constexpr float kTwoKiDefault = (2.0f * 0.0f);
+	static constexpr float kTwoKp = 2.0f * 0.5f;
+	static constexpr float kTwoKiDefault = 2.0f * 0.0f;
+	static constexpr float kVectorNormEpsilon = 1.0e-12f;
 
 	float two_ki_ = kTwoKiDefault;
 
@@ -63,4 +55,4 @@ private:
 	bool angles_computed_ = false;
 };
 
-} // namespace alg
+} // namespace modules

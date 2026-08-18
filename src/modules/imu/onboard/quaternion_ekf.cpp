@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file    QuaternionEKF.c
+ * @file    quaternion_ekf.cpp
  * @author  Wang Hongxi
  * @version V1.2.0
  * @date    2022/3/8
@@ -13,8 +13,7 @@
  *  as + 1
  ******************************************************************************
  */
-#include <algorithms/MahonyAHRS.h>
-#include <algorithms/estimation/QuaternionEKF.h>
+#include <modules/imu/onboard/quaternion_ekf.h>
 
 #include <Eigen/Core>
 #include <Eigen/LU>
@@ -25,6 +24,22 @@
 #include <type_traits>
 
 namespace {
+float InvSqrt(float x)
+{
+    const float half_x = 0.5f * x;
+    float y = x;
+
+    static_assert(sizeof(float) == sizeof(std::uint32_t));
+    std::uint32_t bits = 0U;
+    std::memcpy(&bits, &y, sizeof(bits));
+    bits = 0x5f3759dfU - (bits >> 1U);
+    std::memcpy(&y, &bits, sizeof(y));
+
+    y = y * (1.5f - (half_x * y * y));
+    y = y * (1.5f - (half_x * y * y));
+    return y;
+}
+
 // 初始协方差 P0，按行优先存储（与论文/旧实现一致）。
 constexpr float imu_quaternion_ekf_p_const[36] = {100000, 0.1, 0.1, 0.1, 0.1, 0.1,
                                                   0.1, 100000, 0.1, 0.1, 0.1, 0.1,
@@ -49,11 +64,11 @@ Eigen::Matrix<float, 6, 6> MakeInitialCovariance()
 
 } // namespace
 
-alg::QuaternionEkf::~QuaternionEkf()
+modules::QuaternionEkf::~QuaternionEkf()
 {
 }
 
-alg::QuaternionEkf::QekfIns &alg::QuaternionEkf::InsFromKf(ImuKf *kf)
+modules::QuaternionEkf::QekfIns &modules::QuaternionEkf::InsFromKf(ImuKf *kf)
 {
     static_assert(std::is_standard_layout_v<QekfIns>, "QekfIns must be standard-layout for offsetof/container_of");
     auto *bytes = reinterpret_cast<std::uint8_t *>(kf);
@@ -65,7 +80,7 @@ alg::QuaternionEkf::QekfIns &alg::QuaternionEkf::InsFromKf(ImuKf *kf)
  * @brief 用于更新线性化后的状态转移矩阵F右上角的一个4x2分块矩阵,稍后用于协方差矩阵P的更新;
  *        并对零漂的方差进行限制,防止过度收敛并限幅防止发散
  */
-void alg::QuaternionEkf::FLinearizationPFadingCb(ImuKf &kf)
+void modules::QuaternionEkf::FLinearizationPFadingCb(ImuKf &kf)
 {
     auto &ins = InsFromKf(&kf);
     volatile float q0, q1, q2, q3;
@@ -77,7 +92,7 @@ void alg::QuaternionEkf::FLinearizationPFadingCb(ImuKf &kf)
     q3 = kf.xhatminus()(3);
 
     // quaternion normalize
-    q_inv_norm = alg::MahonyAhrs::InvSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+    q_inv_norm = InvSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
     for (uint8_t i = 0; i < 4; i++)
     {
         kf.xhatminus()(i) *= q_inv_norm;
@@ -114,7 +129,7 @@ void alg::QuaternionEkf::FLinearizationPFadingCb(ImuKf &kf)
 /**
  * @brief 在工作点处计算观测函数h(x)的Jacobi矩阵H
  */
-void alg::QuaternionEkf::SetHCb(ImuKf &kf)
+void modules::QuaternionEkf::SetHCb(ImuKf &kf)
 {
     volatile float double_q0, double_q1, double_q2, double_q3;
 
@@ -146,7 +161,7 @@ void alg::QuaternionEkf::SetHCb(ImuKf &kf)
  *        加入了卡方检验以判断融合加速度的条件是否满足
  *        同时引入发散保护保证恶劣工况下的必要量测更新
  */
-void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
+void modules::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
 {
     auto &ins = InsFromKf(&kf);
     volatile float q0, q1, q2, q3;
@@ -266,7 +281,7 @@ void alg::QuaternionEkf::XhatUpdateCb(ImuKf &kf)
 /**
  * @brief EKF观测环节,其实就是把数据复制一下
  */
-void alg::QuaternionEkf::ObserveCb(ImuKf &kf)
+void modules::QuaternionEkf::ObserveCb(ImuKf &kf)
 {
     auto &ins = InsFromKf(&kf);
     // 注意：Eigen 按列优先存储，快照布局与旧的行优先不同；这些字段当前仅供调试，无人读取。
@@ -275,7 +290,7 @@ void alg::QuaternionEkf::ObserveCb(ImuKf &kf)
     std::memcpy(ins.imu_quaternion_ekf_h, kf.H().data(), sizeof(ins.imu_quaternion_ekf_h));
 }
 
-namespace alg {
+namespace modules {
 
 void QuaternionEkf::Init(const Params &params)
 {
@@ -295,6 +310,12 @@ void QuaternionEkf::Init(const Params &params)
     ins_.yaw_angle_last = 0.0f;
     ins_.yaw_total_angle = 0.0f;
     ins_.adaptive_gain_scale = 1.0f;
+
+	std::memset(ins_.q, 0, sizeof(ins_.q));
+	ins_.q[0] = 1.0f;
+	std::memset(ins_.gyro_bias, 0, sizeof(ins_.gyro_bias));
+	std::memset(ins_.gyro, 0, sizeof(ins_.gyro));
+	std::memset(ins_.accel, 0, sizeof(ins_.accel));
 
     float lambda = params.fading_lambda_;
     if (lambda > 1)
@@ -318,6 +339,8 @@ void QuaternionEkf::Init(const Params &params)
     // 设定标志位,用自定函数替换kf标准步骤中的SetK(计算增益)以及xhatupdate(后验估计/融合)
     ins_.imu_quaternion_ekf.SetSkipEq3(true);
     ins_.imu_quaternion_ekf.SetSkipEq4(true);
+	// A missing/invalid accelerometer sample must still allow gyro prediction.
+	ins_.imu_quaternion_ekf.SetUseAutoAdjustment(true);
 
     ins_.imu_quaternion_ekf.F().setIdentity();
     ins_.imu_quaternion_ekf.P() = MakeInitialCovariance();
@@ -339,6 +362,11 @@ void QuaternionEkf::Reset()
     ins_.yaw_angle_last = 0.0f;
     ins_.yaw_total_angle = 0.0f;
     ins_.adaptive_gain_scale = 1.0f;
+	std::memset(ins_.q, 0, sizeof(ins_.q));
+	ins_.q[0] = 1.0f;
+	std::memset(ins_.gyro_bias, 0, sizeof(ins_.gyro_bias));
+	std::memset(ins_.gyro, 0, sizeof(ins_.gyro));
+	std::memset(ins_.accel, 0, sizeof(ins_.accel));
 
     // 姿态初始化
     ins_.imu_quaternion_ekf.xhat()(0) = 1;
@@ -349,6 +377,7 @@ void QuaternionEkf::Reset()
     // 设定标志位,用自定函数替换kf标准步骤中的SetK(计算增益)以及xhatupdate(后验估计/融合)
     ins_.imu_quaternion_ekf.SetSkipEq3(true);
     ins_.imu_quaternion_ekf.SetSkipEq4(true);
+	ins_.imu_quaternion_ekf.SetUseAutoAdjustment(true);
 
     ins_.imu_quaternion_ekf.F().setIdentity();
     ins_.imu_quaternion_ekf.P() = MakeInitialCovariance();
@@ -402,11 +431,19 @@ void QuaternionEkf::Update(float gx, float gy, float gz, float ax, float ay, flo
 
     // set z,单位化重力加速度向量
     ins_.accl_norm = std::sqrt(ins_.accel[0] * ins_.accel[0] + ins_.accel[1] * ins_.accel[1] + ins_.accel[2] * ins_.accel[2]);
-    accel_inv_norm = 1.0f / ins_.accl_norm;
-
-    ins_.imu_quaternion_ekf.MeasuredVector()(0) = ins_.accel[0] * accel_inv_norm; // 用加速度向量更新量测值
-    ins_.imu_quaternion_ekf.MeasuredVector()(1) = ins_.accel[1] * accel_inv_norm;
-    ins_.imu_quaternion_ekf.MeasuredVector()(2) = ins_.accel[2] * accel_inv_norm;
+    if (ins_.accl_norm > 1.0e-6f)
+    {
+        accel_inv_norm = 1.0f / ins_.accl_norm;
+        ins_.imu_quaternion_ekf.MeasuredVector()(0) = ins_.accel[0] * accel_inv_norm;
+        ins_.imu_quaternion_ekf.MeasuredVector()(1) = ins_.accel[1] * accel_inv_norm;
+        ins_.imu_quaternion_ekf.MeasuredVector()(2) = ins_.accel[2] * accel_inv_norm;
+		ins_.imu_quaternion_ekf.MeasurementValidNum() = 3U;
+	}
+	else
+	{
+		ins_.imu_quaternion_ekf.MeasuredVector().setZero();
+		ins_.imu_quaternion_ekf.MeasurementValidNum() = 0U;
+	}
 
     // get body state
     ins_.gyro_norm = std::sqrt(ins_.gyro[0] * ins_.gyro[0] + ins_.gyro[1] * ins_.gyro[1] + ins_.gyro[2] * ins_.gyro[2]);
@@ -479,4 +516,4 @@ float QuaternionEkf::YawTotalDeg() const { return ins_.yaw_total_angle; }
 float QuaternionEkf::YawOmegaRad() const { return ins_.gyro[2]; }
 float QuaternionEkf::PitchOmegaRad() const { return ins_.gyro[1]; }
 
-} // namespace alg
+} // namespace modules

@@ -19,9 +19,7 @@
   - 验证：默认构建与 smoke 回归通过。
 - 阶段 C：已完成。
   - 已完成：staged 模块已集中迁入 `modules/staging/*`，与 active 模块物理分区。
-  - 已完成（第 2 步）：
-    - 第一刀：移除 `algorithms/orientation/` 中 MahonyAHRS 占位重复文件，保留 `algorithms/MahonyAHRS.{h,cpp}` 作为唯一实现来源。
-    - 第二刀：移除空 `algorithms/orientation/` 目录，并新增 `tools/algorithms_dedupe_audit.sh` 作为去重审计基线。
+  - 已完成（第 2 步）：移除独立 `src/algorithms` 层；仍需使用的算法归入实际控制器或估计器模块。
   - 已完成（第 3 步）：建立 `platform/legacy/*` 归档分区并迁入 `platform/legacy/board/legacy_dm_h723`，同时落地平台归档策略文档。
 
 ## 1. 问题定义
@@ -75,8 +73,6 @@ applications/rm_test/
       board/
       drivers/
       storage/
-
-    algorithms/                 # 纯算法资产（与平台无关）
 
     debug/
       shell/
@@ -154,7 +150,7 @@ applications/rm_test/
 ### 阶段 C：历史资产分区
 
 1. 已完成：迁移占位模块移入 staging 区。
-2. 已完成：对算法目录去重（含 MahonyAHRS 重复清理与去重审计基线脚本）。
+2. 已完成：拆除通用算法目录，将保留的实现归入实际业务模块。
 3. 已完成：平台 legacy 目录明确归档策略。
 
 退出条件：

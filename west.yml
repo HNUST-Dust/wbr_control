@@ -32,13 +32,19 @@ manifest:
     remote: github
 
   projects:
-    # Zephyr RTOS and all upstream modules (T2 pattern: import zephyr manifest)
+    # Zephyr RTOS. Third-party projects are declared explicitly below so every
+    # repository can live directly under the workspace root.
     - name: zephyr
       remote: github
       repo-path: zephyr
       revision: zsg_v0.7.0
-      west-commands: zephyr/scripts/west-commands.yml
-      import: true
+      west-commands: scripts/west-commands.yml
+
+    - name: littlefs
+      remote: upstream
+      repo-path: littlefs
+      path: littlefs
+      revision: 408c16a909dd6cf128874a76f21c793798c9e423
 
     # HPMicro SDK (manifest repo with boards, drivers, soc, dts)
     - name: hpm_support
@@ -46,33 +52,13 @@ manifest:
       repo-path: hpm_support
       path: hpm_support
       revision: main
-
-    # HPMicro-specific modules (not in upstream zephyr)
-    - name: canopennode
-      repo-path: canopennode
-      path: modules/lib/canopennode
-      revision: dec12fa3f0d790cafa8414a4c2930ea71ab72ffd
-
-    - name: lvgl
-      repo-path: zephyr_lvgl
-      path: modules/lib/gui/lvgl
-      revision: 2b498e6f36d6b82ae1da12c8b7742e318624ecf5
+      west-commands: scripts/west-commands.yml
 
     - name: CherryUSB
       remote: cherry-embedded
       repo-path: CherryUSB
-      path: modules/lib/CherryUSB
+      path: CherryUSB
       revision: 5ffe9cbe7fb41489d99806daa8572124ace1b99b
-
-    - name: fatfs
-      repo-path: fatfs
-      path: modules/fs/fatfs
-      revision: 427159bf95ea49b7680facffaa29ad506b42709b
-
-    - name: mcuboot
-      repo-path: mcuboot
-      revision: c098a7fe3aa03f8e21b6fe083dd8d9704db78a03
-      path: bootloader/mcuboot
 
     # Mavlink generated headers
     - name: dust_mavlink

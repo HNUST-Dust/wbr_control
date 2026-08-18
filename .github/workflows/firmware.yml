@@ -1,0 +1,139 @@
+name: Firmware CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  BOARD: hpm6750evk2
+  HPM_SDK_VERSION: "1.11.0"
+  ZEPHYR_SDK_VERSION: "0.16.5"
+  ZEPHYR_TOOLCHAIN_VARIANT: zephyr
+
+jobs:
+  build:
+    name: Check and build firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out application
+        uses: actions/checkout@v4
+        with:
+          path: workspace/wbr_control
+
+      - name: Check out HPMicro SDK
+        uses: actions/checkout@v4
+        with:
+          repository: hpmicro/hpm_sdk
+          ref: v${{ env.HPM_SDK_VERSION }}
+          path: sdk_env/hpm_sdk
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            ccache device-tree-compiler gperf ninja-build xz-utils
+          python -m pip install --upgrade pip west
+
+      - name: Restore Zephyr SDK
+        id: zephyr-sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: toolchains/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+          key: zephyr-sdk-${{ runner.os }}-${{ runner.arch }}-${{ env.ZEPHYR_SDK_VERSION }}
+
+      - name: Download Zephyr SDK
+        if: steps.zephyr-sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p toolchains
+          cd toolchains
+          archive="zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64.tar.xz"
+          release_url="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}"
+          curl --fail --location --retry 3 --remote-name "${release_url}/${archive}"
+          curl --fail --location --retry 3 --output sha256.sum "${release_url}/sha256.sum"
+          grep " ${archive}$" sha256.sum | sha256sum --check --strict
+          tar --extract --file "${archive}"
+          rm "${archive}" sha256.sum
+
+      - name: Export toolchain location
+        run: echo "ZEPHYR_SDK_INSTALL_DIR=${GITHUB_WORKSPACE}/toolchains/zephyr-sdk-${ZEPHYR_SDK_VERSION}" >> "${GITHUB_ENV}"
+
+      - name: Initialize West workspace
+        run: |
+          west init --local workspace/wbr_control
+          west update --narrow -o=--depth=1
+          python -m pip install -r workspace/zephyr/scripts/requirements.txt
+          west zephyr-export
+          west supply
+
+      - name: Build firmware
+        run: west build -p always -b "${BOARD}" -s workspace/wbr_control -d workspace/wbr_control/build
+
+      - name: Collect firmware artifacts
+        run: |
+          mkdir firmware
+          cp workspace/wbr_control/build/zephyr/zephyr.elf firmware/wbr_control.elf
+          cp workspace/wbr_control/build/zephyr/zephyr.bin firmware/wbr_control.bin
+          cp workspace/wbr_control/build/zephyr/zephyr.hex firmware/wbr_control.hex
+          cp workspace/wbr_control/build/zephyr/zephyr.map firmware/wbr_control.map
+          cp workspace/wbr_control/build/zephyr/.config firmware/zephyr.config
+          cp workspace/wbr_control/build/zephyr/zephyr.dts firmware/zephyr.dts
+          (cd firmware && sha256sum ./* > SHA256SUMS)
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: firmware/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: firmware
+
+      - name: Package release
+        run: |
+          package="wbr_control-${GITHUB_REF_NAME}.tar.gz"
+          tar --create --gzip --file "${package}" --directory firmware .
+          sha256sum "${package}" > "${package}.sha256"
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          package="wbr_control-${GITHUB_REF_NAME}.tar.gz"
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes --title "${GITHUB_REF_NAME}"
+          fi
+          gh release upload "${GITHUB_REF_NAME}" "${package}" "${package}.sha256" --clobber

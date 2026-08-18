@@ -163,8 +163,8 @@ applications/rm_test/
       motor_feedback_channel.h
     protocols/
       pc_link/
-    algorithms/
-      ...
+    modules/
+      imu/onboard/             # 板载 IMU 专用姿态估计器
   platform/
     board/
       board_identity.*
@@ -188,11 +188,8 @@ applications/rm_test/
 
 ### `Algorithm/`
 
-继续保留在：
-
-- `algorithms/`
-
-这一层本身是合理的，不需要大改。
+不再保留独立的通用算法层。算法随实际使用者迁移，例如板载 IMU 的 Mahony 与
+Quaternion EKF 位于 `modules/imu/onboard/`，控制器实现位于对应控制模块内部。
 
 ### `App/`
 

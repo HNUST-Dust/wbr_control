@@ -4,10 +4,14 @@
 
 #include "body_motion_estimator.h"
 
-#include <cmath>
+#include <Eigen/Core>
 
 namespace
 {
+
+using StateVector = Eigen::Matrix<double, 2, 1>;
+using StateMatrix = Eigen::Matrix<double, 2, 2>;
+using ObservationVector = Eigen::Matrix<double, 1, 2>;
 
 constexpr double kProcessNoise = 0.1;
 constexpr double kSpeedMeasurementNoise = 100.0;
@@ -28,36 +32,50 @@ void BodyMotionEstimator::Reset()
 const BodyMotionState &BodyMotionEstimator::Update(double speed_measurement,
 						   double acceleration_measurement, double dt)
 {
-	// 按 x = [速度, 加速度] 预测状态 x 和协方差 P。
-	const double predicted_speed = state_.speed + state_.acceleration * dt;
-	const double predicted_acceleration = state_.acceleration;
-	const double p00 = covariance_[0] + dt * (covariance_[1] + covariance_[2]) +
-			   dt * dt * covariance_[3] + kProcessNoise;
-	const double p01 = covariance_[1] + dt * covariance_[3];
-	const double p10 = covariance_[2] + dt * covariance_[3];
-	const double p11 = covariance_[3] + kProcessNoise;
+	Eigen::Map<StateMatrix> covariance(covariance_.data());
 
-	// 使用运动学速度测量进行第一次校正。
-	const double k00 = p00 / (p00 + kSpeedMeasurementNoise);
-	const double k10 = p10 / (p00 + kSpeedMeasurementNoise);
-	const double speed_innovation = speed_measurement - predicted_speed;
-	state_.speed = predicted_speed + k00 * speed_innovation;
-	state_.acceleration = predicted_acceleration + k10 * speed_innovation;
-	const double q00 = (1.0 - k00) * p00;
-	const double q01 = (1.0 - k00) * p01;
-	const double q10 = p10 - k10 * p00;
-	const double q11 = p11 - k10 * p01;
+	// x = [前向速度, 前向加速度]。
+	StateVector state;
+	state << state_.speed, state_.acceleration;
 
-	// 使用加速度进行第二次校正；极大的测量噪声用于保持 SPR 原始整定。
-	const double k01 = q01 / (q11 + kAccelerationMeasurementNoise);
-	const double k11 = q11 / (q11 + kAccelerationMeasurementNoise);
-	const double acceleration_innovation = acceleration_measurement - state_.acceleration;
-	state_.speed += k01 * acceleration_innovation;
-	state_.acceleration += k11 * acceleration_innovation;
-	covariance_[0] = q00 - k01 * q10;
-	covariance_[1] = q01 - k01 * q11;
-	covariance_[2] = q10 - k11 * q10;
-	covariance_[3] = q11 - k11 * q11;
+	StateMatrix state_transition;
+	state_transition << 1.0, dt,
+			    0.0, 1.0;
+	const StateMatrix process_noise = StateMatrix::Identity() * kProcessNoise;
+
+	// 预测：x^- = F x，P^- = F P F^T + Q。
+	state = state_transition * state;
+	const StateMatrix predicted_covariance =
+		state_transition * covariance * state_transition.transpose() + process_noise;
+	covariance = predicted_covariance;
+
+	// 依次进行两个一维观测校正：K = P H^T / (H P H^T + R)。
+	// 顺序更新保留旧实现的计算结构，同时不需要构造或求逆通用观测矩阵。
+	const auto correct = [&](const ObservationVector &observation, double measurement,
+				 double measurement_noise) {
+		const double innovation = measurement - (observation * state)(0);
+		const double innovation_variance =
+			(observation * covariance * observation.transpose())(0, 0) +
+			measurement_noise;
+		const StateVector kalman_gain =
+			covariance * observation.transpose() / innovation_variance;
+		state += kalman_gain * innovation;
+		const StateMatrix corrected_covariance =
+			(StateMatrix::Identity() - kalman_gain * observation) * covariance;
+		covariance = corrected_covariance;
+	};
+
+	ObservationVector speed_observation;
+	speed_observation << 1.0, 0.0;
+	correct(speed_observation, speed_measurement, kSpeedMeasurementNoise);
+
+	ObservationVector acceleration_observation;
+	acceleration_observation << 0.0, 1.0;
+	correct(acceleration_observation, acceleration_measurement,
+		kAccelerationMeasurementNoise);
+
+	state_.speed = state(0);
+	state_.acceleration = state(1);
 
 	// 连续保留位移历史；控制器限制位置误差，因此高速运动不会清空里程，
 	// 估计偏置也不会产生无界 LQR 力矩请求。

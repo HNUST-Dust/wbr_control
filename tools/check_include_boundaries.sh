@@ -59,20 +59,18 @@ if rg -n \
   exit 1
 fi
 
-# algorithms 可复用且不依赖应用层；Zephyr 时间依赖只允许留在实现文件。
-if rg -n \
-  '#include [<"](?:modules|channels|protocols|platform)/' \
-  "${ROOT_DIR}/src/algorithms" \
-  "${SOURCE_GLOBS[@]}"; then
-  echo "algorithms must not depend on application layers." >&2
+# 控制器与估计器由业务模块拥有，不再建立通用 algorithms 层。
+if [[ -d "${ROOT_DIR}/src/algorithms" ]]; then
+  echo "src/algorithms must not be recreated; place code under its owning module." >&2
   exit 1
 fi
 
 if rg -n \
-  '#include <zephyr/' \
-  "${ROOT_DIR}/src/algorithms" \
-  -g '*.{h,hpp}'; then
-  echo "Algorithm headers must remain independent from Zephyr." >&2
+  '#include [<"]algorithms/' \
+  "${ROOT_DIR}" \
+  "${EXCLUDES[@]}" \
+  "${SOURCE_GLOBS[@]}"; then
+  echo "The removed algorithms include root must not be referenced." >&2
   exit 1
 fi
 

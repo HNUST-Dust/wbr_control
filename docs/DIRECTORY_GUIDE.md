@@ -29,7 +29,7 @@
 - services/: legacy 说明目录（实体实现已迁移至 services）
 - channels/: legacy 说明目录（实体实现已迁移至 channels）
 - protocols/: legacy 说明目录（实体实现已迁移至 protocols）
-- algorithms/: 算法资产
+- 模块内控制器/估计器：算法实现随其实际使用模块维护
 - platform/: 板级、驱动、存储适配
 - platform/legacy/: 平台历史资产归档分区（不参与当前主链路）
 - 应用根目录 include：对外稳定头路径（如 modules/*、channels/*、platform/*）

@@ -16,13 +16,12 @@ target_include_directories(wbr_modules
     ${PROJECT_SOURCE_DIR}/src
 )
 target_include_directories(wbr_modules SYSTEM PRIVATE ${EIGEN_DIR})
-# leg_kinematics / leg_vmc 在 .cc 内部使用 Eigen 固定尺寸矩阵。
+# 腿部运动学、VMC、车体运动估计和板载 IMU 四元数 EKF 使用 Eigen 固定尺寸矩阵。
 target_compile_definitions(wbr_modules PRIVATE
   EIGEN_NO_MALLOC
   EIGEN_DONT_VECTORIZE
 )
 target_link_libraries(wbr_modules PRIVATE
-  wbr_algorithms
   wbr_channels
   wbr_platform
   wbr_protocols

@@ -38,7 +38,6 @@ target_compile_options(app PRIVATE
   -fno-threadsafe-statics
 )
 
-add_subdirectory(src/algorithms)
 add_subdirectory(channels)
 add_subdirectory(src/protocols)
 add_subdirectory(src/scheduling)
@@ -46,7 +45,7 @@ add_subdirectory(platform)
 add_subdirectory(src/modules)
 add_subdirectory(debug)
 
-# 应用入口只直接依赖模块、通道和平台；算法与协议由模块目标自行声明。
+# 应用入口只直接依赖模块、通道和平台；协议由模块目标自行声明。
 target_link_libraries(app PRIVATE
   wbr_channels
   wbr_modules

@@ -3,7 +3,7 @@
 设计并实现一套面向复杂地形的串联型轮腿机器人控制系统（整车约 25 kg），完成从状态估计、运动控制到视觉感知与决策的全链路闭环开发。
 
 - 控制侧基于 LQR + TinyMPC 构建轮腿系统控制器，实现底盘平衡与双腿伸缩调节，引入 VMC 提升地形适应能力，支持越障与动态跳跃（实测约 30 cm）；同时建立世界 / 底盘 / 云台多坐标系变换模型，实现底盘高速旋转下云台姿态稳定。
-- 状态估计方面基于 BMI088 IMU 构建 QEKF + AHRS 姿态解算链路，支撑高频闭环控制；功率侧通过 RLS 建模与分配策略结合超级电容优化瞬态功率输出。
+- 状态估计方面规划基于板载 ICM42688P 构建 QEKF + Mahony 姿态解算链路，支撑高频闭环控制；外置 HI91 保持设备侧解算结果直通。功率侧通过 RLS 建模与分配策略结合超级电容优化瞬态功率输出。
 - 视觉侧基于 YOLO + PnP + MPC + 弹道模型 构建“感知 → 预测 → 控制”链路，实现目标识别与自动瞄准。
 
 主要性能指标：
@@ -23,8 +23,7 @@
 | 层级 | 职责 |
 |------|------|
 | `src/main.cpp` | Zephyr 入口，`main()` 完成启动编排 |
-| `src/modules/` | 业务模块（remote_input、chassis 等）与 ModuleBase |
-| `src/algorithms/` | 可复用算法实现 |
+| `src/modules/` | 业务模块及其专用控制器/估计器（remote_input、chassis、imu 等） |
 | `src/protocols/` | 电机、遥控和遥测协议实现 |
 | 各组件所属目录中的头文件 | 仓库内部接口，头文件跟随模块或库 |
 | `channels/` | zbus 消息主题定义 |
@@ -97,3 +96,20 @@ west build -p always -b hpm6750evk2 -s wbr_control -d wbr_control/build
 ```bash
 python -m pip install pyelftools
 ```
+
+## CI/CD
+
+仓库中的 GitHub Actions 工作流会在以下场景运行：
+
+- Pull Request、`main` 分支提交：构建 `hpm6750evk2` 固件，并保存 14 天构建产物。
+- 推送 `v*` 标签（例如 `v0.1.0`）：在 CI 通过后自动创建或更新 GitHub Release，上传固件压缩包和 SHA-256 校验文件。
+- Actions 页面手动运行：只执行 CI 和保存构建产物，不创建 Release。
+
+发布新版本：
+
+```bash
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+默认 CD 只发布经过同一次 CI 编译的固件，不会从云端 runner 烧录实体开发板。若需要自动烧录或硬件在环测试，应另外配置连接了 HPM6750EVK2 的 self-hosted runner。
