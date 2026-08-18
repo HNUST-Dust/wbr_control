@@ -113,3 +113,9 @@ git push origin v0.1.0
 ```
 
 默认 CD 只发布经过同一次 CI 编译的固件，不会从云端 runner 烧录实体开发板。若需要自动烧录或硬件在环测试，应另外配置连接了 HPM6750EVK2 的 self-hosted runner。
+
+## 许可证
+
+Copyright 2026 .noe
+
+除非文件中另有声明，本项目采用 [Apache License 2.0](LICENSE) 开源。第三方组件及明确标注其他 SPDX 标识符的文件继续遵循各自的许可证。
