@@ -78,15 +78,17 @@ jobs:
         run: echo "ZEPHYR_SDK_INSTALL_DIR=${GITHUB_WORKSPACE}/toolchains/zephyr-sdk-${ZEPHYR_SDK_VERSION}" >> "${GITHUB_ENV}"
 
       - name: Initialize West workspace
+        working-directory: workspace
         run: |
-          west init --local workspace/wbr_control
+          west init --local wbr_control
           west update --narrow -o=--depth=1
-          python -m pip install -r workspace/zephyr/scripts/requirements.txt
+          python -m pip install -r zephyr/scripts/requirements.txt
           west zephyr-export
           west supply
 
       - name: Build firmware
-        run: west build -p always -b "${BOARD}" -s workspace/wbr_control -d workspace/wbr_control/build
+        working-directory: workspace
+        run: west build -p always -b "${BOARD}" -s wbr_control -d wbr_control/build
 
       - name: Collect firmware artifacts
         run: |
