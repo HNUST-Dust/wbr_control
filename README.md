@@ -56,7 +56,7 @@ source .venv/bin/activate  # 或 .venv\Scripts\activate
 pip install west
 
 # 2. 新建 workspace 并 clone 工程
-mkdir rm_test_ws
+mkdir wbr_control_ws
 cd wbr_control_ws
 west init -m https://github.com/NoneOfEver/wbr_control.git
 

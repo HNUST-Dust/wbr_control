@@ -1,7 +1,7 @@
 # 模块生命周期维护约定（active / staged）
 
 日期：2026-04-05
-范围：applications/rm_test/modules
+范围：applications/wbr_control/modules
 
 ## 1. 目的
 
@@ -36,7 +36,7 @@
   - docs/DIRECTORY_GUIDE.md
   - docs/AGENT_HANDOFF.md（如涉及主链路）
 - 运行最小回归：
-  - bash applications/rm_test/tools/smoke_regression.sh
+  - bash applications/wbr_control/tools/smoke_regression.sh
 
 2. active -> staged（降级/暂时下线）
 - 明确降级原因（依赖缺失/待重构/故障隔离）

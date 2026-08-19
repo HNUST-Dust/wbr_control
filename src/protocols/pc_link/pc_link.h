@@ -9,14 +9,13 @@
 namespace protocols {
 
 /*
- * CRC-16 parameters for the pc_comm packets.
+ * CRC-16 parameters used by the vision host.
  *
- * The variant must match the PC host.  Defaults to CRC-16/CCITT-FALSE
- * (poly 0x1021, init 0xFFFF, no reflection).  Change the two constants below
- * if the host uses another variant (e.g. Modbus: poly 0xA001, init 0xFFFF,
- * reflected).
+ * The host processes each byte least-significant bit first with the reflected
+ * form of polynomial 0x1021.  It uses init 0xFFFF and no final XOR.  The CRC
+ * field itself is serialized little-endian.
  */
-constexpr uint16_t kPcCommCrc16Poly = 0x1021U;
+constexpr uint16_t kPcCommCrc16ReflectedPoly = 0x8408U;
 constexpr uint16_t kPcCommCrc16Init = 0xFFFFU;
 
 /* Packet sizes on the wire (head + fields + crc16). */

@@ -12,21 +12,21 @@
       "problemMatcher": []
     },
     {
-      "label": "RM_TEST: Serial Log (auto)",
+      "label": "WBR_CONTROL: Serial Log (auto)",
       "type": "shell",
       "command": "${workspaceFolder}/tools/serial_log.sh",
       "isBackground": true,
       "problemMatcher": []
     },
     {
-      "label": "RM_TEST: Serial Log (/dev/cu.usbmodem11402)",
+      "label": "WBR_CONTROL: Serial Log (/dev/cu.usbmodem11402)",
       "type": "shell",
       "command": "${workspaceFolder}/tools/serial_log.sh /dev/cu.usbmodem11402",
       "isBackground": true,
       "problemMatcher": []
     },
     {
-      "label": "RM_TEST: Serial Log (/dev/cu.usbserial-11301)",
+      "label": "WBR_CONTROL: Serial Log (/dev/cu.usbserial-11301)",
       "type": "shell",
       "command": "${workspaceFolder}/tools/serial_log.sh /dev/cu.usbserial-11301",
       "isBackground": true,

@@ -26,15 +26,15 @@ const gpio_dt_spec kLedB = GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios);
 #endif
 
 #if DT_NODE_EXISTS(DT_ALIAS(pwm_buzzer))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(pwm_buzzer)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(pwm_buzzer)
 #elif DT_NODE_EXISTS(DT_ALIAS(buzzer_pwm))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(buzzer_pwm)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(buzzer_pwm)
 #elif DT_NODE_EXISTS(DT_ALIAS(buzzer))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(buzzer)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(buzzer)
 #endif
 
-#ifdef RM_TEST_BUZZER_NODE
-const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(RM_TEST_BUZZER_NODE);
+#ifdef WBR_CONTROL_BUZZER_NODE
+const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(WBR_CONTROL_BUZZER_NODE);
 #endif
 
 K_THREAD_STACK_DEFINE(g_sys_state_module_stack, 1024);
@@ -123,7 +123,7 @@ int SysStateModule::Start()
 	LOG_WRN("sys_state init skipped: led aliases not found");
 #endif
 
-#ifdef RM_TEST_BUZZER_NODE
+#ifdef WBR_CONTROL_BUZZER_NODE
 	buzzer_ = kBuzzer;
 	if (device_is_ready(buzzer_.dev)) {
 		const uint32_t period = PWM_USEC(kBuzzerPeriodUs);

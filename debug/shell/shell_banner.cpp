@@ -42,7 +42,7 @@ void ShellBannerWorkHandler(struct k_work *work)
 	shell_print(sh, "|_____/  \\___/ |_____/    |_|  ");
 	shell_print(sh, "Type 'help' to list commands.");
 	shell_print(sh, "Type 'chassis pid status|get|set|save|load|dump'.");
-	shell_print(sh, "-------------- RM_TEST SHELL ------------------");
+	shell_print(sh, "-------------- WBR_CONTROL SHELL ------------------");
 	g_shell_banner_printed = true;
 }
 

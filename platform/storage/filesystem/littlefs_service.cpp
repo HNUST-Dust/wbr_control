@@ -17,7 +17,7 @@ LOG_MODULE_REGISTER(littlefs_service, LOG_LEVEL_INF);
 
 namespace {
 
-FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(rm_test_storage_lfs);
+FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(wbr_control_storage_lfs);
 
 fs_mount_t g_lfs_mount = {};
 
@@ -106,7 +106,7 @@ int InitializeLittlefs()
 
 	g_lfs_mount.type = FS_LITTLEFS;
 	g_lfs_mount.mnt_point = "/lfs";
-	g_lfs_mount.fs_data = &rm_test_storage_lfs;
+	g_lfs_mount.fs_data = &wbr_control_storage_lfs;
 	g_lfs_mount.storage_dev = (void *)FIXED_PARTITION_ID(storage_partition);
 
 	int rc = fs_mount(&g_lfs_mount);
@@ -116,7 +116,7 @@ int InitializeLittlefs()
 		int mkfs_rc = fs_mkfs(
 			FS_LITTLEFS,
 			static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
-			&rm_test_storage_lfs,
+			&wbr_control_storage_lfs,
 			0);
 		if (mkfs_rc != 0) {
 			LOG_INF("littlefs mkfs failed: %d, erase partition and retry", mkfs_rc);
@@ -131,7 +131,7 @@ int InitializeLittlefs()
 			mkfs_rc = fs_mkfs(
 				FS_LITTLEFS,
 				static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
-				&rm_test_storage_lfs,
+				&wbr_control_storage_lfs,
 				0);
 			if (mkfs_rc != 0) {
 				const int probe_rc = ProbeStoragePartitionIo();

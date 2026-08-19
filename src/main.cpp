@@ -19,15 +19,15 @@
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_CAN) && CONFIG_RM_TEST_RUNTIME_INIT_CAN
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN) && CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN
 #include <platform/drivers/communication/can_dispatch.h>
 #endif
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS) && CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS) && CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS
 #include <platform/storage/filesystem/littlefs_service.h>
 #endif
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_USB) && CONFIG_RM_TEST_RUNTIME_INIT_USB
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_USB) && CONFIG_WBR_CONTROL_RUNTIME_INIT_USB
 #include <platform/drivers/communication/usb_session.h>
 #endif
 
@@ -40,20 +40,20 @@ void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
 		state,
 		module_count,
 	};
-	(void)zbus_chan_pub(&rm_test_system_status_chan, &status, K_NO_WAIT);
+	(void)zbus_chan_pub(&wbr_control_system_status_chan, &status, K_NO_WAIT);
 }
 
 } // namespace
 
 int main(void)
 {
-	LOG_INF("rm_test started on %s", board_identity_name());
+	LOG_INF("wbr_control started on %s", board_identity_name());
 	PublishSystemStatus(channels::kBooting, 0U);
 
 	int rc = 0;
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_CAN) && CONFIG_RM_TEST_RUNTIME_INIT_CAN
-	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_CAN)) {
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN) && CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN
+	if (IS_ENABLED(CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN)) {
 		rc = platform::InitializeCanDispatch();
 		if (rc != 0) {
 			if (rc == -ENODEV) {
@@ -66,8 +66,8 @@ int main(void)
 	}
 #endif
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_USB) && CONFIG_RM_TEST_RUNTIME_INIT_USB
-	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_USB)) {
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_USB) && CONFIG_WBR_CONTROL_RUNTIME_INIT_USB
+	if (IS_ENABLED(CONFIG_WBR_CONTROL_RUNTIME_INIT_USB)) {
 		rc = platform::InitializeUsbSession();
 		if (rc != 0) {
 			if (rc == -ENODEV) {
@@ -80,8 +80,8 @@ int main(void)
 	}
 #endif
 
-#if defined(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS) && CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS
-	if (IS_ENABLED(CONFIG_RM_TEST_RUNTIME_INIT_LITTLEFS)) {
+#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS) && CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS
+	if (IS_ENABLED(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS)) {
 		rc = platform::InitializeLittlefs();
 		if (rc != 0) {
 			LOG_WRN("littlefs init skipped: %d", rc);
@@ -91,7 +91,7 @@ int main(void)
 
 	uint32_t module_count = 0U;
 
-#if defined(CONFIG_RM_TEST_MODULE_SYS_STATE) && CONFIG_RM_TEST_MODULE_SYS_STATE
+#if defined(CONFIG_WBR_CONTROL_MODULE_SYS_STATE) && CONFIG_WBR_CONTROL_MODULE_SYS_STATE
 	{
 		static modules::SysStateModule sys_state_module;
 		rc = sys_state_module.Start();
@@ -102,7 +102,7 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_RM_TEST_MODULE_REMOTE_INPUT) && CONFIG_RM_TEST_MODULE_REMOTE_INPUT
+#if defined(CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT) && CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT
 	{
 		static modules::RemoteInputModule remote_input_module;
 		rc = remote_input_module.Start();
@@ -113,7 +113,7 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_RM_TEST_MODULE_CHASSIS) && CONFIG_RM_TEST_MODULE_CHASSIS
+#if defined(CONFIG_WBR_CONTROL_MODULE_CHASSIS) && CONFIG_WBR_CONTROL_MODULE_CHASSIS
 	{
 		static modules::ChassisModule chassis_module;
 		rc = chassis_module.Start();
@@ -124,7 +124,7 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_RM_TEST_MODULE_REFEREE) && CONFIG_RM_TEST_MODULE_REFEREE
+#if defined(CONFIG_WBR_CONTROL_MODULE_REFEREE) && CONFIG_WBR_CONTROL_MODULE_REFEREE
 	{
 		static modules::RefereeModule referee_module;
 		rc = referee_module.Start();
@@ -135,7 +135,7 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_RM_TEST_MODULE_OSCILLOSCOPE) && CONFIG_RM_TEST_MODULE_OSCILLOSCOPE
+#if defined(CONFIG_WBR_CONTROL_MODULE_OSCILLOSCOPE) && CONFIG_WBR_CONTROL_MODULE_OSCILLOSCOPE
 	{
 		static modules::OscilloscopeModule oscilloscope_module;
 		rc = oscilloscope_module.Start();
@@ -146,7 +146,7 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_RM_TEST_MODULE_HI91_IMU) && CONFIG_RM_TEST_MODULE_HI91_IMU
+#if defined(CONFIG_WBR_CONTROL_MODULE_HI91_IMU) && CONFIG_WBR_CONTROL_MODULE_HI91_IMU
 	{
 		static modules::Hi91ImuModule hi91_imu_module;
 		rc = hi91_imu_module.Start();

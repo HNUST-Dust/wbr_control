@@ -1,11 +1,11 @@
-# rm_test 重构迁移计划（Dust_EngineerRobot -> rm_test）
+# wbr_control 重构迁移计划（Dust_EngineerRobot -> wbr_control）
 
 日期：2026-04-05
-范围：applications/rm_test
+范围：applications/wbr_control
 
 ## 1. 文档定位
 
-本文件用于描述“从旧工程迁移到当前 rm_test 架构”的进度与剩余事项。
+本文件用于描述“从旧工程迁移到当前 wbr_control 架构”的进度与剩余事项。
 
 说明：
 - 目录结构重构进度以 `docs/DIRECTORY_RESTRUCTURE_PLAN.md` 为准。
@@ -14,7 +14,7 @@
 ## 2. 迁移目标（保持不变）
 
 1. 行为一致性优先，重构不改变核心控制意图。
-2. 在 rm_test 当前分层架构下完成能力落地：
+2. 在 wbr_control 当前分层架构下完成能力落地：
 - modules
 - services
 - channels
@@ -40,7 +40,7 @@
 
 ### 3.3 最小回归能力已建立
 
-- 已有脚本：applications/rm_test/tools/smoke_regression.sh。
+- 已有脚本：applications/wbr_control/tools/smoke_regression.sh。
 - 已覆盖：启动链路、模块注册链路、调参链路、默认构建、CAN-off 构建。
 
 ## 4. 当前未完成项（真实剩余）

@@ -52,12 +52,13 @@ float ReadLeFloat(const uint8_t *data)
 uint16_t Crc16Update(uint16_t crc, const uint8_t *data, size_t size)
 {
 	for (size_t i = 0U; i < size; ++i) {
-		crc ^= static_cast<uint16_t>(data[i]) << 8U;
+		crc ^= static_cast<uint16_t>(data[i]);
 		for (uint8_t bit = 0U; bit < 8U; ++bit) {
-			if ((crc & 0x8000U) != 0U) {
-				crc = static_cast<uint16_t>((crc << 1U) ^ kPcCommCrc16Poly);
+			if ((crc & 0x0001U) != 0U) {
+				crc = static_cast<uint16_t>(
+					(crc >> 1U) ^ kPcCommCrc16ReflectedPoly);
 			} else {
-				crc = static_cast<uint16_t>(crc << 1U);
+				crc = static_cast<uint16_t>(crc >> 1U);
 			}
 		}
 	}

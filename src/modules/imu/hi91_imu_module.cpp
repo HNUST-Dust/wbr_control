@@ -27,12 +27,12 @@ namespace
 
 K_THREAD_STACK_DEFINE(g_hi91_imu_module_stack, 2048);
 
-#if defined(CONFIG_RM_TEST_HI91_IMU_UART_BAUDRATE)
-constexpr uint32_t kUartBaudrate = CONFIG_RM_TEST_HI91_IMU_UART_BAUDRATE;
+#if defined(CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE)
+constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE;
 #else
 constexpr uint32_t kUartBaudrate = 921600U;
 #endif
-constexpr bool kStrictCrc = IS_ENABLED(CONFIG_RM_TEST_HI91_IMU_STRICT_CRC);
+constexpr bool kStrictCrc = IS_ENABLED(CONFIG_WBR_CONTROL_HI91_IMU_STRICT_CRC);
 /*
  * 一个 HI91 帧在 921600 波特率、8N1 链路上约占 890 us。若空闲超时为
  * 1 ms，完整帧可能滞留到下一批数据到来；50 us 仍覆盖多个字符时间，

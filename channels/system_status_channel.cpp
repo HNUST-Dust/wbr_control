@@ -4,7 +4,7 @@
 
 #include <channels/system_status_channel.h>
 
-ZBUS_CHAN_DEFINE(rm_test_system_status_chan,
+ZBUS_CHAN_DEFINE(wbr_control_system_status_chan,
 		 channels::SystemStatusMessage,
 		 NULL,
 		 NULL,

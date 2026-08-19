@@ -19,9 +19,9 @@
 namespace {
 
 #if DT_HAS_CHOSEN(zephyr_shell_uart)
-#define RM_TEST_MAVLINK_UART_NODE DT_CHOSEN(zephyr_shell_uart)
+#define WBR_CONTROL_MAVLINK_UART_NODE DT_CHOSEN(zephyr_shell_uart)
 #else
-#define RM_TEST_MAVLINK_UART_NODE DT_CHOSEN(zephyr_console)
+#define WBR_CONTROL_MAVLINK_UART_NODE DT_CHOSEN(zephyr_console)
 #endif
 
 constexpr uint8_t kMavlinkSysId = 1U;
@@ -249,7 +249,7 @@ SHELL_CMD_REGISTER(mavlink, &sub_mavlink, "MAVLink mode control", NULL);
 
 int MavlinkShellInit(void)
 {
-	g_shell_uart_dev = DEVICE_DT_GET(RM_TEST_MAVLINK_UART_NODE);
+	g_shell_uart_dev = DEVICE_DT_GET(WBR_CONTROL_MAVLINK_UART_NODE);
 	return 0;
 }
 

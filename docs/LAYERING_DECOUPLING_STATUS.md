@@ -1,7 +1,7 @@
-# rm_test 分层解耦现状报告（更新）
+# wbr_control 分层解耦现状报告（更新）
 
 日期：2026-04-05  
-范围：applications/rm_test
+范围：applications/wbr_control
 
 ## 1. 结论摘要
 
@@ -88,11 +88,11 @@
 ### 2.5 配置裁剪能力（第一阶段）
 
 已完成：
-- 模块注册裁剪：`RM_TEST_MODULE_REMOTE_INPUT` / `RM_TEST_MODULE_CHASSIS`。
-- shell 调参裁剪：`RM_TEST_SHELL_CHASSIS_TUNING`。
+- 模块注册裁剪：`WBR_CONTROL_MODULE_REMOTE_INPUT` / `WBR_CONTROL_MODULE_CHASSIS`。
+- shell 调参裁剪：`WBR_CONTROL_SHELL_CHASSIS_TUNING`。
 - runtime 初始化行为裁剪：
-  - `RM_TEST_RUNTIME_INIT_CAN`
-  - `RM_TEST_RUNTIME_INIT_LITTLEFS`
+  - `WBR_CONTROL_RUNTIME_INIT_CAN`
+  - `WBR_CONTROL_RUNTIME_INIT_LITTLEFS`
 
 关键落点：
 - Kconfig
@@ -138,7 +138,7 @@
 
 6. 测试与回放资产补齐
 - 状态：已完成第一步（2026-04-05）。
-- 实现：新增最小 smoke 回归脚本 `applications/rm_test/tools/smoke_regression.sh` 与文档 `applications/rm_test/docs/SMOKE_REGRESSION.md`，覆盖启动链路、模块注册链路、调参链路可用性，以及默认/CAN-off 构建矩阵。
+- 实现：新增最小 smoke 回归脚本 `applications/wbr_control/tools/smoke_regression.sh` 与文档 `applications/wbr_control/docs/SMOKE_REGRESSION.md`，覆盖启动链路、模块注册链路、调参链路可用性，以及默认/CAN-off 构建矩阵。
 - 后续：补充行为一致性回放与实机时序测试资产。
 
 ---
@@ -165,5 +165,5 @@
 
 ## 6. 当前结语
 
-rm_test 已从“可运行的迁移主干”推进到“可维护的分层架构主干”。
+wbr_control 已从“可运行的迁移主干”推进到“可维护的分层架构主干”。
 接下来重点不再是继续铺目录，而是把剩余边界收口（编译期裁剪、服务抽象、生命周期与测试）做扎实。完成这些后，整体解耦度可稳定到 9/10 区间。

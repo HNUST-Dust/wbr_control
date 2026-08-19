@@ -21,4 +21,4 @@ struct SystemStatusMessage {
 
 }  // namespace channels
 
-ZBUS_CHAN_DECLARE(rm_test_system_status_chan);
+ZBUS_CHAN_DECLARE(wbr_control_system_status_chan);

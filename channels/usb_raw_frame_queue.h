@@ -8,15 +8,15 @@
 
 namespace channels {
 
-constexpr size_t kUsbRawChunkSize = 512U;
+constexpr size_t kUsbRawChunkSize = 64U;
 
 struct UsbRawFrameMessage {
 	uint16_t len;
 	uint8_t data[kUsbRawChunkSize];
 };
 
-int EnqueueForCdcAcm(const UsbRawFrameMessage *frame);
-int DequeueForCdcAcm(UsbRawFrameMessage *frame, int32_t timeout_ms);
+int EnqueueUsbRawFrame(const UsbRawFrameMessage *frame);
+int DequeueUsbRawFrame(UsbRawFrameMessage *frame, int32_t timeout_ms);
 
 }  // namespace channels
 

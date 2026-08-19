@@ -30,11 +30,11 @@ namespace
 
 K_THREAD_STACK_DEFINE(g_remote_input_module_stack, 1024);
 
-#if !DT_HAS_CHOSEN(rm_test_remote_input_uart)
-#error "rm-test,remote-input-uart must be selected for remote_input_module"
+#if !DT_HAS_CHOSEN(wbr_control_remote_input_uart)
+#error "wbr-control,remote-input-uart must be selected for remote_input_module"
 #endif
 
-#define WBR_REMOTE_INPUT_UART_NODE DT_CHOSEN(rm_test_remote_input_uart)
+#define WBR_REMOTE_INPUT_UART_NODE DT_CHOSEN(wbr_control_remote_input_uart)
 
 constexpr size_t kUartRxBufferSize = 128U;
 constexpr uint8_t kUartRxBufferCount = 2U;

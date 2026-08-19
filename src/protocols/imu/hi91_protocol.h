@@ -36,7 +36,7 @@ struct Hi91Sample {
  * Decode one complete HI91 frame (SOF + len + crc + payload).
  *
  * `strict_crc` rejects frames whose CRC16 does not match the device
- * (see Kconfig RM_TEST_HI91_IMU_STRICT_CRC); keep it false until the exact
+ * (see Kconfig WBR_CONTROL_HI91_IMU_STRICT_CRC); keep it false until the exact
  * CRC variant is confirmed.
  *
  * Returns 0 on success, or a negative errno value (-EINVAL / -EMSGSIZE /

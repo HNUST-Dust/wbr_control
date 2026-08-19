@@ -1,7 +1,7 @@
-# 底盘速度控制迁移映射（Dust_EngineerRobot -> rm_test）
+# 底盘速度控制迁移映射（Dust_EngineerRobot -> wbr_control）
 
 ## 1. 迁移目标
-在不修改 Algorithm 子模块代码的前提下，将底盘速度控制链路迁移到 rm_test，并保持行为一致性。
+在不修改 Algorithm 子模块代码的前提下，将底盘速度控制链路迁移到 wbr_control，并保持行为一致性。
 
 ## 2. 旧工程链路拆解
 
