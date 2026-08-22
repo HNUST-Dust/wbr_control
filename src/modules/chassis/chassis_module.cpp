@@ -152,11 +152,11 @@ constexpr double kRpmToRadPerSec = 0.10471975511965977;
 constexpr double kWheelReduction = 268.0 / 17.0;
 constexpr double kWheelRadius = 0.058;
 constexpr double kGravity = 9.80665;
-constexpr double kRobotMass = 10.1;
+constexpr double kRobotMass = 12.054;
 constexpr double kDefaultDt = 0.001;
 constexpr uint32_t kControlPeriodMs = 1U;
-constexpr double kTargetLegLengthMin = 0.15133;
-constexpr double kTargetLegLengthMax = 0.30347;
+constexpr double kTargetLegLengthMin = 0.15362;
+constexpr double kTargetLegLengthMax = 0.31101;
 constexpr double kTargetLegLengthRate = 0.06;
 
 constexpr double kPerSideGainScale = 0.5;
