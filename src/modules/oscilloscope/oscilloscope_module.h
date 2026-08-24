@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/oscilloscope/oscilloscope_module.h
+ * @ingroup wbr_modules
+ * @brief 实现控制变量采样与示波器遥测模块。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ */
+
 #pragma once
 
 #include <cstddef>
@@ -19,16 +26,34 @@
 namespace modules
 {
 
+/** @brief 周期采样控制数据并发送 VOFA+ 遥测。 */
 class OscilloscopeModule : public ModuleBase
 {
 public:
 	OscilloscopeModule() = default;
+	/**
+	 * @brief 初始化模块资源并创建工作线程。
+	 * @return 成功返回 0；初始化或线程创建失败返回负 errno 错误码。
+	 */
 	int Start() override;
+	/**
+	 * @brief 执行模块线程的周期主循环。
+	 */
 	void RunLoop() override;
 
 private:
+	/**
+	 * @brief 处理 Zephyr UART 异步驱动回调事件。
+	 * @param[in] dev 产生事件的 Zephyr 设备实例。
+	 * @param[in,out] event UART 异步事件描述。
+	 * @param[in,out] user_data 注册回调时绑定的模块实例指针。
+	 */
 	static void UartCallback(const struct device *dev, struct uart_event *event,
 				 void *user_data);
+	/**
+	 * @brief 编码并发送最新的示波器采样快照。
+	 * @return 成功返回 0，参数无效或底层操作失败时返回负 errno 错误码。
+	 */
 	int SendLatestSample();
 
 	const struct device *uart_dev_ = nullptr;

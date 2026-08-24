@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/imu/hi91_imu_module.cpp
+ * @ingroup wbr_modules
+ * @brief 实现 HI91 IMU 的采集、校验与状态发布模块。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "hi91_imu_module.h"
 
 #include <algorithm>
@@ -15,7 +22,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <hpm_l1c_drv.h>
+#include <drivers/uart_hpmicro.h>
 
 #include <channels/hi91_imu_sample.hpp>
 #include <scheduling/thread_priorities.h>
@@ -33,20 +40,19 @@ constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE;
 constexpr uint32_t kUartBaudrate = 921600U;
 #endif
 constexpr bool kStrictCrc = IS_ENABLED(CONFIG_WBR_CONTROL_HI91_IMU_STRICT_CRC);
-/*
- * 一个 HI91 帧在 921600 波特率、8N1 链路上约占 890 us。若空闲超时为
- * 1 ms，完整帧可能滞留到下一批数据到来；50 us 仍覆盖多个字符时间，
- * 同时可以在帧间隙及时发布。
- */
-constexpr int32_t kRxIdleTimeoutUs = 50;
 constexpr uint32_t kStartupDelayMs = 2000U;
-/*
- * 单次高优先级激活最多处理约两个帧。若输入积压超过预算，主动让出一个
- * tick，避免无限排空环形缓冲导致底盘线程错过截止时间。
- */
-constexpr uint32_t kMaximumBytesPerActivation = 192U;
+constexpr uint32_t kRxRingPollPeriodMs = 1U;
+constexpr uint32_t kFreshnessDeadlineUs = 3000U;
 // HI91 输出物理欧拉俯仰角，超过该范围视为 UART 数据损坏。
 constexpr float kMaximumValidPitchDeg = 100.0F;
+
+/*
+ * UART RX ring 由 HDMA 持续写、HI91 线程持续读。放入 non-cacheable RAM 后
+ * CPU 每次都直接观察物理内存，不再需要按 cache line 执行 flush/invalidate。
+ * HPM HDMA 要求目标地址可由系统总线访问；64 字节对齐也方便后续调整大小。
+ */
+__attribute__((section(".nocache"), aligned(64)))
+uint8_t g_hi91_rx_dma_ring[4096U];
 
 const struct device *FindInputUart()
 {
@@ -62,11 +68,7 @@ const struct device *FindInputUart()
 namespace modules
 {
 
-Hi91ImuModule::Hi91ImuModule()
-{
-	k_sem_init(&rx_sem_, 0, 1);
-	ring_buf_init(&rx_ring_, sizeof(rx_ring_storage_), rx_ring_storage_);
-}
+Hi91ImuModule::Hi91ImuModule() = default;
 
 int Hi91ImuModule::Start()
 {
@@ -99,99 +101,77 @@ int Hi91ImuModule::Start()
 
 void Hi91ImuModule::RunLoop()
 {
-	LOG_INF("hi91 imu async module started uart=%s baud=%u strict_crc=%u", uart_dev_->name,
+	LOG_INF("hi91 imu circular dma module started uart=%s baud=%u strict_crc=%u", uart_dev_->name,
 		static_cast<unsigned int>(kUartBaudrate), static_cast<unsigned int>(kStrictCrc));
 
 	k_sleep(K_MSEC(kStartupDelayMs));
 
-	int rc = uart_callback_set(uart_dev_, UartCallback, this);
+	static_assert(sizeof(g_hi91_rx_dma_ring) == kRxDmaRingSize,
+		      "HI91 DMA ring size must match the consumer modulo");
+	rx_read_pos_ = 0U;
+	rx_observed_write_pos_ = 0U;
+	rx_available_bytes_ = 0U;
+	int rc = uart_hpm_rx_circular_enable(
+		uart_dev_, g_hi91_rx_dma_ring, kRxDmaRingSize);
 	if (rc != 0) {
-		LOG_ERR("uart callback set failed: %d", rc);
+		LOG_ERR("uart circular rx enable failed: %d", rc);
 		return;
 	}
-
-	rc = uart_rx_enable(uart_dev_, rx_buffers_[0], kRxDmaTransferSize, kRxIdleTimeoutUs);
-	if (rc != 0) {
-		LOG_ERR("uart rx enable failed: %d", rc);
-		return;
-	}
-
-	uint8_t buffer[kRxDmaTransferSize];
 	for (;;) {
-		k_sem_take(&rx_sem_, K_FOREVER);
-
-		uint32_t remaining_budget = kMaximumBytesPerActivation;
-		while (remaining_budget != 0U) {
-			const uint32_t count = ring_buf_get(
-				&rx_ring_, buffer,
-				MIN(static_cast<uint32_t>(sizeof(buffer)), remaining_budget));
-			if (count == 0U) {
-				break;
-			}
-			ProcessBytes(buffer, count);
-			remaining_budget -= count;
-		}
-
-		if (!ring_buf_is_empty(&rx_ring_)) {
-			k_sem_give(&rx_sem_);
-			k_sleep(K_TICKS(1));
-		}
-	}
-}
-
-void Hi91ImuModule::UartCallback(const struct device *dev, struct uart_event *evt, void *user_data)
-{
-	auto *self = static_cast<Hi91ImuModule *>(user_data);
-	if (self != nullptr) {
-		self->HandleUartEvent(dev, evt);
-	}
-}
-
-void Hi91ImuModule::HandleUartEvent(const struct device *dev, const struct uart_event *evt)
-{
-	switch (evt->type) {
-	case UART_RX_RDY: {
-		const uint8_t *data = evt->data.rx.buf + evt->data.rx.offset;
-		InvalidateDmaRxCache(data, evt->data.rx.len);
-		const uint32_t written = ring_buf_put(&rx_ring_, data, evt->data.rx.len);
-		if (written != evt->data.rx.len) {
+		/*
+		 * write_pos 是 DMA 下一字节将写入的位置。先抓取快照，再只处理该
+		 * 快照之前的数据；DMA 可以同时在后方继续写，不需要暂停通道。
+		 * 驱动在一轮恰好结束的瞬间可能报告 size，等价于“尾部已写完、
+		 * 下一次从0开始”，因此这里允许 write_pos == kRxDmaRingSize。
+		 */
+		size_t write_pos = 0U;
+		rc = uart_hpm_rx_circular_get_position(uart_dev_, &write_pos);
+		if ((rc != 0) || (write_pos > kRxDmaRingSize)) {
 			++rx_drop_count_;
+			k_sleep(K_MSEC(kRxRingPollPeriodMs));
+			continue;
 		}
-		k_sem_give(&rx_sem_);
-		break;
-	}
-	case UART_RX_BUF_REQUEST: {
-		const uint8_t index = next_rx_buffer_index_;
-		next_rx_buffer_index_ = (next_rx_buffer_index_ + 1U) % kRxBufferCount;
-		(void)uart_rx_buf_rsp(dev, rx_buffers_[index], kRxDmaTransferSize);
-		break;
-	}
-	case UART_RX_DISABLED:
-		next_rx_buffer_index_ = 1U;
-		(void)uart_rx_enable(dev, rx_buffers_[0], kRxDmaTransferSize, kRxIdleTimeoutUs);
-		break;
-	case UART_RX_STOPPED:
-		++rx_stop_count_;
-		break;
-	default:
-		break;
-	}
-}
 
-void Hi91ImuModule::InvalidateDmaRxCache(const uint8_t *data, size_t len)
-{
-	if ((data == nullptr) || (len == 0U)) {
-		return;
-	}
+		/*
+		 * 只用连续两次位置的差值计算生产量。raw position 的 size 与 0
+		 * 都表示 ring 起点，先归一化再处理回绕。只要轮询间隔远小于约
+		 * 50ms 的整圈时间，生产者不会在两次观察之间套圈。
+		 */
+		const size_t normalized_write_pos =
+			(write_pos == kRxDmaRingSize) ? 0U : write_pos;
+		const size_t produced = (normalized_write_pos >= rx_observed_write_pos_)
+			? (normalized_write_pos - rx_observed_write_pos_)
+			: (kRxDmaRingSize - rx_observed_write_pos_ + normalized_write_pos);
+		rx_observed_write_pos_ = normalized_write_pos;
+		rx_available_bytes_ += produced;
 
-	const uint32_t start = HPM_L1C_CACHELINE_ALIGN_DOWN(reinterpret_cast<uint32_t>(data));
-	const uint32_t end = HPM_L1C_CACHELINE_ALIGN_UP(reinterpret_cast<uint32_t>(data) +
-							static_cast<uint32_t>(len));
-	l1c_dc_invalidate(start, end - start);
+		/*
+		 * available 中最后 kRxCommitGuardSize 字节仍可能是 DMA outstanding
+		 * write，只消费更早的数据。它们会在下一轮已经远离写入前沿后处理。
+		 */
+		size_t consume_length = (rx_available_bytes_ > kRxCommitGuardSize)
+			? (rx_available_bytes_ - kRxCommitGuardSize)
+			: 0U;
+		while (consume_length != 0U) {
+			const size_t contiguous = std::min(
+				consume_length, kRxDmaRingSize - rx_read_pos_);
+			const uint8_t *const consume_start = &g_hi91_rx_dma_ring[rx_read_pos_];
+			rx_read_pos_ += contiguous;
+			if (rx_read_pos_ == kRxDmaRingSize) {
+				rx_read_pos_ = 0U;
+			}
+			consume_length -= contiguous;
+			rx_available_bytes_ -= contiguous;
+			ProcessBytes(consume_start, contiguous);
+		}
+
+		k_sleep(K_MSEC(kRxRingPollPeriodMs));
+	}
 }
 
 void Hi91ImuModule::ProcessBytes(const uint8_t *data, size_t size)
 {
+	/* DMA ring 没有帧边界；状态机连续消费字节并允许帧跨越 ring 末尾。 */
 	for (size_t i = 0U; i < size; ++i) {
 		ProcessByte(data[i]);
 	}
@@ -199,6 +179,10 @@ void Hi91ImuModule::ProcessBytes(const uint8_t *data, size_t size)
 
 void Hi91ImuModule::ProcessByte(uint8_t byte)
 {
+	/*
+	 * 组帧顺序：搜索 5A A5 -> 收取 2 字节 payload length ->
+	 * 收取 2 字节 CRC 和 payload。收齐后才调用 DecodeHi91Frame 校验 CRC。
+	 */
 	switch (frame_state_) {
 	case 0U: /* wait SOF0 */
 		if (byte == protocols::kHi91FrameSof0) {
@@ -264,6 +248,7 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 	if (!std::isfinite(sample.pitch_deg) ||
 	    std::abs(sample.pitch_deg) > kMaximumValidPitchDeg) {
 		++parse_error_count_;
+		++invalid_sample_count_;
 		LOG_WRN("reject invalid HI91 pitch_mdeg=%d count=%u",
 			static_cast<int>(sample.pitch_deg * 1000.0F),
 			static_cast<unsigned int>(parse_error_count_));
@@ -272,20 +257,40 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 
 	channels::Hi91ImuSample channel_sample = {};
 	const uint64_t publish_time_us = k_cyc_to_us_floor64(k_cycle_get_64());
+	if (last_sensor_time_ms_ != 0U) {
+		max_sensor_interval_ms_ =
+			std::max(max_sensor_interval_ms_, sample.system_time_ms - last_sensor_time_ms_);
+	}
+	last_sensor_time_ms_ = sample.system_time_ms;
 	if (last_publish_time_us_ != 0U && publish_time_us >= last_publish_time_us_) {
 		const uint64_t interval_us = publish_time_us - last_publish_time_us_;
 		max_publish_interval_us_ = std::max(
 			max_publish_interval_us_,
 			static_cast<uint32_t>(std::min<uint64_t>(interval_us, UINT32_MAX)));
+		if (interval_us > kFreshnessDeadlineUs) {
+			if (crc_errors_since_last_publish_ != 0U) {
+				++publish_gap_with_crc_count_;
+			} else {
+				++publish_gap_without_crc_count_;
+			}
+		}
 	}
+	crc_errors_since_last_publish_ = 0U;
 	last_publish_time_us_ = publish_time_us;
 	channel_sample.sequence = ++sample_sequence_;
 	channel_sample.uptime_ms = k_uptime_get_32();
 	channel_sample.precise_timestamp_us = publish_time_us;
 	channel_sample.max_publish_interval_us = max_publish_interval_us_;
+	channel_sample.max_sensor_interval_ms = max_sensor_interval_ms_;
 	channel_sample.parse_error_count = parse_error_count_;
+	channel_sample.crc_error_count = crc_error_count_;
+	channel_sample.publish_gap_with_crc_count = publish_gap_with_crc_count_;
+	channel_sample.publish_gap_without_crc_count = publish_gap_without_crc_count_;
+	channel_sample.frame_format_error_count = frame_format_error_count_;
+	channel_sample.invalid_sample_count = invalid_sample_count_;
 	channel_sample.rx_drop_count = rx_drop_count_;
 	channel_sample.rx_stop_count = rx_stop_count_;
+	channel_sample.rx_buf_rsp_error_count = rx_buf_rsp_error_count_;
 	channel_sample.system_time_ms = sample.system_time_ms;
 	channel_sample.valid = true;
 	channel_sample.roll_deg = sample.roll_deg;
@@ -295,11 +300,18 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 	memcpy(channel_sample.gyro_dps, sample.gyro_dps, sizeof(channel_sample.gyro_dps));
 	memcpy(channel_sample.accel_g, sample.accel_g, sizeof(channel_sample.accel_g));
 	channels::latest_hi91_imu_sample.write(channel_sample);
+
 }
 
 void Hi91ImuModule::ReportParseIssue(int error)
 {
 	++parse_error_count_;
+	if (error == -EILSEQ) {
+		++crc_error_count_;
+		++crc_errors_since_last_publish_;
+	} else {
+		++frame_format_error_count_;
+	}
 	if ((parse_error_count_ % 1000U) != 1U) {
 		return;
 	}

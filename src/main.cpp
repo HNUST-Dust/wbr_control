@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/main.cpp
+ * @ingroup wbr_control
+ * @brief 实现应用或测试程序的入口与初始化流程。
+ * @details 主入口按依赖顺序初始化平台服务和应用模块。任一必需模块启动失败都会保留诊断信息，避免在输入或执行器未就绪时进入闭环控制。
+ */
+
 #include <errno.h>
 
 #include <zephyr/kernel.h>
@@ -45,6 +52,10 @@ void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
 
 } // namespace
 
+/**
+ * @brief 按依赖顺序启动平台服务和应用模块。
+ * @return 初始化成功后线程永久休眠；启动失败时返回对应负 errno 错误码。
+ */
 int main(void)
 {
 	LOG_INF("wbr_control started on %s", board_identity_name());
@@ -159,7 +170,7 @@ int main(void)
 #endif
 	PublishSystemStatus(channels::kRunning, module_count);
 
-	while (true) {
-		k_sleep(K_SECONDS(1));
-	}
+	/* 初始化结束后主线程不再承担周期任务，各模块由自己的线程运行。 */
+	k_sleep(K_FOREVER);
+	return 0;
 }

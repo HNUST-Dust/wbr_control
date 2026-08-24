@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+## @file serial_log.sh
+#  @brief 自动选择串口并持续采集固件运行日志。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 set -euo pipefail
 
 # Usage:
@@ -6,7 +10,7 @@ set -euo pipefail
 #   ./tools/serial_log.sh /dev/cu.xxx   # specify port
 #   BAUD=921600 ./tools/serial_log.sh   # override baud rate
 
-BAUD="${BAUD:-115200}"
+BAUD="${BAUD:-921600}"
 PORT="${1:-}"
 
 pick_port() {

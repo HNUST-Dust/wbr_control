@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file derive_physical_lqr_schedule.py
+#  @brief 根据物理参数推导轮腿模型并生成三次 LQR 增益表。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Derive the wheel-leg model and cubic LQR schedule from physical parameters.
 
 Recalculation procedure, parameter provenance, sign conventions, firmware
@@ -64,12 +68,12 @@ ARTICLE_Q_DIAG = np.array([1.0, 1.0, 500.0, 100.0, 5000.0, 1.0])
 ARTICLE_R_DIAG = np.array([1.0, 0.25])
 # Current chassis tuning: retain the article weights except for theta_dot,
 # whose larger weight supplies damping for the observed common-theta mode.
+# [theat, theta_dot, x, x_dot, phi, phi_dot]
 # CURRENT_Q_DIAG = np.array([3000.0, 400.0, 1500.0, 50.0, 16000.0, 100.0])
 # CURRENT_R_DIAG = np.array([150.0, 1.0])
 # CURRENT_Q_DIAG = np.array([3000.0, 1.0, 1500.0, 50.0, 3000.0, 1.0])
 # CURRENT_R_DIAG = np.array([80.0, 1.0])
-# [theat, theta_dot, x, x_dot]
-CURRENT_Q_DIAG = np.array([1000.0, 1.0, 1500.0, 1.0, 20000.0, 1.0])
+CURRENT_Q_DIAG = np.array([1000.0, 5.0, 1500.0, 1.0, 20000.0, 1.0])
 CURRENT_R_DIAG = np.array([60.0, 1.0])
 
 

@@ -1,3 +1,10 @@
+/**
+* @file src/modules/chassis/legacy/contact_safety.cc
+ * @ingroup wbr_modules
+ * @brief 实现轮腿接触状态相关的安全约束。
+ * @details 该组件属于可独立计算的传统底盘控制链路。调用方按固定周期提供一致输入快照；组件保存的积分或滤波状态必须在失能、故障或时间跳变后复位。
+ */
+
 // Legacy controller stack; excluded from the firmware build.
 #include "contact_safety.h"
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file fit_lqr_from_sysid.py
+#  @brief 从系统辨识日志估计不同腿长下的 LQR 增益。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Identify per-leg-length LQR gains from physical sysid logs.
 
 Input CSV uses the legacy ``lqr_sysid_csv`` log format. After filtering out

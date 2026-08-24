@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file test/cherryusb_interrupt_test/src/int_test.c
+ * @brief 实现 CherryUSB 中断传输测试逻辑。
+ * @details 该文件属于独立 Zephyr 测试镜像，只验证指定外设或算法路径，不会链接进主固件。测试会直接访问目标硬件并通过串口输出判定结果。
+ */
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

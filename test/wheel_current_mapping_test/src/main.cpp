@@ -2,6 +2,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * @file test/wheel_current_mapping_test/src/main.cpp
+ * @brief 实现应用或测试程序的入口与初始化流程。
+ * @details 该文件属于独立 Zephyr 测试镜像，只验证指定外设或算法路径，不会链接进主固件。测试会直接访问目标硬件并通过串口输出判定结果。
+ */
+
 #include <errno.h>
 
 #include <algorithm>

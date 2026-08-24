@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file platform/storage/filesystem/littlefs_service.cpp
+ * @ingroup wbr_platform
+ * @brief 封装 LittleFS 文件系统的挂载与访问服务。
+ * @details 实现封装 Zephyr 设备 API、硬件初始化和异步回调。共享状态在中断、回调与线程之间访问时使用原子量、内核队列或短临界区保护。
+ */
+
 #include <errno.h>
 
 #include <zephyr/fs/fs.h>

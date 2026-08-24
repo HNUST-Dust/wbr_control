@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file src/protocols/pc_link/pc_link.cpp
+ * @ingroup wbr_protocols
+ * @brief 实现控制器与上位机之间的通信协议。
+ * @details 实现显式处理字节序、帧长度和量化范围，不依赖动态内存。所有协议错误通过返回值报告，解析器不会直接驱动执行器。
+ */
+
 #include <protocols/pc_link/pc_link.h>
 
 #include <errno.h>

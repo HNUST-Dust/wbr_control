@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+## @file smoke_regression.sh
+#  @brief 执行主固件和关键配置组合的冒烟回归检查。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"

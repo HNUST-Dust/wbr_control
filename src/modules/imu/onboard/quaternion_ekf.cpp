@@ -1,10 +1,12 @@
 /**
  ******************************************************************************
- * @file    quaternion_ekf.cpp
+* @file    quaternion_ekf.cpp
+ * @ingroup wbr_modules
  * @author  Wang Hongxi
  * @version V1.2.0
  * @date    2022/3/8
- * @brief   attitude update with gyro bias estimate and chi-square test
+ * @brief   实现带陀螺仪零偏估计和卡方检验的四元数姿态更新。
+ * @details 预测阶段积分角速度，观测阶段使用归一化重力方向修正姿态；卡方检验用于抑制剧烈运动时不可信的加速度观测。
  ******************************************************************************
  * @attention
  * 1st order LPF transfer function:

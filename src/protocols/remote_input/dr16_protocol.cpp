@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file src/protocols/remote_input/dr16_protocol.cpp
+ * @ingroup wbr_protocols
+ * @brief 实现 DR16 遥控器协议解码。
+ * @details 实现显式处理字节序、帧长度和量化范围，不依赖动态内存。所有协议错误通过返回值报告，解析器不会直接驱动执行器。
+ */
+
 #include <protocols/remote_input/dr16_protocol.h>
 
 namespace protocols {

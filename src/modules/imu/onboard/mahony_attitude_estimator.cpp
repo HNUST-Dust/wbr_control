@@ -1,3 +1,10 @@
+/**
+* @file src/modules/imu/onboard/mahony_attitude_estimator.cpp
+ * @ingroup wbr_modules
+ * @brief 实现基于 Mahony 滤波器的姿态估计。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 // Mahony attitude estimator used by the onboard IMU pipeline.
 
 #include <modules/imu/onboard/mahony_attitude_estimator.h>

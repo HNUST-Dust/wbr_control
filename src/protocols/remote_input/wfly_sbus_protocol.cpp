@@ -1,15 +1,22 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file src/protocols/remote_input/wfly_sbus_protocol.cpp
+ * @ingroup wbr_protocols
+ * @brief 实现天地飞 SBUS 遥控协议解码。
+ * @details 实现显式处理字节序、帧长度和量化范围，不依赖动态内存。所有协议错误通过返回值报告，解析器不会直接驱动执行器。
+ */
+
 #include <protocols/remote_input/wfly_sbus_protocol.h>
 
 namespace protocols {
 
 namespace {
 
-constexpr uint8_t kChannel17Mask = 0x80;
-constexpr uint8_t kChannel18Mask = 0x40;
-constexpr uint8_t kFrameLostMask = 0x20;
-constexpr uint8_t kFailsafeMask = 0x10;
+constexpr uint8_t kChannel17Mask = 0x01;
+constexpr uint8_t kChannel18Mask = 0x02;
+constexpr uint8_t kFrameLostMask = 0x04;
+constexpr uint8_t kFailsafeMask = 0x08;
 constexpr uint16_t kChannelMask = 0x07ff;
 
 uint16_t U16(uint8_t value) { return static_cast<uint16_t>(value); }

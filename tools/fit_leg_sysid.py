@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file fit_leg_sysid.py
+#  @brief 从底盘系统辨识日志拟合腿部角度通道模型。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Fit the physical leg-angle channel from chassis sysid logs.
 
 The chassis sysid log is intentionally leg-only while the robot is on the

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+## @file build_local.sh
+#  @brief 使用当前 Zephyr 工作区构建 wbr_control 主固件。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 set -euo pipefail
 
 # Build wbr_control into its local build directory.

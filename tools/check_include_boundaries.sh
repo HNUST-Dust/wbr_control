@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+## @file check_include_boundaries.sh
+#  @brief 检查模块头文件归属和跨层包含边界。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

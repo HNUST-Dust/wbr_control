@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file debug/shell/shell_banner.cpp
+ * @ingroup wbr_debug
+ * @brief 实现调试 Shell 的启动横幅。
+ * @details 本文件是 wbr_control 固件的一部分；接口量纲、所有权和线程约束以相邻声明的 Doxygen 文档为准。
+ */
+
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>

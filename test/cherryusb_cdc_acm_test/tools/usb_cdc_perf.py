@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+## @file usb_cdc_perf.py
+#  @brief 测量 CherryUSB CDC ACM 链路的吞吐量与传输稳定性。
+#  @details 该文件属于独立 Zephyr 测试镜像，只验证指定外设或算法路径，不会链接进主固件。测试会直接访问目标硬件并通过串口输出判定结果。
 
 import argparse
 import statistics

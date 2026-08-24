@@ -4,6 +4,50 @@ source "Kconfig.zephyr"
 
 menu "wbr_control application options"
 
+choice WBR_CONTROL_UART0_OUTPUT_MODE
+	prompt "UART0 output mode"
+	default WBR_CONTROL_UART0_OUTPUT_DISABLED
+	help
+	  Select the sole owner of UART0. The console, printk, UART logger and
+	  VOFA oscilloscope cannot transmit independently on the same UART.
+
+config WBR_CONTROL_UART0_OUTPUT_DISABLED
+	bool "Disabled"
+
+config WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE
+	bool "VOFA oscilloscope only"
+	select SERIAL
+
+config WBR_CONTROL_UART0_OUTPUT_PRINTK
+	bool "printk only"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+
+config WBR_CONTROL_UART0_OUTPUT_LOG
+	bool "Zephyr logger only"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select LOG
+	select LOG_BACKEND_UART
+
+config WBR_CONTROL_UART0_OUTPUT_PRINTK_AND_LOG
+	bool "printk and Zephyr logger"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+	select LOG
+	select LOG_BACKEND_UART
+	select LOG_PRINTK
+	help
+	  Route printk() calls through the logging subsystem so printk and LOG_*
+	  messages share one serialized UART backend.
+
+endchoice
+
 config WBR_CONTROL_MODULE_REMOTE_INPUT
 	bool "Enable remote_input module"
 	default y
@@ -23,12 +67,11 @@ config WBR_CONTROL_MODULE_REFEREE
 	  Enable registering and starting the referee module.
 
 config WBR_CONTROL_MODULE_OSCILLOSCOPE
-	bool "Enable VOFA oscilloscope module"
-	default n
-	depends on SERIAL
+	bool
+	default y if WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE
 	help
-	  Enable the VOFA+ oscilloscope module. The module sends the latest
-	  oscilloscope sample over UART0 using the JustFloat protocol.
+	  Internal switch derived from the UART0 output mode. The module sends
+	  the latest oscilloscope sample over UART0 using the JustFloat protocol.
 
 config WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE
 	int "VOFA oscilloscope UART baudrate"

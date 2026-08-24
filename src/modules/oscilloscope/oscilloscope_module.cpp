@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/oscilloscope/oscilloscope_module.cpp
+ * @ingroup wbr_modules
+ * @brief 实现控制变量采样与示波器遥测模块。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "oscilloscope_module.h"
 
 #include <errno.h>
@@ -26,10 +33,12 @@ namespace
 K_THREAD_STACK_DEFINE(g_oscilloscope_module_stack, 1536);
 
 #ifndef CONFIG_WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS
+/** @brief 未通过 Kconfig 配置时使用的示波器默认采样周期，单位为毫秒。 */
 #define CONFIG_WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS 10
 #endif
 
 #ifndef CONFIG_WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE
+/** @brief 未通过 Kconfig 配置时使用的示波器串口默认波特率。 */
 #define CONFIG_WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE 921600
 #endif
 

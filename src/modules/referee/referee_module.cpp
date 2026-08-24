@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file src/modules/referee/referee_module.cpp
+ * @ingroup wbr_modules
+ * @brief 实现裁判系统数据接收与状态发布模块。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include <zephyr/logging/log.h>
 
 #include <string.h>

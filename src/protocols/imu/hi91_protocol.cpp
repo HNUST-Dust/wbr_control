@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/protocols/imu/hi91_protocol.cpp
+ * @ingroup wbr_protocols
+ * @brief 实现 HI91 IMU 串口协议的帧解析。
+ * @details 实现显式处理字节序、帧长度和量化范围，不依赖动态内存。所有协议错误通过返回值报告，解析器不会直接驱动执行器。
+ */
+
 #include <protocols/imu/hi91_protocol.h>
 
 #include <errno.h>
@@ -55,7 +62,9 @@ uint16_t Crc16Update(uint16_t crc, const uint8_t *data, size_t size)
 	return crc;
 }
 
-uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
+}  // namespace
+
+uint16_t CalculateHi91FrameCrc(uint16_t payload_length, const uint8_t *payload)
 {
 	const uint8_t header[4] = {
 		kHi91FrameSof0,
@@ -63,14 +72,12 @@ uint16_t CalculateFrameCrc(uint16_t payload_length, const uint8_t *payload)
 		static_cast<uint8_t>(payload_length & 0xFFU),
 		static_cast<uint8_t>((payload_length >> 8U) & 0xFFU),
 	};
-	/* HiPNUC manual §5.10/§5.12.14: start from 0, then update over
-	 * SOF+LEN and payload separately.  CRC bytes themselves are excluded. */
+	/* HiPNUC manual: start from 0, then update over SOF+LEN and payload
+	 * separately. CRC bytes themselves are excluded. */
 	uint16_t crc = 0U;
 	crc = Crc16Update(crc, header, sizeof(header));
 	return Crc16Update(crc, payload, payload_length);
 }
-
-}  // namespace
 
 int DecodeHi91Frame(const uint8_t *data, size_t len, bool strict_crc, Hi91Sample *out)
 {
@@ -96,8 +103,9 @@ int DecodeHi91Frame(const uint8_t *data, size_t len, bool strict_crc, Hi91Sample
 	}
 
 	const uint8_t *payload = &data[kHi91FrameHeaderSize];
-	if (strict_crc && (CalculateFrameCrc(payload_length, payload) != ReadLe16(&data[4]))) {
-		return -EBADMSG;
+	if (strict_crc &&
+	    (CalculateHi91FrameCrc(payload_length, payload) != ReadLe16(&data[4]))) {
+		return -EILSEQ;
 	}
 
 	if ((payload_length < kHi91DataLength) || (payload[0] != kHi91DataTag)) {
