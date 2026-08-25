@@ -47,7 +47,7 @@ const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(WBR_CONTROL_BUZZER_NODE);
 K_THREAD_STACK_DEFINE(g_sys_state_module_stack, 1024);
 
 constexpr uint8_t kPwmLevels = 64U;
-constexpr uint32_t kLedFrameMs = 16U;
+constexpr uint32_t kLedFrameMs = 8U;
 constexpr uint16_t kBreathSteps = 200U;
 constexpr uint32_t kBuzzerPeriodUs = 2000U;
 constexpr uint8_t kBuzzerTickPercent = 20U;

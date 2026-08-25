@@ -8,8 +8,12 @@ choice WBR_CONTROL_UART0_OUTPUT_MODE
 	prompt "UART0 output mode"
 	default WBR_CONTROL_UART0_OUTPUT_DISABLED
 	help
-	  Select the sole owner of UART0. The console, printk, UART logger and
-	  VOFA oscilloscope cannot transmit independently on the same UART.
+	  Select the sole owner of UART0. Each mode derives its required Zephyr
+	  console, printk and logging options here; mode fragments must select only
+	  one WBR_CONTROL_UART0_OUTPUT_* symbol.
+
+	  The console, printk, UART logger and VOFA oscilloscope cannot transmit
+	  independently on the same UART.
 
 config WBR_CONTROL_UART0_OUTPUT_DISABLED
 	bool "Disabled"
@@ -46,6 +50,19 @@ config WBR_CONTROL_UART0_OUTPUT_PRINTK_AND_LOG
 	  Route printk() calls through the logging subsystem so printk and LOG_*
 	  messages share one serialized UART backend.
 
+config WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
+	bool "Diagnostic: raw UART, printk, logger and VOFA oscilloscope"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+	select LOG
+	select LOG_BACKEND_UART
+	help
+	  Enable every UART0 output path for hardware diagnosis. This mode is not
+	  intended for normal control operation because text and VOFA binary frames
+	  deliberately share the same UART stream.
+
 endchoice
 
 config WBR_CONTROL_MODULE_REMOTE_INPUT
@@ -68,7 +85,7 @@ config WBR_CONTROL_MODULE_REFEREE
 
 config WBR_CONTROL_MODULE_OSCILLOSCOPE
 	bool
-	default y if WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE
+	default y if WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE || WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
 	help
 	  Internal switch derived from the UART0 output mode. The module sends
 	  the latest oscilloscope sample over UART0 using the JustFloat protocol.

@@ -1,0 +1,13 @@
+/* Isolate UART0 and its XDMA TX path from the USB controller. */
+&cherryusb_usb0 {
+	status = "disabled";
+};
+
+&uart0 {
+	status = "okay";
+	current-speed = <921600>;
+	interrupts = <31 1>;
+	interrupt-names = "uart";
+	dmas = <&xdma 0 8>, <&xdma 1 9>;
+	dma-names = "rx", "tx";
+};

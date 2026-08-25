@@ -43,6 +43,18 @@ public:
 
 private:
 	/**
+	 * @brief 通过 UART0 async/DMA 发送一帧固定的 20 通道启动探针。
+	 * @return 成功返回 0，编码或底层 UART 发送失败时返回负 errno 错误码。
+	 */
+	int SendBootProbe();
+	/**
+	 * @brief 编码、刷新缓存并异步发送一组 JustFloat 通道。
+	 * @param[in] values 待发送的浮点通道。
+	 * @param channel_count 通道数量。
+	 * @return 成功返回 0，UART 忙、编码或发送失败时返回负 errno 错误码。
+	 */
+	int TransmitFrame(const float *values, size_t channel_count);
+	/**
 	 * @brief 处理 Zephyr UART 异步驱动回调事件。
 	 * @param[in] dev 产生事件的 Zephyr 设备实例。
 	 * @param[in,out] event UART 异步事件描述。

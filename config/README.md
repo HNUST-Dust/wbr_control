@@ -1,15 +1,15 @@
 # UART0 输出模式
 
 UART0 同时是 Zephyr console 和 VOFA oscilloscope 使用的物理串口，因此一次
-构建只能选择一种输出模式。基础 `prj.conf` 默认关闭 UART0 输出；选择模式时
-通过 `EXTRA_CONF_FILE` 合并本目录中的一个配置文件。
+构建只能选择一种输出模式。基础 `prj.conf` 默认选择仅 VOFA oscilloscope，
+即关闭 UART console、printk、boot banner 和 UART log backend。需要切换到
+其他诊断模式时，通过 `EXTRA_CONF_FILE` 合并本目录中的一个配置文件。
 
 以下命令均在 `wbr_control` 目录执行：
 
 ```sh
-# 仅 VOFA oscilloscope
-west build -p always -b hpm6750evk2 -d build -- \
-  -DEXTRA_CONF_FILE=config/oscilloscope.conf
+# 默认：仅 VOFA oscilloscope
+west build -p always -b hpm6750evk2 -d build
 
 # 仅 printk()
 west build -p always -b hpm6750evk2 -d build -- \
@@ -23,8 +23,9 @@ west build -p always -b hpm6750evk2 -d build -- \
 west build -p always -b hpm6750evk2 -d build -- \
   -DEXTRA_CONF_FILE=config/printk_log.conf
 
-# 关闭 UART0 输出，恢复基础 prj.conf
-west build -p always -b hpm6750evk2 -d build
+# 显式选择 VOFA-only（效果与当前基础 prj.conf 相同）
+west build -p always -b hpm6750evk2 -d build-vofa -- \
+  -DEXTRA_CONF_FILE=config/oscilloscope.conf
 ```
 
 UART0 的设备树波特率为 921600。oscilloscope 模式输出二进制 JustFloat 数据，

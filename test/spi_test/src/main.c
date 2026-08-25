@@ -9,6 +9,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include "hpm_soc.h"
@@ -48,6 +49,7 @@
 #endif
 
 static const struct device *const spi_dev = DEVICE_DT_GET(IMU_SPI_NODE);
+static const struct device *const console_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 static const struct device *const gpioa_dev = DEVICE_DT_GET(DT_NODELABEL(gpioa));
 static const struct device *const gpiob_dev = DEVICE_DT_GET(DT_NODELABEL(gpiob));
 static const struct gpio_dt_spec imu_cs = GPIO_DT_SPEC_GET(IMU_CS_NODE, gpios);
@@ -85,6 +87,17 @@ static const struct spi_config spi_mode2_msb_cfg = {
 		     SPI_TRANSFER_MSB | SPI_MODE_CPOL,
 	.slave = IMU_SPI_SLAVE,
 };
+
+static void ConsoleWriteRaw(const char *text)
+{
+	if (!device_is_ready(console_dev)) {
+		return;
+	}
+
+	while (*text != '\0') {
+		uart_poll_out(console_dev, *text++);
+	}
+}
 
 static void cs_low(void)
 {
@@ -1070,6 +1083,7 @@ int main(void)
 	uint8_t val;
 	int rc;
 
+	ConsoleWriteRaw("\r\n[raw-uart] spi_test main entered at 921600 baud\r\n");
 	printk("lsm6 spi test booted\n");
 	printk("SPI config: freq=%u Hz, mode=3 (CPOL|CPHA), slave=%d\n",
 	       spi_mode3_lsb_cfg.frequency, spi_mode3_lsb_cfg.slave);
