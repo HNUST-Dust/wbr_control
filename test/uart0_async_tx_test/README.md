@@ -14,7 +14,7 @@ oscilloscope frame size and period.
 From the workspace root:
 
 ```sh
-west build -p always -b hpm6750evk2 \
+west build -p always -b dust-hpm6750 \
   -s wbr_control/test/uart0_async_tx_test \
   -d wbr_control/test/uart0_async_tx_test/build
 ```
@@ -23,8 +23,9 @@ west build -p always -b hpm6750evk2 \
 
 ```text
 UART0 poll path OK; starting async XDMA TX
-UART0 async DMA seq=1 done=0 abort=0 ........................................
-UART0 async DMA seq=2 done=1 abort=0 ........................................
+UART0 async abort/recovery OK
+UART0 async DMA seq=1 done=0 abort=1 ........................................
+UART0 async DMA seq=2 done=1 abort=1 ........................................
 ```
 
 If only the first line appears, the UART0 polling path works but asynchronous

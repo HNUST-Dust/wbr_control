@@ -8,7 +8,7 @@ From workspace root:
 
 ```bash
 CCACHE_DISABLE=1 ../.venv/bin/west build -p always \
-  -b hpm6750evk2 \
+  -b dust-hpm6750 \
   wbr_control/test/printk_test \
   -d wbr_control/test/printk_test/build
 ```

@@ -31,7 +31,7 @@ VOFA channel order:
 Build:
 
 ```sh
-west build -b hpm6750evk2/hpm6750 -d wbr_control/test/hi91_imu_test/build wbr_control/test/hi91_imu_test
+west build -b dust-hpm6750/hpm6750 -d wbr_control/test/hi91_imu_test/build wbr_control/test/hi91_imu_test
 ```
 
 Flash with the same method used by the other tests in this workspace.

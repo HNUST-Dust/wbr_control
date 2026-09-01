@@ -4,7 +4,7 @@
 >
 > 分析基线：Zephyr 3.7.0，工作区 Zephyr 提交 `8c6db8fa778cf90eb93e823e513a1ab97703711d`（tag `zsg_v0.7.0`）
 >
-> 目标板：`hpm6750evk2` / HPM6750
+> 目标板：`dust-hpm6750` / HPM6750
 >
 > 最后核对：2026-08-25
 >
@@ -62,10 +62,10 @@ source "Kconfig.zephyr"
 
 ### 2.2 `*_defconfig`：板级初始请求
 
-HPM6750EVK2 的：
+DUST-HPM6750 的：
 
 ```text
-hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2_defconfig
+hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750_defconfig
 ```
 
 包含：
@@ -103,7 +103,7 @@ CONFIG_SERIAL=y
 命令：
 
 ```sh
-west build -p always -b hpm6750evk2 -d build -- \
+west build -p always -b dust-hpm6750 -d build -- \
   -DEXTRA_CONF_FILE=config/printk_log.conf
 ```
 
@@ -267,7 +267,7 @@ Zephyr 会在 `.config` 仍被认为是最新时复用它。不同场景反复�
 可靠做法：
 
 ```sh
-west build -p always -b hpm6750evk2 -d build-log -- \
+west build -p always -b dust-hpm6750 -d build-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
 grep -E 'CONFIG_(LOG|PRINTK|UART_CONSOLE|WBR_CONTROL_UART0)' \
@@ -614,7 +614,7 @@ UART dictionary 还可选 binary 或 hexadecimal transport。若 UART 上混入 
 ### 9.1 物理和 Devicetree
 
 ```text
-hpm6750evk2.dts
+dust-hpm6750.dts
   chosen zephyr,console  ─┐
   chosen zephyr,shell-uart├──> uart0 @ 921600
 app.overlay               ┘        │
@@ -834,13 +834,13 @@ ninja -C build -t commands | grep log_backend_uart.c
 ### 13.6 场景使用独立目录
 
 ```sh
-west build -p always -b hpm6750evk2 -d build-printk -- \
+west build -p always -b dust-hpm6750 -d build-printk -- \
   -DEXTRA_CONF_FILE=config/printk.conf
 
-west build -p always -b hpm6750evk2 -d build-log -- \
+west build -p always -b dust-hpm6750 -d build-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
-west build -p always -b hpm6750evk2 -d build-vofa -- \
+west build -p always -b dust-hpm6750 -d build-vofa -- \
   -DEXTRA_CONF_FILE=config/oscilloscope.conf
 ```
 
@@ -875,8 +875,8 @@ west build -p always -b hpm6750evk2 -d build-vofa -- \
 
 ### 板级与 HPM driver
 
-- `hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2_defconfig`
-- `hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2.dts`
+- `hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750_defconfig`
+- `hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750.dts`
 - `hpm_support/drivers/serial/uart_hpmicro.c`
 
 ### Zephyr Kconfig 与实现

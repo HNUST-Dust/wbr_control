@@ -14,7 +14,7 @@ It is intended for control-frame experiments:
 From the workspace root:
 
 ```sh
-CCACHE_DISABLE=1 /Users/panpoming/Documents/zephyr_projects/.venv/bin/west build -p always -b hpm6750evk2 wbr_control/test/cherryusb_interrupt_test
+CCACHE_DISABLE=1 /Users/panpoming/Documents/zephyr_projects/.venv/bin/west build -p always -b dust-hpm6750 wbr_control/test/cherryusb_interrupt_test
 ```
 
 Flash the generated `build/zephyr/zephyr.elf` using your usual HPM workflow.

@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WS_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build"
-BOARD="hpm6750evk2"
+BOARD="dust-hpm6750"
 TMP_BUILD_DIR="/tmp/wbr_control_smoke_can_off"
 OVERLAY_FILE="/tmp/wbr_control_smoke_can_off.conf"
 TMP_LOG_DIR="/tmp/wbr_control_smoke_logs"

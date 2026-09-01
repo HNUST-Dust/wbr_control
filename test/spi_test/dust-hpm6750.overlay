@@ -2,11 +2,20 @@
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
+	aliases {
+		onboard-imu-cs = &imu_cs;
+		onboard-imu-drdy = &imu_drdy;
+	};
+
 	imu_test_gpios {
 		compatible = "gpio-leds";
 
 		imu_cs: imu_cs {
 			gpios = <&gpioa 26 GPIO_ACTIVE_LOW>;
+		};
+
+		imu_drdy: imu_drdy {
+			gpios = <&gpiob 9 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
@@ -35,7 +44,7 @@
 	/* 覆盖 board 的 pinctrl，使用去掉 PA26 的版本 */
 	pinctrl-0 = <&pinmux_spi2_nocs>;
 	pinctrl-names = "default";
-	/* 手动控制 CS，删除 board 默认 cs-gpios 避免 spi_context 自动管理 */
+	/* 删除控制器默认 CS；测试通过 spi_config.cs 让 SPI context 管理 PA26 GPIO。 */
 	/delete-property/ cs-gpios;
 };
 
@@ -50,6 +59,11 @@
 	status = "okay";
 	pinctrl-0 = <&pinmux_gpioa_imu_cs>;
 	pinctrl-names = "default";
+};
+
+/* Board pinctrl already configures PB09/PB12 as pulled-down GPIO inputs. */
+&gpiob {
+	status = "okay";
 };
 
 &cherryusb_usb0 {

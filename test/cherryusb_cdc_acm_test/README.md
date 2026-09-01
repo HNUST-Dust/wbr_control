@@ -8,7 +8,7 @@ This test ports the HPMicro CherryUSB CDC ACM virtual COM sample into the
 From the workspace root:
 
 ```sh
-west build -p always -b hpm6750evk2 wbr_control/test/cherryusb_cdc_acm_test
+west build -p always -b dust-hpm6750 wbr_control/test/cherryusb_cdc_acm_test
 ```
 
 ## Hardware

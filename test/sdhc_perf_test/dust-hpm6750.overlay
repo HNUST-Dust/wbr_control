@@ -1,5 +1,5 @@
 /*
- * SDXC0 on HPM6750EVK2.
+ * SDXC0 on DUST-HPM6750.
  *
  * The disk name used by disk_access is CONFIG_SDMMC_VOLUME_NAME ("SDMMC" by
  * default). It is unrelated to the filesystem volume label printed on a PC.
