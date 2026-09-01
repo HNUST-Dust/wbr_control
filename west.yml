@@ -18,6 +18,8 @@ manifest:
       url-base: https://github.com/hpmicro
     - name: cherry-embedded
       url-base: https://github.com/cherry-embedded/
+    - name: cherryusb-fork
+      url-base: https://github.com/NoneOfEver
     - name: upstream
       url-base: https://github.com/zephyrproject-rtos
     - name: dust-mavlink
@@ -55,10 +57,10 @@ manifest:
       west-commands: scripts/west-commands.yml
 
     - name: CherryUSB
-      remote: cherry-embedded
+      remote: cherryusb-fork
       repo-path: CherryUSB
       path: CherryUSB
-      revision: 5ffe9cbe7fb41489d99806daa8572124ace1b99b
+      revision: 50c7e9085801e24d2d0991d0c4c1609fdbcfb90a
 
     # Mavlink generated headers
     - name: dust_mavlink
