@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/chassis/leg_vmc.cpp
+ * @ingroup wbr_modules
+ * @brief 实现腿部虚拟模型控制的力矩映射。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "leg_vmc.h"
 
 #include <Eigen/Core>

@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file debug/shell/mavlink_mode_shell.cpp
+ * @ingroup wbr_debug
+ * @brief 实现 MAVLink 工作模式的 Shell 调试命令。
+ * @details 本文件是 wbr_control 固件的一部分；接口量纲、所有权和线程约束以相邻声明的 Doxygen 文档为准。
+ */
+
 #include <stdint.h>
 #include <string.h>
 
@@ -19,9 +26,11 @@
 namespace {
 
 #if DT_HAS_CHOSEN(zephyr_shell_uart)
-#define RM_TEST_MAVLINK_UART_NODE DT_CHOSEN(zephyr_shell_uart)
+/** @brief MAVLink 调试模式使用的串口设备树节点。 */
+#define WBR_CONTROL_MAVLINK_UART_NODE DT_CHOSEN(zephyr_shell_uart)
 #else
-#define RM_TEST_MAVLINK_UART_NODE DT_CHOSEN(zephyr_console)
+/** @brief 未配置 Shell UART 时回退使用的控制台串口节点。 */
+#define WBR_CONTROL_MAVLINK_UART_NODE DT_CHOSEN(zephyr_console)
 #endif
 
 constexpr uint8_t kMavlinkSysId = 1U;
@@ -249,7 +258,7 @@ SHELL_CMD_REGISTER(mavlink, &sub_mavlink, "MAVLink mode control", NULL);
 
 int MavlinkShellInit(void)
 {
-	g_shell_uart_dev = DEVICE_DT_GET(RM_TEST_MAVLINK_UART_NODE);
+	g_shell_uart_dev = DEVICE_DT_GET(WBR_CONTROL_MAVLINK_UART_NODE);
 	return 0;
 }
 

@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/remote_input/remote_input_module.cpp
+ * @ingroup wbr_modules
+ * @brief 实现多种遥控协议的解析与统一输入发布。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include <errno.h>
 
 #include <ctype.h>
@@ -30,15 +37,17 @@ namespace
 
 K_THREAD_STACK_DEFINE(g_remote_input_module_stack, 1024);
 
-#if !DT_HAS_CHOSEN(rm_test_remote_input_uart)
-#error "rm-test,remote-input-uart must be selected for remote_input_module"
+#if !DT_HAS_CHOSEN(wbr_control_remote_input_uart)
+#error "wbr-control,remote-input-uart must be selected for remote_input_module"
 #endif
 
-#define WBR_REMOTE_INPUT_UART_NODE DT_CHOSEN(rm_test_remote_input_uart)
+/** @brief 遥控器接收模块绑定的设备树 UART 节点。 */
+#define WBR_REMOTE_INPUT_UART_NODE DT_CHOSEN(wbr_control_remote_input_uart)
 
 constexpr size_t kUartRxBufferSize = 128U;
 constexpr uint8_t kUartRxBufferCount = 2U;
 constexpr int32_t kRxIdleTimeoutUs = 1000;
+/** @brief 将 UART DMA 缓冲区对齐到一级缓存行边界。 */
 #define UART_DMA_ALIGN __attribute__((aligned(HPM_L1C_CACHELINE_SIZE)))
 
 uint8_t g_remote_input_rx_buffers[kUartRxBufferCount][kUartRxBufferSize] UART_DMA_ALIGN;
@@ -47,6 +56,7 @@ constexpr float kWflySbusMid = 1024.0f;
 constexpr float kWflySbusScale = 670.0f;
 constexpr uint16_t kWflySwitchLowMidThreshold = 689U;
 constexpr uint16_t kWflySwitchMidHighThreshold = 1359U;
+constexpr uint32_t kWflyFrameLostTimeoutMs = 1000U;
 
 enum class WflySwitchPosition : uint8_t {
 	kLow = 1,
@@ -167,6 +177,7 @@ void RemoteInputModule::RunLoop()
 
 	while (true) {
 		DecodeUartBytesFromRing();
+		CheckWflyFrameLostTimeout();
 	}
 }
 
@@ -313,10 +324,22 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 
 			protocols::WflySbusFrame wfly_frame = {};
 			if (protocols::DecodeWflySbusFrame(binary_buf_, binary_len_, &wfly_frame)) {
+				if (wfly_frame.frame_lost) {
+					++frame_lost_count_;
+					if (!wfly_frame_lost_active_) {
+						wfly_frame_lost_start_ms_ = k_uptime_get_32();
+						wfly_frame_lost_active_ = true;
+						wfly_frame_lost_disabled_published_ = false;
+					}
+					CheckWflyFrameLostTimeout();
+					ConsumeBinary(protocols::kWflySbusFrameLength);
+					continue;
+				}
+
 				input.source = channels::kRemoteInputWfly;
 				SetDisabled(&input);
 
-				if (!wfly_frame.frame_lost && !wfly_frame.failsafe) {
+				if (!wfly_frame.failsafe) {
 					const float right_x =
 						NormalizeWflyChannel(wfly_frame.channels[0]);
 					const float right_y =
@@ -481,10 +504,34 @@ void RemoteInputModule::DecodeUartBytesFromRing()
 	}
 }
 
-void RemoteInputModule::PublishRemoteState(channels::RemoteInputState *input)
+void RemoteInputModule::CheckWflyFrameLostTimeout()
+{
+	if (!wfly_frame_lost_active_ || wfly_frame_lost_disabled_published_) {
+		return;
+	}
+
+	const uint32_t elapsed_ms = k_uptime_get_32() - wfly_frame_lost_start_ms_;
+	if (elapsed_ms < kWflyFrameLostTimeoutMs) {
+		return;
+	}
+
+	channels::RemoteInputState input = {};
+	input.source = channels::kRemoteInputWfly;
+	SetDisabled(&input);
+	wfly_frame_lost_disabled_published_ = true;
+	PublishRemoteState(&input, false);
+}
+
+void RemoteInputModule::PublishRemoteState(channels::RemoteInputState *input,
+					   bool clear_wfly_frame_lost)
 {
 	if (input == nullptr) {
 		return;
+	}
+
+	if (clear_wfly_frame_lost) {
+		wfly_frame_lost_active_ = false;
+		wfly_frame_lost_disabled_published_ = false;
 	}
 
 	input->sequence = ++publish_sequence_;

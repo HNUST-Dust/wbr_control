@@ -1,3 +1,9 @@
+/**
+ * @file test/can_test/src/main.c
+ * @brief 实现应用或测试程序的入口与初始化流程。
+ * @details 该文件属于独立 Zephyr 测试镜像，只验证指定外设或算法路径，不会链接进主固件。测试会直接访问目标硬件并通过串口输出判定结果。
+ */
+
 #include <errno.h>
 
 #include <zephyr/devicetree.h>
@@ -13,12 +19,12 @@
 // #define TEST_CAN_NODE DT_ALIAS(canbus)
 // #elif DT_NODE_HAS_STATUS(DT_NODELABEL(can1), okay)
 // #define TEST_CAN_NODE DT_NODELABEL(can1)
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(can0), okay)
-#define TEST_CAN_NODE DT_NODELABEL(can0)
+// #if DT_NODE_HAS_STATUS(DT_NODELABEL(can0), okay)
+// #define TEST_CAN_NODE DT_NODELABEL(can0)
 // #elif DT_NODE_HAS_STATUS(DT_NODELABEL(can2), okay)
 // #define TEST_CAN_NODE DT_NODELABEL(can2)
-// #elif DT_NODE_HAS_STATUS(DT_NODELABEL(can3), okay)
-// #define TEST_CAN_NODE DT_NODELABEL(can3)
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(can0), okay)
+#define TEST_CAN_NODE DT_NODELABEL(can0)
 #else
 #define TEST_CAN_NODE DT_INVALID_NODE
 #endif

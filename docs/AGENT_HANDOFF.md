@@ -1,7 +1,7 @@
-# rm_test Agent Handoff（当前可接手版本）
+# wbr_control Agent Handoff（当前可接手版本）
 
 日期：2026-04-05  
-范围：applications/rm_test
+范围：applications/wbr_control
 
 目录重构规划：
 - 详见 `docs/DIRECTORY_RESTRUCTURE_PLAN.md`
@@ -17,7 +17,7 @@
 
 ## 1. 一句话结论
 
-rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已解耦到服务层 + 正在做边界收口”的阶段。
+wbr_control 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已解耦到服务层 + 正在做边界收口”的阶段。
 
 ## 2. 当前真实架构
 
@@ -59,9 +59,9 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 
 条件构建：
 - UART：由使用对应串口的模块独占管理，接收优先使用 UART async/DMA
-- CAN dispatch：由 RM_TEST_RUNTIME_INIT_CAN 控制
-- LittleFS service：由 RM_TEST_RUNTIME_INIT_LITTLEFS 或 RM_TEST_SHELL_CHASSIS_TUNING 控制
-- chassis tuning shell：由 RM_TEST_SHELL_CHASSIS_TUNING 控制
+- CAN dispatch：由 WBR_CONTROL_RUNTIME_INIT_CAN 控制
+- LittleFS service：由 WBR_CONTROL_RUNTIME_INIT_LITTLEFS 或 WBR_CONTROL_SHELL_CHASSIS_TUNING 控制
+- chassis tuning shell：由 WBR_CONTROL_SHELL_CHASSIS_TUNING 控制
 
 说明：
 - 已完成 runtime 的编译期裁剪，不再只是“初始化行为开关”。
@@ -69,19 +69,19 @@ rm_test 已经不是“仅骨架”阶段，而是“主干可运行 + 分层已
 ## 4. Kconfig 关键开关
 
 模块与调试：
-- RM_TEST_MODULE_REMOTE_INPUT
-- RM_TEST_MODULE_CHASSIS
-- RM_TEST_SHELL_CHASSIS_TUNING
+- WBR_CONTROL_MODULE_REMOTE_INPUT
+- WBR_CONTROL_MODULE_CHASSIS
+- WBR_CONTROL_SHELL_CHASSIS_TUNING
 
 runtime 初始化：
-- RM_TEST_RUNTIME_INIT_CAN（depends on CAN）
-- RM_TEST_RUNTIME_INIT_LITTLEFS（depends on FILE_SYSTEM_LITTLEFS）
+- WBR_CONTROL_RUNTIME_INIT_CAN（depends on CAN）
+- WBR_CONTROL_RUNTIME_INIT_LITTLEFS（depends on FILE_SYSTEM_LITTLEFS）
 
 ## 5. 当前验证状态
 
 已验证：
 - 默认配置可成功编译并链接 zephyr.elf。
-- 关闭 CAN runtime 初始化（overlay: RM_TEST_RUNTIME_INIT_CAN=n）时可成功构建。
+- 关闭 CAN runtime 初始化（overlay: WBR_CONTROL_RUNTIME_INIT_CAN=n）时可成功构建。
 - CAN 关闭场景下镜像 ROM 有下降，说明编译期裁剪生效。
 
 已知非阻塞告警：
@@ -104,7 +104,7 @@ P2（演进）：
 - 已完成第二步：上层 include 已迁移到应用根目录下的领域前缀（如 `modules/...`、`channels/...`、`platform/...`）。
 
 5. 回归测试与回放资产补齐
-- 已完成第一步：新增最小 smoke 回归脚本 `applications/rm_test/tools/smoke_regression.sh`（文档见 `applications/rm_test/docs/SMOKE_REGRESSION.md`）；后续仍需补齐行为一致性回放与实机时序测试。
+- 已完成第一步：新增最小 smoke 回归脚本 `applications/wbr_control/tools/smoke_regression.sh`（文档见 `applications/wbr_control/docs/SMOKE_REGRESSION.md`）；后续仍需补齐行为一致性回放与实机时序测试。
 
 ## 7. 后续 agent 操作建议
 
@@ -129,7 +129,7 @@ LQR 物理模型、增益重新计算、三次腿长拟合和固件同步的完�
 - 输出 `provider=ready/not_ready` 可快速判断调参接口是否已绑定到模块。
 
 5. 提交前可执行最小回归脚本
-- `bash applications/rm_test/tools/smoke_regression.sh`
+- `bash applications/wbr_control/tools/smoke_regression.sh`
 - 覆盖：启动链路、模块 Kconfig 裁剪、调参链路可用性、默认/CAN-off 构建。
 
 ## 8. 不要再按旧结论行动

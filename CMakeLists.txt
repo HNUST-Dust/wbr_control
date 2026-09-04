@@ -41,8 +41,8 @@ target_compile_options(app PRIVATE
 add_subdirectory(channels)
 add_subdirectory(src/protocols)
 add_subdirectory(src/scheduling)
-add_subdirectory(platform)
 add_subdirectory(src/modules)
+add_subdirectory(platform)
 add_subdirectory(debug)
 
 # 应用入口只直接依赖模块、通道和平台；协议由模块目标自行声明。

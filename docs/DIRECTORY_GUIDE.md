@@ -1,4 +1,4 @@
-# rm_test 目录导览（阶段 A）
+# wbr_control 目录导览（阶段 A）
 
 本页用于帮助新开发者在 3 分钟内看懂工程入口、主链路和当前 active/staged 状态。
 

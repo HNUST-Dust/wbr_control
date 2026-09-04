@@ -7,19 +7,22 @@ Minimal continuous printk validation app.
 From workspace root:
 
 ```bash
-source .venv/bin/activate
-west build -p always -b hpm6e00evk -d build-printk-test applications/rm_test/test/printk_test
+CCACHE_DISABLE=1 ../.venv/bin/west build -p always \
+  -b hpm6750evk2 \
+  wbr_control/test/printk_test \
+  -d wbr_control/test/printk_test/build
 ```
 
 ## Flash
 
 ```bash
-source .venv/bin/activate
-west flash -d build-printk-test --skip-rebuild
+../.venv/bin/west flash \
+  -d wbr_control/test/printk_test/build \
+  --skip-rebuild
 ```
 
 ## Capture log
 
 ```bash
-./applications/rm_test/tools/serial_log.sh /dev/cu.usbserial-11301
+BAUD=921600 ./wbr_control/tools/serial_log.sh /dev/cu.usbserial-11301
 ```

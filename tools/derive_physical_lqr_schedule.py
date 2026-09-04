@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file derive_physical_lqr_schedule.py
+#  @brief 根据物理参数推导轮腿模型并生成三次 LQR 增益表。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Derive the wheel-leg model and cubic LQR schedule from physical parameters.
 
 Recalculation procedure, parameter provenance, sign conventions, firmware
@@ -53,10 +57,10 @@ class RobotParameters:
     wheel_mass_total_kg: float = 1.2
     wheel_inertia_total_kg_m2: float = 0.0005046
     wheel_radius_m: float = 0.058
-    leg_mass_total_kg: float = 2.0
-    body_mass_kg: float = 6.9
-    body_pitch_inertia_kg_m2: float = 0.066012040
-    body_com_offset_m: float = -0.0483 #-0.0497
+    leg_mass_total_kg: float = 2.066
+    body_mass_kg: float = 8.788
+    body_pitch_inertia_kg_m2: float = 0.133703941
+    body_com_offset_m: float = -0.05235 #-0.0497
     gravity_m_s2: float = 9.80665
 
 
@@ -64,11 +68,12 @@ ARTICLE_Q_DIAG = np.array([1.0, 1.0, 500.0, 100.0, 5000.0, 1.0])
 ARTICLE_R_DIAG = np.array([1.0, 0.25])
 # Current chassis tuning: retain the article weights except for theta_dot,
 # whose larger weight supplies damping for the observed common-theta mode.
+# [theat, theta_dot, x, x_dot, phi, phi_dot]
 # CURRENT_Q_DIAG = np.array([3000.0, 400.0, 1500.0, 50.0, 16000.0, 100.0])
 # CURRENT_R_DIAG = np.array([150.0, 1.0])
 # CURRENT_Q_DIAG = np.array([3000.0, 1.0, 1500.0, 50.0, 3000.0, 1.0])
 # CURRENT_R_DIAG = np.array([80.0, 1.0])
-CURRENT_Q_DIAG = np.array([1000.0, 1.0, 1500.0, 1.0, 20000.0, 1.0])
+CURRENT_Q_DIAG = np.array([1000.0, 5.0, 1500.0, 1.0, 20000.0, 1.0])
 CURRENT_R_DIAG = np.array([60.0, 1.0])
 
 
@@ -591,7 +596,7 @@ def write_coefficients(output_path: Path, coefficients: np.ndarray) -> None:
 
 
 def main() -> None:
-    default_input = Path(__file__).with_name("data") / "leg_mass_properties.csv"
+    default_input = Path(__file__).with_name("data") / "leg_mass_properties0820.csv"
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=default_input)
     parser.add_argument("--output", type=Path, default=None)

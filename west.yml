@@ -1,9 +1,9 @@
 # T2: Star topology, application is the manifest repository.
-# rm_test is the manifest repository (application-as-manifest).
+# wbr_control is the manifest repository (application-as-manifest).
 #
 # West workspace configuration (.west/config):
 #   [manifest]
-#   path = rm_test
+#   path = wbr_control
 #   file = west.yml
 
 ########################################

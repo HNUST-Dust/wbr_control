@@ -2,50 +2,110 @@
 
 source "Kconfig.zephyr"
 
-menu "rm_test application options"
+menu "wbr_control application options"
 
-config RM_TEST_MODULE_REMOTE_INPUT
+choice WBR_CONTROL_UART0_OUTPUT_MODE
+	prompt "UART0 output mode"
+	default WBR_CONTROL_UART0_OUTPUT_DISABLED
+	help
+	  Select the sole owner of UART0. Each mode derives its required Zephyr
+	  console, printk and logging options here; mode fragments must select only
+	  one WBR_CONTROL_UART0_OUTPUT_* symbol.
+
+	  The console, printk, UART logger and VOFA oscilloscope cannot transmit
+	  independently on the same UART.
+
+config WBR_CONTROL_UART0_OUTPUT_DISABLED
+	bool "Disabled"
+
+config WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE
+	bool "VOFA oscilloscope only"
+	select SERIAL
+
+config WBR_CONTROL_UART0_OUTPUT_PRINTK
+	bool "printk only"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+
+config WBR_CONTROL_UART0_OUTPUT_LOG
+	bool "Zephyr logger only"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select LOG
+	select LOG_BACKEND_UART
+
+config WBR_CONTROL_UART0_OUTPUT_PRINTK_AND_LOG
+	bool "printk and Zephyr logger"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+	select LOG
+	select LOG_BACKEND_UART
+	select LOG_PRINTK
+	help
+	  Route printk() calls through the logging subsystem so printk and LOG_*
+	  messages share one serialized UART backend.
+
+config WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
+	bool "Diagnostic: raw UART, printk, logger and VOFA oscilloscope"
+	select SERIAL
+	select CONSOLE
+	select UART_CONSOLE
+	select PRINTK
+	select LOG
+	select LOG_BACKEND_UART
+	help
+	  Enable every UART0 output path for hardware diagnosis. This mode is not
+	  intended for normal control operation because text and VOFA binary frames
+	  deliberately share the same UART stream.
+
+endchoice
+
+config WBR_CONTROL_MODULE_REMOTE_INPUT
 	bool "Enable remote_input module"
 	default y
 	help
 	  Enable registering and starting the remote_input module.
 
-config RM_TEST_MODULE_CHASSIS
+config WBR_CONTROL_MODULE_CHASSIS
 	bool "Enable chassis module"
 	default y
 	help
 	  Register and start the 1 kHz independent-leg chassis controller.
 
-config RM_TEST_MODULE_REFEREE
+config WBR_CONTROL_MODULE_REFEREE
 	bool "Enable referee module"
 	default n
 	help
 	  Enable registering and starting the referee module.
 
-config RM_TEST_MODULE_OSCILLOSCOPE
-	bool "Enable VOFA oscilloscope module"
-	default n
-	depends on SERIAL
+config WBR_CONTROL_MODULE_OSCILLOSCOPE
+	bool
+	default y if WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE || WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
 	help
-	  Enable the VOFA+ oscilloscope module. The module sends the latest
-	  oscilloscope sample over UART0 using the JustFloat protocol.
+	  Internal switch derived from the UART0 output mode. The module sends
+	  the latest oscilloscope sample over UART0 using the JustFloat protocol.
 
-config RM_TEST_OSCILLOSCOPE_UART_BAUDRATE
+config WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE
 	int "VOFA oscilloscope UART baudrate"
 	default 921600
-	depends on RM_TEST_MODULE_OSCILLOSCOPE
+	depends on WBR_CONTROL_MODULE_OSCILLOSCOPE
 	help
 	  UART0 baudrate used by the VOFA+ oscilloscope output.
 
-config RM_TEST_OSCILLOSCOPE_PERIOD_MS
+config WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS
 	int "VOFA oscilloscope output period in milliseconds"
 	default 10
-	depends on RM_TEST_MODULE_OSCILLOSCOPE
+	depends on WBR_CONTROL_MODULE_OSCILLOSCOPE
 	help
 	  Output period for the VOFA+ oscilloscope module. A value of 10 ms
 	  gives 100 Hz output.
 
-config RM_TEST_MODULE_HI91_IMU
+config WBR_CONTROL_MODULE_HI91_IMU
 	bool "Enable HI91 IMU module"
 	default n
 	depends on SERIAL && UART_ASYNC_API
@@ -53,23 +113,23 @@ config RM_TEST_MODULE_HI91_IMU
 	  Enable the HI91 external IMU module on UART2. The module parses HI91
 	  binary frames and publishes the latest IMU sample to channels.
 
-config RM_TEST_HI91_IMU_UART_BAUDRATE
+config WBR_CONTROL_HI91_IMU_UART_BAUDRATE
 	int "HI91 IMU UART baudrate"
 	default 921600
-	depends on RM_TEST_MODULE_HI91_IMU
+	depends on WBR_CONTROL_MODULE_HI91_IMU
 	help
 	  UART2 baudrate used by the HI91 external IMU module.
 
-config RM_TEST_HI91_IMU_STRICT_CRC
+config WBR_CONTROL_HI91_IMU_STRICT_CRC
 	bool "Reject HI91 frames with CRC mismatch"
 	default n
-	depends on RM_TEST_MODULE_HI91_IMU
+	depends on WBR_CONTROL_MODULE_HI91_IMU
 	help
 	  Reject frames that do not match the built-in CRC16 check. Keep this
 	  disabled until the exact CRC variant is confirmed from the device
 	  manual or captured frames.
 
-config RM_TEST_MODULE_SYS_STATE
+config WBR_CONTROL_MODULE_SYS_STATE
 	bool "Enable status indicator module"
 	default n
 	depends on GPIO || PWM
@@ -77,7 +137,7 @@ config RM_TEST_MODULE_SYS_STATE
 	  Enable registering and starting the system status indicator module.
 	  The module supports RGB breathing LED and optional PWM buzzer output.
 
-config RM_TEST_SHELL_MAVLINK_CONTROL
+config WBR_CONTROL_SHELL_MAVLINK_CONTROL
 	bool "Enable MAVLink shell control command"
 	default n
 	depends on SHELL
@@ -85,38 +145,47 @@ config RM_TEST_SHELL_MAVLINK_CONTROL
 	  Enable `mavlink on/off/status` shell command. When enabled,
 	  MAVLink bytes are received on the same shell UART by using shell bypass.
 
-config RM_TEST_RUNTIME_INIT_CAN
+config WBR_CONTROL_RUNTIME_INIT_CAN
 	bool "Initialize CAN dispatch in bootstrap"
 	default y
 	depends on CAN
 	help
 	  Enable CAN dispatch initialization during runtime bootstrap.
 
-config RM_TEST_RUNTIME_INIT_USB
+config WBR_CONTROL_RUNTIME_INIT_USB
 	bool "Initialize USB session in bootstrap"
 	default n
-	depends on CHERRYUSB_DEVICE && CHERRYUSB_DEVICE_CDC_ACM
+	depends on CHERRYUSB_DEVICE
 	help
-	  Enable CherryUSB CDC-ACM session initialization during runtime bootstrap.
+	  Enable CherryUSB Vendor Interrupt session initialization during runtime bootstrap.
 
-config RM_TEST_PC_LINK
+config WBR_CONTROL_PC_LINK
 	bool "Enable PC link protocol over USB"
 	default y
-	depends on RM_TEST_RUNTIME_INIT_USB
+	depends on WBR_CONTROL_RUNTIME_INIT_USB
 	help
 	  Enable the pc_link session worker inside usb_session. The worker
 	  assembles the auto-aim telemetry packet from the gimbal/booster/imu/
 	  remote_input channels at a fixed rate and parses auto-aim commands
-	  received from the PC over USB CDC-ACM.
+	  received from the PC over USB Vendor Interrupt endpoints.
 
-config RM_TEST_PC_LINK_PERIOD_MS
+config WBR_CONTROL_PC_LINK_PERIOD_MS
 	int "PC link send period in milliseconds"
 	default 1
-	depends on RM_TEST_PC_LINK
+	depends on WBR_CONTROL_PC_LINK
 	help
 	  Period at which the pc_link worker publishes the auto-aim state frame.
 
-config RM_TEST_RUNTIME_INIT_LITTLEFS
+config WBR_CONTROL_PC_LINK_COMMAND_TIMEOUT_MS
+	int "PC link command timeout in milliseconds"
+	range 10 5000
+	default 100
+	depends on WBR_CONTROL_PC_LINK
+	help
+	  Publish an idle command when no valid PC control frame has been received
+	  within this interval. USB reset and disconnect also request an idle command.
+
+config WBR_CONTROL_RUNTIME_INIT_LITTLEFS
 	bool "Initialize LittleFS in bootstrap"
 	default n
 	depends on FILE_SYSTEM_LITTLEFS

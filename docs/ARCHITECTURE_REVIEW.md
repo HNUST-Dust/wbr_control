@@ -1,9 +1,9 @@
-# rm_test 架构审阅稿
+# wbr_control 架构审阅稿
 
 ## 目标
 
 本文基于旧 `Dust_EngineerRobot` FreeRTOS 工程的实际组织方式，为
-`applications/rm_test` 定义一版更适合 Zephyr 的新架构。
+`applications/wbr_control` 定义一版更适合 Zephyr 的新架构。
 
 当前已经明确的决策是：
 
@@ -122,12 +122,12 @@
 ### 目录建议
 
 ```text
-applications/rm_test/
+applications/wbr_control/
   src/
     main.cpp
   app/
     bootstrap/
-      include/rm_test/modules/
+      include/wbr_control/modules/
         bootstrap.h
         module.h
         module_manager.h

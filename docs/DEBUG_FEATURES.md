@@ -21,7 +21,7 @@
 
 理由：
 
-- [hpm6e00evk_v2.dts](/Users/panpoming/Documents/hpm-zephyr/applications/rm_test/boards/hpmicro/hpm6e00evk_v2/hpm6e00evk_v2.dts) 已经存在 `storage_partition`
+- [hpm6e00evk_v2.dts](/Users/panpoming/Documents/hpm-zephyr/applications/wbr_control/boards/hpmicro/hpm6e00evk_v2/hpm6e00evk_v2.dts) 已经存在 `storage_partition`
 - 当前板定义里没有现成启用的 SDHC 节点
 - LittleFS 比 FatFS 更适合 NOR flash 上的小文件、参数文件、日志文件
 

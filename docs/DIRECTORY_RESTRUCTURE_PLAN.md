@@ -1,7 +1,7 @@
-# rm_test 目录结构重构方案
+# wbr_control 目录结构重构方案
 
 日期：2026-04-05
-范围：applications/rm_test
+范围：applications/wbr_control
 
 ## 0. 当前进度（实时）
 
@@ -33,7 +33,7 @@
 - `app/` 下既有领域逻辑（modules/services/protocols/channels），又有历史算法资产和调试资产，边界不够直观。
 
 3. 公共头导出路径不统一
-- 目前同时存在 `include/rm_test/platform/*` 与 `app/include/app/*`，理解成本偏高。
+- 目前同时存在 `include/wbr_control/platform/*` 与 `app/include/app/*`，理解成本偏高。
 
 4. 历史迁移目录与当前主干并存
 - `arm/gimbal/gantry/referee` 等目录仍以迁移占位为主，和当前已接线主干（remote_input/chassis）混在一起。
@@ -50,7 +50,7 @@
 > 说明：先给“终态”，后续按阶段迁移到位。
 
 ```text
-applications/rm_test/
+applications/wbr_control/
   CMakeLists.txt
   Kconfig
   prj.conf
@@ -79,7 +79,7 @@ applications/rm_test/
       tracing/
 
   include/
-    rm_test/
+    wbr_control/
       modules/...               # 领域层公共 API（统一导出）
       platform/...              # platform 层公共 API（统一导出）
 
@@ -98,8 +98,8 @@ applications/rm_test/
 2. 头文件导出规则
 - 上层代码只能 include：
   - `#include <modules/...>`、`#include <channels/...>` 等领域目录头路径
-  - `#include <rm_test/modules/...>`（启动编排层）
-  - `#include <rm_test/platform/...>`
+  - `#include <wbr_control/modules/...>`（启动编排层）
+  - `#include <wbr_control/platform/...>`
 - 禁止上层直接 include 源码目录相对路径（例如 `modules/...`）。
 
 3. 依赖方向规则
@@ -132,7 +132,7 @@ applications/rm_test/
 
 1. 补充目录 README 与“active/staging”标记。
 2. 在 docs 中固定入口索引（main/bootstrap/domain chain）。
-3. 统一 include 风格到 `app/*` 与 `rm_test/platform/*`。
+3. 统一 include 风格到 `app/*` 与 `wbr_control/platform/*`。
 
 退出条件：
 - 新同学 5 分钟内能定位入口与主链路。

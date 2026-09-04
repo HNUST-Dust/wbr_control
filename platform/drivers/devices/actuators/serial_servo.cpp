@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file platform/drivers/devices/actuators/serial_servo.cpp
+ * @ingroup wbr_platform
+ * @brief 实现串行舵机的数据发送驱动。
+ * @details 实现封装 Zephyr 设备 API、硬件初始化和异步回调。共享状态在中断、回调与线程之间访问时使用原子量、内核队列或短临界区保护。
+ */
+
 #include <platform/drivers/devices/actuators/serial_servo.h>
 
 #include <errno.h>

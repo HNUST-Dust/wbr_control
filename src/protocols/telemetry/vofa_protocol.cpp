@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/protocols/telemetry/vofa_protocol.cpp
+ * @ingroup wbr_protocols
+ * @brief 实现 VOFA+ 调试遥测数据封装。
+ * @details 实现显式处理字节序、帧长度和量化范围，不依赖动态内存。所有协议错误通过返回值报告，解析器不会直接驱动执行器。
+ */
+
 #include <protocols/telemetry/vofa_protocol.h>
 
 #include <cerrno>

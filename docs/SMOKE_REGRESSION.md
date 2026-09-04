@@ -1,9 +1,9 @@
-# rm_test 最小回归检查（Smoke）
+# wbr_control 最小回归检查（Smoke）
 
 本文件提供一套轻量回归检查流程，用于在没有硬件联调条件时，快速验证关键主链路没有被重构破坏。
 
 脚本位置：
-- applications/rm_test/tools/smoke_regression.sh
+- applications/wbr_control/tools/smoke_regression.sh
 
 ## 覆盖范围
 
@@ -27,7 +27,7 @@
 在仓库根目录执行：
 
 ```bash
-bash applications/rm_test/tools/smoke_regression.sh
+bash applications/wbr_control/tools/smoke_regression.sh
 ```
 
 ## 通过标准

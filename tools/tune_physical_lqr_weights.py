@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file tune_physical_lqr_weights.py
+#  @brief 通过受约束时域仿真搜索物理模型的 LQR 权重。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Search diagonal LQR weights against constrained time-domain simulations.
 
 This is a candidate generator, not an automatic firmware writer.  It uses the

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+## @file fit_lqr_schedule.py
+#  @brief 将离散腿长增益样本拟合为三次 LQR 调度曲线。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 """Fit cubic LQR gain schedules from discrete leg-length samples.
 
 Input CSV columns:

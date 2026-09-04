@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/chassis/stool_controller.cpp
+ * @ingroup wbr_modules
+ * @brief 实现凳式姿态下的底盘稳定控制。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "stool_controller.h"
 
 #include <algorithm>

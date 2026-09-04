@@ -1,3 +1,10 @@
+/**
+* @file src/modules/chassis/legacy/ground_balance_controller.cc
+ * @ingroup wbr_modules
+ * @brief 实现着地平衡控制器及其状态切换。
+ * @details 该组件属于可独立计算的传统底盘控制链路。调用方按固定周期提供一致输入快照；组件保存的积分或滤波状态必须在失能、故障或时间跳变后复位。
+ */
+
 // Legacy controller stack; excluded from the firmware build.
 #include "ground_balance_controller.h"
 #include "control_parameters.h"

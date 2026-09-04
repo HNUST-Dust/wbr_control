@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/chassis/chassis_module.cpp
+ * @ingroup wbr_modules
+ * @brief 实现轮腿底盘控制模块及周期控制流程。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "chassis_module.h"
 
 #include <algorithm>
@@ -57,32 +64,25 @@ enum class LqrOutput : uint8_t {
 
 enum class TelemetryChannel : uint8_t {
 	kControlState = 0U,
-	kStoolReady,
 	kCommonLegAngleDeg,
-	kLeftRequestedWheelTorque,
-	kRightRequestedWheelTorque,
 	kLeftSentWheelTorque,
 	kRightSentWheelTorque,
 	kPitchDeg,
-	kLeftWheelSaturated,
-	kRightWheelSaturated,
-	kLeftRequestedBodyOnLegTorque,
 	kLeftBodyOnLegTorque,
-	kRightRequestedBodyOnLegTorque,
 	kRightBodyOnLegTorque,
 	kLegAngleWheelContribution,
 	kPitchWheelContribution,
 	kTargetLegLength,
 	kLeftLegLength,
 	kRightLegLength,
-	kLeftLegLengthRate,
-	kRightLegLengthRate,
-	kLeftLegAxialForce,
-	kRightLegAxialForce,
-	kLeftJointBTorque,
-	kLeftJointDTorque,
-	kRightJointBTorque,
-	kRightJointDTorque,
+	kImuMaxSensorIntervalMs,
+	kImuCrcErrorCount,
+	kImuGapWithCrcCount,
+	kImuGapWithoutCrcCount,
+	kDmArmResetReason,
+	kImuAgeUs,
+	kImuMaxPublishIntervalUs,
+	kImuTransportErrorCount,
 	kCount,
 };
 
@@ -152,11 +152,11 @@ constexpr double kRpmToRadPerSec = 0.10471975511965977;
 constexpr double kWheelReduction = 268.0 / 17.0;
 constexpr double kWheelRadius = 0.058;
 constexpr double kGravity = 9.80665;
-constexpr double kRobotMass = 10.1;
+constexpr double kRobotMass = 12.054;
 constexpr double kDefaultDt = 0.001;
 constexpr uint32_t kControlPeriodMs = 1U;
-constexpr double kTargetLegLengthMin = 0.15133;
-constexpr double kTargetLegLengthMax = 0.30347;
+constexpr double kTargetLegLengthMin = 0.15362;
+constexpr double kTargetLegLengthMax = 0.31101;
 constexpr double kTargetLegLengthRate = 0.06;
 
 constexpr double kPerSideGainScale = 0.5;
@@ -172,7 +172,7 @@ constexpr int16_t kDjiProtocolCurrentLimit = 16384;
 constexpr double kJointTorqueLimit = 54.0;
 
 // 输入新鲜度、安全保护和 DM 电机使能时序。
-constexpr uint32_t kRemoteTimeoutMs = 100U;
+constexpr uint32_t kRemoteTimeoutMs = 1000U;
 constexpr uint32_t kImuTimeoutMs = 3U;
 constexpr uint64_t kMotorTimeoutUs = 2000ULL;
 // 撑起过程允许较大俯仰角，遥控使能仍是主要停机手段。
@@ -223,6 +223,8 @@ struct ChassisModule::CycleInput {
 	double common_theta = 0.0;
 	double common_theta_rate = 0.0;
 	bool imu_fresh = false;
+	uint64_t imu_age_us = UINT64_MAX;
+	uint32_t remote_age_ms = UINT32_MAX;
 	bool feedback_valid = false;
 	bool requested_enable = false;
 	bool dm_ready = false;
@@ -311,8 +313,10 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 		last_remote_sequence_ = input.remote.sequence;
 		last_remote_update_ms_ = now_ms;
 	}
-	const bool remote_fresh = last_remote_sequence_ != 0U &&
-				  (now_ms - last_remote_update_ms_) <= kRemoteTimeoutMs;
+	input.remote_age_ms = last_remote_sequence_ != 0U
+				      ? now_ms - last_remote_update_ms_
+				      : UINT32_MAX;
+	const bool remote_fresh = input.remote_age_ms <= kRemoteTimeoutMs;
 	input.requested_enable = remote_fresh && input.remote.robot_enable;
 
 	channels::Hi91ImuSample new_imu = {};
@@ -325,12 +329,12 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 
 	// 快照读取期间 ISR 仍可能发布新帧，因此在全部读取完成后重新取时间基准。
 	const uint64_t feedback_now_us = k_cyc_to_us_floor64(k_cycle_get_64());
-	const uint64_t imu_age_us =
+	input.imu_age_us =
 		input.imu.valid && input.imu.precise_timestamp_us <= feedback_now_us
 			? feedback_now_us - input.imu.precise_timestamp_us
 			: UINT64_MAX;
 	input.imu_fresh = input.imu.valid && last_imu_sequence_ != 0U &&
-			  imu_age_us <= static_cast<uint64_t>(kImuTimeoutMs) * 1000ULL;
+			  input.imu_age_us <= static_cast<uint64_t>(kImuTimeoutMs) * 1000ULL;
 
 	const auto frame_is_fresh = [feedback_now_us](const ChassisMotorFeedbackRawFrame &frame,
 						      bool decoded) {
@@ -428,6 +432,9 @@ void ChassisModule::UpdateControlState(const CycleInput &input)
 	if (input.requested_enable != last_requested_enable_) {
 		ResetControlState();
 		dm_arm_ticks_ = 0U;
+		if (input.requested_enable) {
+			dm_arm_reset_reason_ = DmArmResetReason::kRemoteEnableEdge;
+		}
 		balance_phase_reached_ = false;
 		stool_ready_ = false;
 		stool_controller_.Reset();
@@ -637,9 +644,33 @@ void ChassisModule::ApplyControlOutput(CycleOutput &output)
 {
 	switch (control_state_) {
 	case ControlState::kDisabled:
+		// 停机时周期性发送退出命令，并确保轮毂电流为零。
+		if ((loop_ticks_ % 100U) == 0U) {
+			SendDmControl(protocols::DmControlCommand::kExit);
+		}
+		if ((loop_ticks_ % 10U) == 0U) {
+			SendWheelCurrent(Side::kLeft, 0);
+			SendWheelCurrent(Side::kRight, 0);
+		}
+		dm_arm_ticks_ = 0U;
+		ResetControlState();
+		return;
+
 	case ControlState::kSafetyStop:
+		dm_arm_reset_reason_ = DmArmResetReason::kImuFreshness;
+		if ((loop_ticks_ % 100U) == 0U) {
+			SendDmControl(protocols::DmControlCommand::kExit);
+		}
+		if ((loop_ticks_ % 10U) == 0U) {
+			SendWheelCurrent(Side::kLeft, 0);
+			SendWheelCurrent(Side::kRight, 0);
+		}
+		dm_arm_ticks_ = 0U;
+		ResetControlState();
+		return;
+
 	case ControlState::kTiltFault:
-		// 停机和安全故障周期性发送退出命令，并确保轮毂电流为零。
+		dm_arm_reset_reason_ = DmArmResetReason::kTiltFault;
 		if ((loop_ticks_ % 100U) == 0U) {
 			SendDmControl(protocols::DmControlCommand::kExit);
 		}
@@ -776,7 +807,7 @@ void ChassisModule::SendScheduledOutputs(const SidePair<JointPair<double>> &join
 
 void ChassisModule::PublishTelemetry(const CycleInput &input, const CycleOutput &output)
 {
-	// 保持既有 VOFA 状态码，便于继续使用现有调试面板和历史数据。
+	// 保持既有 VOFA 状态码，DM 重新使能原因由独立通道输出。
 	float balance_state_x100 = 0.0F;
 	const bool control_enabled = input.requested_enable && input.feedback_valid &&
 				     !tilt_fault_latched_ && input.arm_complete && input.dm_ready;
@@ -805,28 +836,15 @@ void ChassisModule::PublishTelemetry(const CycleInput &input, const CycleOutput 
 		sample.value[ToIndex(channel)] = value;
 	};
 	set_channel(TelemetryChannel::kControlState, balance_state_x100);
-	set_channel(TelemetryChannel::kStoolReady, stool_ready_ ? 1.0F : 0.0F);
 	set_channel(TelemetryChannel::kCommonLegAngleDeg,
 		    static_cast<float>(input.common_theta / kDegToRad));
-	set_channel(TelemetryChannel::kLeftRequestedWheelTorque,
-		    static_cast<float>(output.physical_wheel_torque.left));
-	set_channel(TelemetryChannel::kRightRequestedWheelTorque,
-		    static_cast<float>(output.physical_wheel_torque.right));
 	set_channel(TelemetryChannel::kLeftSentWheelTorque,
 		    static_cast<float>(output.sent_wheel_torque.left));
 	set_channel(TelemetryChannel::kRightSentWheelTorque,
 		    static_cast<float>(output.sent_wheel_torque.right));
 	set_channel(TelemetryChannel::kPitchDeg, static_cast<float>(input.pitch / kDegToRad));
-	set_channel(TelemetryChannel::kLeftWheelSaturated,
-		    output.wheel_torque_saturated.left ? 1.0F : 0.0F);
-	set_channel(TelemetryChannel::kRightWheelSaturated,
-		    output.wheel_torque_saturated.right ? 1.0F : 0.0F);
-	set_channel(TelemetryChannel::kLeftRequestedBodyOnLegTorque,
-		    static_cast<float>(output.requested_body_on_leg_torque.left));
 	set_channel(TelemetryChannel::kLeftBodyOnLegTorque,
 		    static_cast<float>(output.body_on_leg_torque.left));
-	set_channel(TelemetryChannel::kRightRequestedBodyOnLegTorque,
-		    static_cast<float>(output.requested_body_on_leg_torque.right));
 	set_channel(TelemetryChannel::kRightBodyOnLegTorque,
 		    static_cast<float>(output.body_on_leg_torque.right));
 	set_channel(TelemetryChannel::kLegAngleWheelContribution,
@@ -836,22 +854,25 @@ void ChassisModule::PublishTelemetry(const CycleInput &input, const CycleOutput 
 	set_channel(TelemetryChannel::kTargetLegLength, static_cast<float>(target_leg_length_));
 	set_channel(TelemetryChannel::kLeftLegLength, static_cast<float>(input.leg.left.length));
 	set_channel(TelemetryChannel::kRightLegLength, static_cast<float>(input.leg.right.length));
-	set_channel(TelemetryChannel::kLeftLegLengthRate,
-		    static_cast<float>(input.leg.left.length_rate));
-	set_channel(TelemetryChannel::kRightLegLengthRate,
-		    static_cast<float>(input.leg.right.length_rate));
-	set_channel(TelemetryChannel::kLeftLegAxialForce,
-		    static_cast<float>(output.leg_axial_force.left));
-	set_channel(TelemetryChannel::kRightLegAxialForce,
-		    static_cast<float>(output.leg_axial_force.right));
-	set_channel(TelemetryChannel::kLeftJointBTorque,
-		    static_cast<float>(output.joint_torque.left.b));
-	set_channel(TelemetryChannel::kLeftJointDTorque,
-		    static_cast<float>(output.joint_torque.left.d));
-	set_channel(TelemetryChannel::kRightJointBTorque,
-		    static_cast<float>(output.joint_torque.right.b));
-	set_channel(TelemetryChannel::kRightJointDTorque,
-		    static_cast<float>(output.joint_torque.right.d));
+	set_channel(TelemetryChannel::kImuMaxSensorIntervalMs,
+		    static_cast<float>(input.imu.max_sensor_interval_ms));
+	set_channel(TelemetryChannel::kImuCrcErrorCount,
+		    static_cast<float>(input.imu.crc_error_count));
+	set_channel(TelemetryChannel::kImuGapWithCrcCount,
+		    static_cast<float>(input.imu.publish_gap_with_crc_count));
+	set_channel(TelemetryChannel::kImuGapWithoutCrcCount,
+		    static_cast<float>(input.imu.publish_gap_without_crc_count));
+	set_channel(TelemetryChannel::kDmArmResetReason,
+		    static_cast<float>(dm_arm_reset_reason_));
+	set_channel(TelemetryChannel::kImuAgeUs,
+		    static_cast<float>(std::min<uint64_t>(input.imu_age_us, UINT32_MAX)));
+	set_channel(TelemetryChannel::kImuMaxPublishIntervalUs,
+		    static_cast<float>(input.imu.max_publish_interval_us));
+	const uint32_t imu_transport_error_count = input.imu.rx_drop_count +
+						   input.imu.rx_stop_count +
+						   input.imu.rx_buf_rsp_error_count;
+	set_channel(TelemetryChannel::kImuTransportErrorCount,
+		    static_cast<float>(imu_transport_error_count));
 	channels::latest_oscilloscope_sample.write(sample);
 }
 

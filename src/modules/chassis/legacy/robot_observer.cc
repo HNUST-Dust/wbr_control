@@ -1,3 +1,10 @@
+/**
+* @file src/modules/chassis/legacy/robot_observer.cc
+ * @ingroup wbr_modules
+ * @brief 实现轮腿机器人状态观测与融合。
+ * @details 该组件属于可独立计算的传统底盘控制链路。调用方按固定周期提供一致输入快照；组件保存的积分或滤波状态必须在失能、故障或时间跳变后复位。
+ */
+
 // Legacy controller stack; excluded from the firmware build.
 #include "robot_observer.h"
 

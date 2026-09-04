@@ -1,3 +1,7 @@
+% @file controller.m
+% @brief 建立 RoboMaster 平衡步兵动力学模型并求解控制器参数。
+% @details 脚本用于离线符号建模和控制器复现，不参与固件构建；模型参数、坐标正方向和状态排列必须与固件保持一致。
+
 %% RoboMaster 平衡步兵控制复现代码骨架
 
 clear; clc;

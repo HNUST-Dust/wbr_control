@@ -1,0 +1,10 @@
+/*
+ * CAN-only regression test.
+ *
+ * The board enables the CherryUSB controller by default.  Leaving it enabled
+ * makes Zephyr instantiate the HPM CherryUSB glue driver even though this test
+ * does not enable or link the CherryUSB stack, so usb_glue_hpm.h is unavailable.
+ */
+&cherryusb_usb0 {
+	status = "disabled";
+};

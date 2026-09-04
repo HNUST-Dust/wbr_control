@@ -1,7 +1,7 @@
 # 平台 legacy 归档策略
 
 日期：2026-04-05
-范围：applications/rm_test/platform
+范围：applications/wbr_control/platform
 
 ## 1. 目标
 

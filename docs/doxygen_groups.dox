@@ -1,0 +1,37 @@
+/**
+ * @file docs/doxygen_groups.dox
+ * @brief 定义 wbr_control API 文档的模块导航层次。
+ * @details 各源文件通过 `@ingroup` 归入对应层级，便于从职责而不是物理目录浏览接口。
+ */
+
+/** @defgroup wbr_control wbr_control 固件 */
+
+/** @defgroup wbr_channels 数据通道
+ *  @ingroup wbr_control
+ *  @brief 定义线程之间交换的快照、原始帧和系统状态消息。
+ */
+
+/** @defgroup wbr_modules 应用模块
+ *  @ingroup wbr_control
+ *  @brief 实现传感器采集、状态估计、底盘控制和系统管理生命周期。
+ */
+
+/** @defgroup wbr_protocols 通信协议
+ *  @ingroup wbr_control
+ *  @brief 实现线上帧的校验、字节序转换、量化和编解码。
+ */
+
+/** @defgroup wbr_platform 平台适配
+ *  @ingroup wbr_control
+ *  @brief 封装 Zephyr 设备、板级资源、通信外设、执行器和持久化存储。
+ */
+
+/** @defgroup wbr_scheduling 调度策略
+ *  @ingroup wbr_control
+ *  @brief 定义周期释放、错过周期统计和线程优先级关系。
+ */
+
+/** @defgroup wbr_debug 调试功能
+ *  @ingroup wbr_control
+ *  @brief 提供 Shell 命令、启动横幅和调试遥测入口。
+ */

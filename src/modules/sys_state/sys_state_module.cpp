@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/**
+* @file src/modules/sys_state/sys_state_module.cpp
+ * @ingroup wbr_modules
+ * @brief 管理系统状态、使能条件与故障状态。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include <errno.h>
 
 #include <zephyr/devicetree.h>
@@ -26,21 +33,21 @@ const gpio_dt_spec kLedB = GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios);
 #endif
 
 #if DT_NODE_EXISTS(DT_ALIAS(pwm_buzzer))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(pwm_buzzer)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(pwm_buzzer)
 #elif DT_NODE_EXISTS(DT_ALIAS(buzzer_pwm))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(buzzer_pwm)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(buzzer_pwm)
 #elif DT_NODE_EXISTS(DT_ALIAS(buzzer))
-#define RM_TEST_BUZZER_NODE DT_ALIAS(buzzer)
+#define WBR_CONTROL_BUZZER_NODE DT_ALIAS(buzzer)
 #endif
 
-#ifdef RM_TEST_BUZZER_NODE
-const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(RM_TEST_BUZZER_NODE);
+#ifdef WBR_CONTROL_BUZZER_NODE
+const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(WBR_CONTROL_BUZZER_NODE);
 #endif
 
 K_THREAD_STACK_DEFINE(g_sys_state_module_stack, 1024);
 
 constexpr uint8_t kPwmLevels = 64U;
-constexpr uint32_t kLedFrameMs = 16U;
+constexpr uint32_t kLedFrameMs = 8U;
 constexpr uint16_t kBreathSteps = 200U;
 constexpr uint32_t kBuzzerPeriodUs = 2000U;
 constexpr uint8_t kBuzzerTickPercent = 20U;
@@ -123,7 +130,7 @@ int SysStateModule::Start()
 	LOG_WRN("sys_state init skipped: led aliases not found");
 #endif
 
-#ifdef RM_TEST_BUZZER_NODE
+#ifdef WBR_CONTROL_BUZZER_NODE
 	buzzer_ = kBuzzer;
 	if (device_is_ready(buzzer_.dev)) {
 		const uint32_t period = PWM_USEC(kBuzzerPeriodUs);

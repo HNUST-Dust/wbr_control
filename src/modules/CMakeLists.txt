@@ -1,4 +1,4 @@
-file(GLOB_RECURSE RM_TEST_MODULES_SOURCES CONFIGURE_DEPENDS
+file(GLOB_RECURSE WBR_CONTROL_MODULES_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/*.c
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -6,10 +6,10 @@ file(GLOB_RECURSE RM_TEST_MODULES_SOURCES CONFIGURE_DEPENDS
 
 # Keep superseded controller sources available for reference without compiling
 # them into the firmware.
-list(FILTER RM_TEST_MODULES_SOURCES EXCLUDE REGEX "/chassis/legacy/")
+list(FILTER WBR_CONTROL_MODULES_SOURCES EXCLUDE REGEX "/chassis/legacy/")
 
 zephyr_library_named(wbr_modules)
-zephyr_library_sources(${RM_TEST_MODULES_SOURCES})
+zephyr_library_sources(${WBR_CONTROL_MODULES_SOURCES})
 target_include_directories(wbr_modules
   PRIVATE
     ${PROJECT_SOURCE_DIR}

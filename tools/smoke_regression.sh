@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+## @file smoke_regression.sh
+#  @brief 执行主固件和关键配置组合的冒烟回归检查。
+#  @details 该工具在主机侧运行，用于构建、采集、辨识或参数生成；不会编译进目标固件。生成参数写回固件前应按对应文档完成单位和符号约定检查。
+
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -64,9 +68,9 @@ check_file_contains "$ROOT_DIR/src/modules/chassis/chassis_module.h" "void RunLo
 check_file_contains "$ROOT_DIR/src/modules/remote_input/remote_input_module.cpp" "device_is_ready\\(" "Remote input checks hardware in Start"
 check_file_contains "$ROOT_DIR/src/main.cpp" "static modules::ChassisModule chassis_module" "main owns the chassis instance"
 check_file_contains "$ROOT_DIR/src/main.cpp" "chassis_module\\.Start\\(" "main starts chassis explicitly"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_RM_TEST_MODULE_REMOTE_INPUT" "Remote input module is config-gated"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_RM_TEST_MODULE_CHASSIS" "Chassis module is config-gated"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_RM_TEST_MODULE_REFEREE" "Referee module is config-gated"
+check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT" "Remote input module is config-gated"
+check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_CHASSIS" "Chassis module is config-gated"
+check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REFEREE" "Referee module is config-gated"
 
 echo "-- [2/5] Build default configuration"
 run_cmd "build_default" cmake --build "$BUILD_DIR" -j8
@@ -81,8 +85,8 @@ fi
 
 echo "-- [3/5] Build CAN-off configuration"
 cat > "$OVERLAY_FILE" <<EOF
-CONFIG_RM_TEST_RUNTIME_INIT_CAN=n
-CONFIG_RM_TEST_MODULE_CHASSIS=n
+CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN=n
+CONFIG_WBR_CONTROL_MODULE_CHASSIS=n
 EOF
 
 PYTHON_BIN="${WS_DIR}/.venv/bin/python"
@@ -103,7 +107,7 @@ else
 fi
 
 echo "-- [4/5] Config gate checks"
-if rg -q "^# CONFIG_RM_TEST_RUNTIME_INIT_CAN is not set$|^CONFIG_RM_TEST_RUNTIME_INIT_CAN=n$" "$TMP_BUILD_DIR/zephyr/.config"; then
+if rg -q "^# CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN is not set$|^CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN=n$" "$TMP_BUILD_DIR/zephyr/.config"; then
   pass "CAN runtime init is disabled in CAN-off config"
 else
   fail "CAN runtime init disable flag missing in $TMP_BUILD_DIR/zephyr/.config"

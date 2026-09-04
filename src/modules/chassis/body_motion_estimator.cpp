@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file src/modules/chassis/body_motion_estimator.cpp
+ * @ingroup wbr_modules
+ * @brief 根据底盘传感器数据估计机体运动状态。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
 #include "body_motion_estimator.h"
 
 #include <Eigen/Core>

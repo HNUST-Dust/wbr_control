@@ -39,18 +39,19 @@
 	/delete-property/ cs-gpios;
 };
 
+/* Keep the UART0 debug console aligned with the project-wide 921600 baud setting. */
+&uart0 {
+	status = "okay";
+	current-speed = <921600>;
+};
+
 /* 确保 gpioa 已启用 */
 &gpioa {
 	status = "okay";
 	pinctrl-0 = <&pinmux_gpioa_imu_cs>;
 	pinctrl-names = "default";
+};
 
-	/* gpio-hog: CS is active-low, so logical output-low keeps PA26
-	 * physically high during boot, matching the IMU SPI idle state.
-	 */
-	imu_cs_hog: imu_cs_hog {
-		gpio-hog;
-		gpios = <26 GPIO_ACTIVE_LOW>;
-		output-low;
-	};
+&cherryusb_usb0 {
+	status = "disabled";
 };

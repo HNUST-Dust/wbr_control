@@ -2,6 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+* @file platform/storage/filesystem/littlefs_service.cpp
+ * @ingroup wbr_platform
+ * @brief 封装 LittleFS 文件系统的挂载与访问服务。
+ * @details 实现封装 Zephyr 设备 API、硬件初始化和异步回调。共享状态在中断、回调与线程之间访问时使用原子量、内核队列或短临界区保护。
+ */
+
 #include <errno.h>
 
 #include <zephyr/fs/fs.h>
@@ -17,7 +24,7 @@ LOG_MODULE_REGISTER(littlefs_service, LOG_LEVEL_INF);
 
 namespace {
 
-FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(rm_test_storage_lfs);
+FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(wbr_control_storage_lfs);
 
 fs_mount_t g_lfs_mount = {};
 
@@ -106,7 +113,7 @@ int InitializeLittlefs()
 
 	g_lfs_mount.type = FS_LITTLEFS;
 	g_lfs_mount.mnt_point = "/lfs";
-	g_lfs_mount.fs_data = &rm_test_storage_lfs;
+	g_lfs_mount.fs_data = &wbr_control_storage_lfs;
 	g_lfs_mount.storage_dev = (void *)FIXED_PARTITION_ID(storage_partition);
 
 	int rc = fs_mount(&g_lfs_mount);
@@ -116,7 +123,7 @@ int InitializeLittlefs()
 		int mkfs_rc = fs_mkfs(
 			FS_LITTLEFS,
 			static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
-			&rm_test_storage_lfs,
+			&wbr_control_storage_lfs,
 			0);
 		if (mkfs_rc != 0) {
 			LOG_INF("littlefs mkfs failed: %d, erase partition and retry", mkfs_rc);
@@ -131,7 +138,7 @@ int InitializeLittlefs()
 			mkfs_rc = fs_mkfs(
 				FS_LITTLEFS,
 				static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
-				&rm_test_storage_lfs,
+				&wbr_control_storage_lfs,
 				0);
 			if (mkfs_rc != 0) {
 				const int probe_rc = ProbeStoragePartitionIo();
