@@ -152,6 +152,7 @@ private:
 	 * @param[out] output 接收本周期计算结果的输出对象。
 	 */
 	void PublishTelemetry(const CycleInput &input, const CycleOutput &output);
+	void PublishRealtimeStatus(const CycleInput &input, uint32_t loop_start_cycle);
 
 	/**
 	 * @brief 复位控制器、积分器和状态估计历史。
@@ -192,6 +193,8 @@ private:
 	uint32_t last_imu_sequence_ = 0U;
 	uint64_t last_loop_time_us_ = 0U;
 	uint32_t deadline_miss_count_ = 0U;
+	uint32_t realtime_status_sequence_ = 0U;
+	uint32_t max_loop_execution_us_ = 0U;
 	ControlState control_state_ = ControlState::kDisabled;
 	DmArmResetReason dm_arm_reset_reason_ = DmArmResetReason::kStartup;
 	bool balance_phase_reached_ = false;

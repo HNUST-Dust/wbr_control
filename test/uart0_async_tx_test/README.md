@@ -1,32 +1,20 @@
 # UART0 asynchronous TX test
 
-This isolated test validates both UART0 output paths used on the HPM6750:
+This test validates asynchronous UART0 XDMA transmission and abort/recovery.
+All diagnostic text uses RTT, matching the main application.
+UART0 sends only VOFA JustFloat data at 921600 baud every 10 ms.
 
-1. a polling boot message;
-2. continuous Zephyr asynchronous `uart_tx()` through UART0 XDMA TX channel 1.
-
-USB is disabled in the devicetree overlay. The asynchronous test transmits a
-readable 112-byte frame every 10 ms at 921600 baud, matching the current
-oscilloscope frame size and period.
-
-## Build
+Each frame is 112 bytes: 27 little-endian floats followed by `00 00 80 7f`.
+Channels 0–2 are sequence, TX done count, and TX abort count; the rest are zero.
+The startup abort self-test may leave a partial frame before complete frames resume.
 
 From the workspace root:
 
 ```sh
-west build -p always -b hpm6750evk2 \
-  -s wbr_control/test/uart0_async_tx_test \
-  -d wbr_control/test/uart0_async_tx_test/build
+west build -p always -b dust-hpm6750 -s wbr_control/test/uart0_async_tx_test -d wbr_control/test/uart0_async_tx_test/build
+west flash -d wbr_control/test/uart0_async_tx_test/build
+west rtt -d wbr_control/test/uart0_async_tx_test/build
 ```
 
-## Expected UART0 output
-
-```text
-UART0 poll path OK; starting async XDMA TX
-UART0 async DMA seq=1 done=0 abort=0 ........................................
-UART0 async DMA seq=2 done=1 abort=0 ........................................
-```
-
-If only the first line appears, the UART0 polling path works but asynchronous
-XDMA completion is failing. A timeout path attempts to print
-`UART0 async TX TIMEOUT` using polling output.
+RTT should report `UART0 async abort/recovery OK`. Failure and timeout messages
+also appear on RTT. Use VOFA JustFloat decoding on UART0 to inspect the counters.

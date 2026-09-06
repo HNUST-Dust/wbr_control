@@ -11,7 +11,7 @@ APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WORKSPACE_DIR="$(cd "${APP_DIR}/.." && pwd)"
 
 BUILD_DIR="${APP_DIR}/build"
-BOARD="${BOARD:-hpm6750evk2}"
+BOARD="${BOARD:-dust-hpm6750}"
 WEST_BIN="${WORKSPACE_DIR}/../.venv/bin/west"
 CCACHE_TEMPDIR="${CCACHE_TEMPDIR:-${TMPDIR:-/tmp}/wbr_control_ccache}"
 

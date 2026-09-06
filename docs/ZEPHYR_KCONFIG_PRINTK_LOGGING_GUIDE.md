@@ -4,7 +4,7 @@
 >
 > 分析基线：Zephyr 3.7.0，工作区 Zephyr 提交 `8c6db8fa778cf90eb93e823e513a1ab97703711d`（tag `zsg_v0.7.0`）
 >
-> 目标板：`hpm6750evk2` / HPM6750
+> 目标板：`dust-hpm6750` / HPM6750
 >
 > 最后核对：2026-08-25
 >
@@ -30,7 +30,7 @@
 - `CONFIG_LOG=y` 只表示 logger core 存在，不表示 UART 上一定有日志。判断 UART0 是否被 logger 占用，应看 `CONFIG_LOG_BACKEND_UART=y` 以及 backend 是否 active。
 - 当前 `CONFIG_DEBUG_COREDUMP_BACKEND_LOGGING=n` **没有真正关闭该 choice**。因为没有选择另一个 coredump backend，choice 回到默认的 logging backend，最终仍是 `CONFIG_DEBUG_COREDUMP_BACKEND_LOGGING=y`，并反向 `select LOG`。
 - 当前基础配置已改为 `CONFIG_BOOT_BANNER=n`；因此 LOG-only 和 OSCILLOSCOPE-only 模式能够真正保持 `CONFIG_PRINTK=n`。如果某个诊断 fragment 重新打开 boot banner，它仍会通过 `select PRINTK` 强制启用 `printk`。
-- 当前默认是 `WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE=y`：UART console、direct `printk`、boot banner、UART log backend 和 `LOG_PRINTK` 均关闭，UART0 仅由 VOFA async/DMA owner 使用。
+- UART0 固定由 oscilloscope 模块使用；UART console、UART log backend 和 `LOG_PRINTK` 均关闭，诊断信息通过 RTT 输出。
 - “全路径诊断”同时让 raw polling UART、direct `printk`、UART logger 和 VOFA async DMA 使用 UART0。这能用于观察路径是否存活，但它们没有一个覆盖所有生产者的统一仲裁，输出交错或二进制帧损坏是预期风险，不应作为生产配置。
 
 一句话记忆：
@@ -62,10 +62,10 @@ source "Kconfig.zephyr"
 
 ### 2.2 `*_defconfig`：板级初始请求
 
-HPM6750EVK2 的：
+DUST-HPM6750 的：
 
 ```text
-hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2_defconfig
+hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750_defconfig
 ```
 
 包含：
@@ -103,7 +103,7 @@ CONFIG_SERIAL=y
 命令：
 
 ```sh
-west build -p always -b hpm6750evk2 -d build -- \
+west build -p always -b dust-hpm6750 -d build -- \
   -DEXTRA_CONF_FILE=config/printk_log.conf
 ```
 
@@ -191,25 +191,21 @@ config LOG_BACKEND_UART
 
 意思是：没有 `UART_CONSOLE`，用户不能有效启用 UART backend。
 
-项目 choice 中则写了：
+项目现在固定使用 oscilloscope 输出：
 
 ```kconfig
-config WBR_CONTROL_UART0_OUTPUT_LOG
-    bool "Zephyr logger only"
-    select SERIAL
-    select CONSOLE
-    select UART_CONSOLE
-    select LOG
-    select LOG_BACKEND_UART
+config WBR_CONTROL_MODULE_OSCILLOSCOPE
+    bool
+    default y
 ```
 
-意思是：选择这个模式后，反向强制相关符号为 `y`。
+UART0 固定由该模块使用，日志和 printk 通过 RTT 输出。
 
 `select` 很强，它通常不适合被当作“可被 fragment 再关闭”的默认值。当前 `config/*.conf` 已各自只选择一个应用 mode，派生值全部由应用 `Kconfig` 定义，避免 fragment 与 Kconfig 形成两个配置真相。
 
 ### 3.2 choice 不是多个互不相关的 bool
 
-`WBR_CONTROL_UART0_OUTPUT_MODE` 是 choice：
+旧版本的 `WBR_CONTROL_UART0_OUTPUT_MODE` 曾是 choice：
 
 ```text
 DISABLED / OSCILLOSCOPE / PRINTK / LOG / PRINTK_AND_LOG / ALL_DIAGNOSTIC
@@ -267,7 +263,7 @@ Zephyr 会在 `.config` 仍被认为是最新时复用它。不同场景反复�
 可靠做法：
 
 ```sh
-west build -p always -b hpm6750evk2 -d build-log -- \
+west build -p always -b dust-hpm6750 -d build-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
 grep -E 'CONFIG_(LOG|PRINTK|UART_CONSOLE|WBR_CONTROL_UART0)' \
@@ -614,7 +610,7 @@ UART dictionary 还可选 binary 或 hexadecimal transport。若 UART 上混入 
 ### 9.1 物理和 Devicetree
 
 ```text
-hpm6750evk2.dts
+dust-hpm6750.dts
   chosen zephyr,console  ─┐
   chosen zephyr,shell-uart├──> uart0 @ 921600
 app.overlay               ┘        │
@@ -687,7 +683,7 @@ VOFA oscilloscope ─ Encode JustFloat ─ uart_tx/DMA ────┘
 
 ### 已修复：场景 fragment 重复派生配置
 
-四个场景 fragment 现在都只设置一个 `WBR_CONTROL_UART0_OUTPUT_*` choice 成员；`SERIAL/CONSOLE/UART_CONSOLE/PRINTK/LOG/LOG_BACKEND_UART/LOG_PRINTK` 等派生关系集中在应用 `Kconfig` 中。
+UART0 不再通过场景 fragment 切换输出模式；`SERIAL` 和 UART async 能力由固定的 oscilloscope 输出要求启用。
 
 ### P1：UART async callback owner 冲突风险
 
@@ -735,7 +731,7 @@ Deferred logging 降低调用现场开销，但 buffer 分配、参数打包仍�
 当前 `config/log.conf` 已缩减为：
 
 ```conf
-CONFIG_WBR_CONTROL_UART0_OUTPUT_LOG=y
+CONFIG_WBR_CONTROL_RTT_DIAGNOSTICS=y
 ```
 
 其余派生值在应用 `Kconfig` 中统一表达。若某个 Zephyr 符号需要按场景为 `n`，优先检查是否应由 `depends on`、choice 或独立应用 policy symbol 表达，而不是在每个 fragment 重复正反赋值。
@@ -834,13 +830,13 @@ ninja -C build -t commands | grep log_backend_uart.c
 ### 13.6 场景使用独立目录
 
 ```sh
-west build -p always -b hpm6750evk2 -d build-printk -- \
+west build -p always -b dust-hpm6750 -d build-printk -- \
   -DEXTRA_CONF_FILE=config/printk.conf
 
-west build -p always -b hpm6750evk2 -d build-log -- \
+west build -p always -b dust-hpm6750 -d build-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
-west build -p always -b hpm6750evk2 -d build-vofa -- \
+west build -p always -b dust-hpm6750 -d build-vofa -- \
   -DEXTRA_CONF_FILE=config/oscilloscope.conf
 ```
 
@@ -875,8 +871,8 @@ west build -p always -b hpm6750evk2 -d build-vofa -- \
 
 ### 板级与 HPM driver
 
-- `hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2_defconfig`
-- `hpm_support/boards/hpmicro/hpm6750evk2/hpm6750evk2.dts`
+- `hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750_defconfig`
+- `hpm_support/boards/hpmicro/dust-hpm6750/dust-hpm6750.dts`
 - `hpm_support/drivers/serial/uart_hpmicro.c`
 
 ### Zephyr Kconfig 与实现

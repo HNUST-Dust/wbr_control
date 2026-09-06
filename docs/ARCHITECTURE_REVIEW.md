@@ -188,8 +188,8 @@ applications/wbr_control/
 
 ### `Algorithm/`
 
-不再保留独立的通用算法层。算法随实际使用者迁移，例如板载 IMU 的 Mahony 与
-Quaternion EKF 位于 `modules/imu/onboard/`，控制器实现位于对应控制模块内部。
+不再保留独立的通用算法层。算法随实际使用者迁移，例如板载 IMU 的 Quaternion EKF
+位于 `modules/ahrs/`，控制器实现位于对应控制模块内部。
 
 ### `App/`
 

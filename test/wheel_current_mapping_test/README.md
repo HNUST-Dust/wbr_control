@@ -55,7 +55,7 @@ starts.
 cmake -S wbr_control/test/wheel_current_mapping_test \
   -B wbr_control/test/wheel_current_mapping_test/build \
   -GNinja \
-  -DBOARD=hpm6750evk2 \
+  -DBOARD=dust-hpm6750 \
   -DPython3_EXECUTABLE=/Users/panpoming/Documents/zephyr_projects/.venv/bin/python
 
 CCACHE_DISABLE=1 ninja -C wbr_control/test/wheel_current_mapping_test/build

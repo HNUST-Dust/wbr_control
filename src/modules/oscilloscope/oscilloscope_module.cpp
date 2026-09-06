@@ -44,6 +44,9 @@ K_THREAD_STACK_DEFINE(g_oscilloscope_module_stack, 1536);
 
 constexpr uint32_t kOutputPeriodMs = CONFIG_WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS;
 constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE;
+constexpr uint32_t kIdleProbePeriodMs = 1000U;
+constexpr uint32_t kTxTimeoutMs = 5U;
+constexpr size_t kProbeChannelCount = 3U;
 
 const struct device *FindOutputUart()
 {
@@ -89,8 +92,10 @@ int OscilloscopeModule::Start()
 	}
 	const int probe_rc = SendBootProbe();
 	if (probe_rc != 0) {
-		LOG_ERR("uart async boot probe failed: %d", probe_rc);
-		return probe_rc;
+		/* The periodic worker retries the probe.  A transient diagnostic TX
+		 * failure must not prevent the rest of the robot from starting.
+		 */
+		LOG_WRN("uart async boot probe deferred: %d", probe_rc);
 	}
 
 	return CreateThread(
@@ -133,13 +138,26 @@ int OscilloscopeModule::SendBootProbe()
 	probe[0] = 6750.0F;
 	probe[1] = static_cast<float>(kUartBaudrate);
 	probe[2] = static_cast<float>(kOutputPeriodMs);
-	probe[3] = -1.0F;
-	return TransmitFrame(probe, ARRAY_SIZE(probe));
+	const int rc = TransmitFrame(probe, kProbeChannelCount);
+	if (rc == 0) {
+		last_probe_ms_ = k_uptime_get_32();
+	}
+	return rc;
 }
 
 int OscilloscopeModule::TransmitFrame(const float *values, size_t channel_count)
 {
 	if (!atomic_cas(&tx_busy_, 0, 1)) {
+		const uint32_t now_ms = k_uptime_get_32();
+		if ((now_ms - tx_start_ms_) > kTxTimeoutMs) {
+			const int abort_rc = uart_tx_abort(uart_dev_);
+			if (abort_rc == 0) {
+				atomic_clear(&tx_busy_);
+				++tx_timeout_count_;
+				return -ETIMEDOUT;
+			}
+			return abort_rc;
+		}
 		return -EBUSY;
 	}
 
@@ -159,6 +177,7 @@ int OscilloscopeModule::TransmitFrame(const float *values, size_t channel_count)
 		HPM_L1C_CACHELINE_ALIGN_UP(frame_address + static_cast<uint32_t>(frame_size));
 	l1c_dc_flush(cache_start, cache_end - cache_start);
 
+	tx_start_ms_ = k_uptime_get_32();
 	const int tx_rc = uart_tx(uart_dev_, tx_frame_, frame_size, SYS_FOREVER_US);
 	if (tx_rc != 0) {
 		atomic_clear(&tx_busy_);
@@ -170,13 +189,14 @@ int OscilloscopeModule::SendLatestSample()
 {
 	channels::OscilloscopeSample sample = {};
 	if (!channels::latest_oscilloscope_sample.read(sample)) {
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC)
-		return SendBootProbe();
-#else
 		return -EAGAIN;
-#endif
 	}
 	if ((sample.sequence == 0U) || (sample.sequence == last_sequence_)) {
+		const uint32_t now_ms = k_uptime_get_32();
+		if ((sample.sequence == 0U) &&
+		    ((now_ms - last_probe_ms_) >= kIdleProbePeriodMs)) {
+			return SendBootProbe();
+		}
 		return 0;
 	}
 

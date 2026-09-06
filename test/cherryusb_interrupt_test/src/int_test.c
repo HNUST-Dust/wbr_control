@@ -1,3 +1,4 @@
+#include <zephyr/sys/printk.h>
 /*
  * Copyright (c) 2026
  *
@@ -360,7 +361,7 @@ static void int_test_event_handler(uint8_t busid, uint8_t event)
 			stream_in_seq = 0U;
 			stream_in_packet_len = configured_mps;
 			stream_out_count = 0U;
-		printf("USB interrupt configured, speed=%d, mps=%u\n",
+		printk("USB interrupt configured, speed=%d, mps=%u\n",
 		       usbd_get_port_speed(busid), configured_mps);
 		arm_out(busid);
 		break;

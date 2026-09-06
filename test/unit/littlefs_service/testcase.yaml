@@ -1,0 +1,10 @@
+tests:
+  wbr_control.unit.littlefs_service:
+    integration_platforms:
+      - qemu_riscv32
+    platform_allow:
+      - qemu_riscv32
+    tags:
+      - unit
+      - fff
+      - storage

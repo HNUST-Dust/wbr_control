@@ -1,0 +1,9 @@
+tests:
+  wbr_control.unit.onboard_imu_filter:
+    integration_platforms:
+      - qemu_riscv32
+    platform_allow:
+      - qemu_riscv32
+    tags:
+      - unit
+      - ahrs

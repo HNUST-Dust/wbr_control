@@ -1,0 +1,6 @@
+west-commands:
+  - file: scripts/west_commands/rtt.py
+    commands:
+      - name: rtt
+        class: Rtt
+        help: open the wbr_control RTT console

@@ -9,19 +9,31 @@ set(HPM_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk_env/hpm_sdk)
 set(HPM_ENV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk_env)
 # Eigen：纯头文件线性代数库，位于 workspace 根（../eigen）。
 set(EIGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../eigen)
+# Sophus：纯头文件李群库，作为 west project 位于 workspace 根（../sophus）。
+set(SOPHUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sophus)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wbr_control)
 
+# Validate the resolved configuration after Kconfig so UART0 remains reserved
+# for the binary oscilloscope stream.
+if(NOT CONFIG_UART_ASYNC_API)
+  message(FATAL_ERROR
+    "The UART0 oscilloscope output requires CONFIG_UART_ASYNC_API=y")
+endif()
+
 target_include_directories(app PRIVATE
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
 )
+target_include_directories(app SYSTEM PRIVATE ${EIGEN_DIR})
+if(EXISTS ${SOPHUS_DIR}/sophus/so3.hpp)
+  target_include_directories(app SYSTEM PRIVATE ${SOPHUS_DIR})
+endif()
 
 if(CONFIG_CHERRYUSB)
   set(CHERRYUSB_CONFIG_DIR ${HPM_ZEPHYR_DIR}/samples/cherryusb/config)

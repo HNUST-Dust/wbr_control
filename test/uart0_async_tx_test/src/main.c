@@ -22,13 +22,6 @@ static struct k_sem g_tx_done_sem;
 static atomic_t g_done_count;
 static atomic_t g_abort_count;
 
-static void poll_write(const char *text)
-{
-	while (*text != '\0') {
-		uart_poll_out(g_uart, *text++);
-	}
-}
-
 static void uart_callback(const struct device *dev, struct uart_event *event, void *user_data)
 {
 	ARG_UNUSED(dev);
@@ -49,19 +42,14 @@ static void uart_callback(const struct device *dev, struct uart_event *event, vo
 
 static void prepare_frame(uint32_t sequence)
 {
-	char header[96];
-	const int header_len = snprintk(
-		header, sizeof(header),
-		"UART0 async DMA seq=%u done=%u abort=%u ", sequence,
-		(uint32_t)atomic_get(&g_done_count), (uint32_t)atomic_get(&g_abort_count));
-
-	memset(g_tx_buffer, '.', sizeof(g_tx_buffer));
-	if (header_len > 0) {
-		const size_t copy_len = MIN((size_t)header_len, sizeof(g_tx_buffer) - 2U);
-		memcpy(g_tx_buffer, header, copy_len);
-	}
-	g_tx_buffer[sizeof(g_tx_buffer) - 2U] = '\r';
-	g_tx_buffer[sizeof(g_tx_buffer) - 1U] = '\n';
+	/* Keep the 112-byte DMA load: 27 little-endian float channels + tail. */
+	float values[27] = {0};
+	values[0] = (float)sequence;
+	values[1] = (float)atomic_get(&g_done_count);
+	values[2] = (float)atomic_get(&g_abort_count);
+	memcpy(g_tx_buffer, values, sizeof(values));
+	const uint8_t tail[4] = {0x00, 0x00, 0x80, 0x7f};
+	memcpy(g_tx_buffer + sizeof(values), tail, sizeof(tail));
 }
 
 static void flush_tx_buffer(void)
@@ -91,14 +79,34 @@ int main(void)
 		return rc;
 	}
 
-	poll_write("UART0 poll path OK; starting async XDMA TX\r\n");
+	printk("UART0 configured; starting VOFA async XDMA TX\r\n");
 
 	k_sem_init(&g_tx_done_sem, 0, 1);
 	rc = uart_callback_set(g_uart, uart_callback, NULL);
 	if (rc != 0) {
-		poll_write("UART0 callback setup FAILED\r\n");
+		printk("UART0 callback setup FAILED\r\n");
 		return rc;
 	}
+
+	/* Exercise the production timeout-recovery primitive before entering the
+	 * continuous test.  The 112-byte frame remains in flight for about 1.2 ms
+	 * at 921600 baud, so an immediate abort must use the XDMA device and deliver
+	 * exactly one UART_TX_ABORTED event.
+	 */
+	prepare_frame(0U);
+	flush_tx_buffer();
+	k_sem_reset(&g_tx_done_sem);
+	rc = uart_tx(g_uart, g_tx_buffer, sizeof(g_tx_buffer), SYS_FOREVER_US);
+	if (rc == 0) {
+		rc = uart_tx_abort(g_uart);
+	}
+	if ((rc != 0) ||
+	    (k_sem_take(&g_tx_done_sem, K_MSEC(TEST_TX_TIMEOUT_MS)) != 0) ||
+	    (atomic_get(&g_abort_count) != 1)) {
+		printk("UART0 async abort/recovery FAILED\r\n");
+		return (rc != 0) ? rc : -EIO;
+	}
+	printk("UART0 async abort/recovery OK\r\n");
 
 	uint32_t sequence = 0U;
 	for (;;) {
@@ -110,7 +118,7 @@ int main(void)
 		if (rc != 0) {
 			char error[64];
 			snprintk(error, sizeof(error), "UART0 uart_tx start FAILED rc=%d\r\n", rc);
-			poll_write(error);
+			printk("%s", error);
 			k_sleep(K_MSEC(1000));
 			continue;
 		}
@@ -121,7 +129,7 @@ int main(void)
 			snprintk(error, sizeof(error),
 				 "UART0 async TX TIMEOUT seq=%u abort_rc=%d\r\n", sequence,
 				 abort_rc);
-			poll_write(error);
+			printk("%s", error);
 			k_sleep(K_MSEC(1000));
 			continue;
 		}

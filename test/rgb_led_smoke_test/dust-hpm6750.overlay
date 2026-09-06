@@ -1,0 +1,75 @@
+/* Keep all board UART instances out of this GPIO-only diagnostic image. */
+&uart0 {
+	status = "disabled";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&uart3 {
+	status = "disabled";
+};
+
+&uart10 {
+	status = "disabled";
+};
+
+&uart11 {
+	status = "disabled";
+};
+
+&uart12 {
+	status = "disabled";
+};
+
+&uart15 {
+	status = "disabled";
+};
+
+/* The UART nodes normally consume both DMA controllers. They are unnecessary
+ * for this test, and disabling them keeps their drivers out of the image too.
+ */
+&hdma {
+	status = "disabled";
+};
+
+&xdma {
+	status = "disabled";
+};
+
+&can0 {
+	status = "disabled";
+};
+
+&can1 {
+	status = "disabled";
+};
+
+&can2 {
+	status = "disabled";
+};
+
+&can3 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&sd0 {
+	status = "disabled";
+};
+
+&usb0 {
+	status = "disabled";
+};
+
+&usb1 {
+	status = "disabled";
+};

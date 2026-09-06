@@ -1,0 +1,22 @@
+/* Disable peripherals that run before main() in the production image. */
+&uart0 { status = "disabled"; };
+&uart2 { status = "disabled"; };
+&uart3 { status = "disabled"; };
+&uart10 { status = "disabled"; };
+&uart11 { status = "disabled"; };
+&uart12 { status = "disabled"; };
+&uart15 { status = "disabled"; };
+
+&hdma { status = "disabled"; };
+&xdma { status = "disabled"; };
+
+&can0 { status = "disabled"; };
+&can1 { status = "disabled"; };
+&can2 { status = "disabled"; };
+&can3 { status = "disabled"; };
+
+&pwm0 { status = "disabled"; };
+&spi2 { status = "disabled"; };
+&sd0 { status = "disabled"; };
+&usb0 { status = "disabled"; };
+&usb1 { status = "disabled"; };

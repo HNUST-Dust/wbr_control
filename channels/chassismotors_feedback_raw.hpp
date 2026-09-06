@@ -6,7 +6,7 @@
 * @file channels/chassismotors_feedback_raw.hpp
  * @ingroup wbr_channels
  * @brief 定义底盘电机原始反馈数据通道。
- * @details 声明跨线程交换的数据快照及其唯一全局通道。写入方发布完整对象，读取方不得保存内部存储地址；使用顺序锁的通道允许读取失败，调用方应保留上一份有效快照。
+ * @details 写入方和读取方通过有界 spinlock 临界区复制完整快照，读取始终成功；调用方不得保存内部存储地址。
  */
 
 #pragma once

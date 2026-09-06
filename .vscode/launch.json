@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "wbr_control: OpenOCD launch (hpm6750evk2)",
+      "name": "wbr_control: OpenOCD launch (dust-hpm6750)",
       "type": "cortex-debug",
       "request": "launch",
       "cwd": "${workspaceFolder}",

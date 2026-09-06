@@ -15,14 +15,18 @@
 #include <cmath>
 
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
 #include <channels/chassismotors_feedback_raw.hpp>
+#include <channels/chassis_realtime_status.hpp>
 #include <channels/hi91_imu_sample.hpp>
+#include <channels/onboard_imu_sample.hpp>
 #include <channels/oscilloscope_sample.hpp>
 #include <channels/remote_input_state.hpp>
 #include <platform/drivers/communication/can_dispatch.h>
 #include <scheduling/periodic_schedule.h>
 #include <scheduling/thread_priorities.h>
+#include <tf_tree.h>
 #include "leg_vmc.h"
 #include "lqr_schedule.h"
 
@@ -173,6 +177,7 @@ constexpr double kJointTorqueLimit = 54.0;
 
 // 输入新鲜度、安全保护和 DM 电机使能时序。
 constexpr uint32_t kRemoteTimeoutMs = 1000U;
+constexpr uint32_t kRealtimeStatusPeriodTicks = 100U;
 constexpr uint32_t kImuTimeoutMs = 3U;
 constexpr uint64_t kMotorTimeoutUs = 2000ULL;
 // 撑起过程允许较大俯仰角，遥控使能仍是主要停机手段。
@@ -201,6 +206,68 @@ static_assert(ToIndex(LqrState::kCount) == 6U);
 static_assert(ToIndex(ChassisJoint::kCount) == 4U);
 static_assert(ToIndex(TelemetryChannel::kCount) == channels::kOscilloscopeMaxChannels);
 
+#if defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_ONBOARD_EKF)
+constexpr channels::ChassisImuSource kSelectedImuSource =
+	channels::ChassisImuSource::kOnboardEkf;
+
+/**
+ * @brief 将 AHRS 发布的底盘 IMU 坐标系姿态和角速度转换到底盘坐标系。
+ * @param imu AHRS 在底盘 IMU 原始坐标系中发布的滤波结果。
+ * @param chassis_pitch_deg 接收底盘坐标系俯仰角，单位为度。
+ * @param chassis_pitch_rate_rad_s 接收底盘坐标系俯仰角速度，单位为 rad/s。
+ * @return 两项 TF 转换均成功且结果有限时返回 true。
+ */
+bool TransformOnboardImuToChassis(const channels::OnboardImuSample &imu,
+					float &chassis_pitch_deg,
+					float &chassis_pitch_rate_rad_s)
+{
+	constexpr float kFloatDegToRad = 0.01745329251994329577F;
+	constexpr float kFloatRadToDeg = 57.295779513082320876F;
+	const float roll = imu.euler_deg[0] * kFloatDegToRad;
+	const float pitch = imu.euler_deg[1] * kFloatDegToRad;
+	const float yaw = imu.euler_deg[2] * kFloatDegToRad;
+	const float cr = std::cos(roll);
+	const float sr = std::sin(roll);
+	const float cp = std::cos(pitch);
+	const float sp = std::sin(pitch);
+	const float cy = std::cos(yaw);
+	const float sy = std::sin(yaw);
+
+	wbr_control::TfTree::Matrix3 imu_attitude;
+	imu_attitude << cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr,
+		sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr,
+		-sp, cp * sr, cp * cr;
+	wbr_control::TfTree::Matrix3 chassis_attitude;
+	if (!wbr_control::robot_tf_tree.TransformAttitude(
+		    wbr_control::TfTree::Frame::kChassis,
+		    wbr_control::TfTree::Frame::kChassisImu,
+		    imu_attitude, chassis_attitude)) {
+		return false;
+	}
+
+	wbr_control::TfTree::Vector3 chassis_gyro;
+	if (!wbr_control::robot_tf_tree.TransformVector(
+		    wbr_control::TfTree::Frame::kChassis,
+		    wbr_control::TfTree::Frame::kChassisImu,
+		    wbr_control::TfTree::Vector3(imu.gyro_rad_s[0], imu.gyro_rad_s[1],
+						 imu.gyro_rad_s[2]),
+		    chassis_gyro)) {
+		return false;
+	}
+
+	const float pitch_sine = std::clamp(-chassis_attitude(2, 0), -1.0F, 1.0F);
+	chassis_pitch_deg = std::asin(pitch_sine) * kFloatRadToDeg;
+	chassis_pitch_rate_rad_s = chassis_gyro.y();
+	return std::isfinite(chassis_pitch_deg) &&
+	       std::isfinite(chassis_pitch_rate_rad_s);
+}
+#elif defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_HI91)
+constexpr channels::ChassisImuSource kSelectedImuSource =
+	channels::ChassisImuSource::kHi91;
+#else
+#error "The chassis module requires one configured IMU source"
+#endif
+
 } // namespace
 
 namespace modules
@@ -208,9 +275,23 @@ namespace modules
 
 // 一个周期内只读的输入快照。读取完成后，后续阶段不再访问通信通道。
 struct ChassisModule::CycleInput {
+	struct ImuSample {
+		uint32_t sequence = 0U;
+		uint64_t precise_timestamp_us = 0U;
+		uint32_t max_sensor_interval_ms = 0U;
+		uint32_t crc_error_count = 0U;
+		uint32_t publish_gap_with_crc_count = 0U;
+		uint32_t publish_gap_without_crc_count = 0U;
+		uint32_t max_publish_interval_us = 0U;
+		uint32_t transport_error_count = 0U;
+		bool valid = false;
+		float pitch_deg = 0.0F;
+		float pitch_rate_rad_s = 0.0F;
+	};
+
 	SidePair<ChassisMotorFeedbackRawFrame> wheel_frame;
 	SidePair<JointPair<ChassisMotorFeedbackRawFrame>> joint_frame;
-	channels::Hi91ImuSample imu = {};
+	ImuSample imu;
 	channels::RemoteInputState remote = {};
 	SidePair<LegKinematics> leg;
 	SidePair<JointPair<double>> joint_position;
@@ -255,6 +336,8 @@ ChassisModule::ChassisModule()
 	last_imu_sequence_ = 0U;
 	last_loop_time_us_ = 0U;
 	deadline_miss_count_ = 0U;
+	realtime_status_sequence_ = 0U;
+	max_loop_execution_us_ = 0U;
 	control_state_ = ControlState::kDisabled;
 	balance_phase_reached_ = false;
 	stool_ready_ = false;
@@ -265,6 +348,18 @@ ChassisModule::ChassisModule()
 
 int ChassisModule::Start()
 {
+#if defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_ONBOARD_EKF)
+	/* chassis_imu -> chassis: reverse X/Y and preserve Z, i.e. Rz(pi).
+	 * Sophus/Eigen stores quaternion coefficients as [x, y, z, w].
+	 */
+	static constexpr float kChassisFromImuQuaternion[4] = {
+		0.0F, 0.0F, 1.0F, 0.0F,
+	};
+	const Eigen::Map<const wbr_control::TfTree::Rotation> chassis_from_imu(
+		kChassisFromImuQuaternion);
+	wbr_control::robot_tf_tree.ConfigureChassisBranch(
+		wbr_control::TfTree::Rotation(chassis_from_imu));
+#endif
 	return CreateThread(
 		g_chassis_stack, K_THREAD_STACK_SIZEOF(g_chassis_stack),
 		K_PRIO_PREEMPT(wbr_control::scheduling::thread_priority::kChassis), "chassis");
@@ -319,8 +414,41 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 	const bool remote_fresh = input.remote_age_ms <= kRemoteTimeoutMs;
 	input.requested_enable = remote_fresh && input.remote.robot_enable;
 
-	channels::Hi91ImuSample new_imu = {};
-	if (channels::latest_hi91_imu_sample.read(new_imu) && new_imu.sequence != 0U) {
+	CycleInput::ImuSample new_imu = {};
+#if defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_ONBOARD_EKF)
+	channels::OnboardImuSample onboard_imu = {};
+	if (channels::latest_onboard_imu_sample.read(onboard_imu) &&
+	    onboard_imu.timestamp_us != 0U) {
+		/* Freshness is determined from the physical sample timestamp.  The
+		 * compact onboard channel intentionally carries no diagnostic sequence.
+		 */
+		new_imu.sequence = 1U;
+		new_imu.precise_timestamp_us = onboard_imu.timestamp_us;
+		const bool transform_valid = TransformOnboardImuToChassis(
+			onboard_imu, new_imu.pitch_deg, new_imu.pitch_rate_rad_s);
+		new_imu.valid = onboard_imu.valid && transform_valid &&
+				IS_ENABLED(CONFIG_WBR_CONTROL_ONBOARD_IMU_BODY_MAP_CONFIRMED);
+	}
+#else
+	channels::Hi91ImuSample hi91_imu = {};
+	if (channels::latest_hi91_imu_sample.read(hi91_imu) && hi91_imu.sequence != 0U) {
+		new_imu.sequence = hi91_imu.sequence;
+		new_imu.precise_timestamp_us = hi91_imu.precise_timestamp_us;
+		new_imu.max_sensor_interval_ms = hi91_imu.max_sensor_interval_ms;
+		new_imu.crc_error_count = hi91_imu.crc_error_count;
+		new_imu.publish_gap_with_crc_count = hi91_imu.publish_gap_with_crc_count;
+		new_imu.publish_gap_without_crc_count = hi91_imu.publish_gap_without_crc_count;
+		new_imu.max_publish_interval_us = hi91_imu.max_publish_interval_us;
+		new_imu.transport_error_count = hi91_imu.rx_drop_count +
+			hi91_imu.rx_stop_count + hi91_imu.rx_buf_rsp_error_count;
+		new_imu.valid = hi91_imu.valid;
+		new_imu.pitch_deg = hi91_imu.pitch_deg;
+		/* HI91 protocol data is already mapped to the historical chassis frame. */
+		new_imu.pitch_rate_rad_s = static_cast<float>(
+			static_cast<double>(hi91_imu.gyro_dps[0]) * kDpsToRadPerSec);
+	}
+#endif
+	if (new_imu.sequence != 0U) {
 		input.imu = new_imu;
 		if (input.imu.sequence != last_imu_sequence_) {
 			last_imu_sequence_ = input.imu.sequence;
@@ -384,7 +512,7 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 
 	input.pitch = input.imu_fresh ? static_cast<double>(input.imu.pitch_deg) * kDegToRad : 0.0;
 	input.pitch_rate = input.imu_fresh
-				   ? static_cast<double>(input.imu.gyro_dps[0]) * kDpsToRadPerSec
+				   ? static_cast<double>(input.imu.pitch_rate_rad_s)
 				   : 0.0;
 	input.theta = {};
 	input.theta_rate = {};
@@ -831,54 +959,43 @@ void ChassisModule::PublishTelemetry(const CycleInput &input, const CycleOutput 
 	channels::OscilloscopeSample sample = {};
 	sample.sequence = ++sequence;
 	sample.uptime_ms = k_uptime_get_32();
-	sample.channel_count = static_cast<uint8_t>(ToIndex(TelemetryChannel::kCount));
-	const auto set_channel = [&sample](TelemetryChannel channel, float value) {
-		sample.value[ToIndex(channel)] = value;
-	};
-	set_channel(TelemetryChannel::kControlState, balance_state_x100);
-	set_channel(TelemetryChannel::kCommonLegAngleDeg,
-		    static_cast<float>(input.common_theta / kDegToRad));
-	set_channel(TelemetryChannel::kLeftSentWheelTorque,
-		    static_cast<float>(output.sent_wheel_torque.left));
-	set_channel(TelemetryChannel::kRightSentWheelTorque,
-		    static_cast<float>(output.sent_wheel_torque.right));
-	set_channel(TelemetryChannel::kPitchDeg, static_cast<float>(input.pitch / kDegToRad));
-	set_channel(TelemetryChannel::kLeftBodyOnLegTorque,
-		    static_cast<float>(output.body_on_leg_torque.left));
-	set_channel(TelemetryChannel::kRightBodyOnLegTorque,
-		    static_cast<float>(output.body_on_leg_torque.right));
-	set_channel(TelemetryChannel::kLegAngleWheelContribution,
-		    static_cast<float>(output.theta_wheel_torque_contribution));
-	set_channel(TelemetryChannel::kPitchWheelContribution,
-		    static_cast<float>(output.pitch_wheel_torque_contribution));
-	set_channel(TelemetryChannel::kTargetLegLength, static_cast<float>(target_leg_length_));
-	set_channel(TelemetryChannel::kLeftLegLength, static_cast<float>(input.leg.left.length));
-	set_channel(TelemetryChannel::kRightLegLength, static_cast<float>(input.leg.right.length));
-	set_channel(TelemetryChannel::kImuMaxSensorIntervalMs,
-		    static_cast<float>(input.imu.max_sensor_interval_ms));
-	set_channel(TelemetryChannel::kImuCrcErrorCount,
-		    static_cast<float>(input.imu.crc_error_count));
-	set_channel(TelemetryChannel::kImuGapWithCrcCount,
-		    static_cast<float>(input.imu.publish_gap_with_crc_count));
-	set_channel(TelemetryChannel::kImuGapWithoutCrcCount,
-		    static_cast<float>(input.imu.publish_gap_without_crc_count));
-	set_channel(TelemetryChannel::kDmArmResetReason,
-		    static_cast<float>(dm_arm_reset_reason_));
-	set_channel(TelemetryChannel::kImuAgeUs,
-		    static_cast<float>(std::min<uint64_t>(input.imu_age_us, UINT32_MAX)));
-	set_channel(TelemetryChannel::kImuMaxPublishIntervalUs,
-		    static_cast<float>(input.imu.max_publish_interval_us));
-	const uint32_t imu_transport_error_count = input.imu.rx_drop_count +
-						   input.imu.rx_stop_count +
-						   input.imu.rx_buf_rsp_error_count;
-	set_channel(TelemetryChannel::kImuTransportErrorCount,
-		    static_cast<float>(imu_transport_error_count));
+	sample.channel_count = 2;
+
+	sample.value[0] = input.imu.pitch_deg;
+	sample.value[1] = input.imu.pitch_rate_rad_s;
 	channels::latest_oscilloscope_sample.write(sample);
+}
+
+void ChassisModule::PublishRealtimeStatus(const CycleInput &input,
+						  uint32_t loop_start_cycle)
+{
+	channels::ChassisRealtimeStatus status = {};
+	status.sequence = ++realtime_status_sequence_;
+	status.uptime_ms = k_uptime_get_32();
+	status.deadline_miss_count = deadline_miss_count_;
+	size_t unused_bytes = 0U;
+	if (k_thread_stack_space_get(&thread_, &unused_bytes) == 0) {
+		status.stack_unused_bytes = static_cast<uint32_t>(unused_bytes);
+	}
+	status.imu_age_us = input.imu_age_us;
+	status.imu_source = kSelectedImuSource;
+	status.imu_fresh = input.imu_fresh;
+	/* Capture after the periodic stack query and status construction so the
+	 * diagnostic cycle does not report an artificially optimistic WCET.  Only
+	 * the final bounded channel copy remains outside this interval.
+	 */
+	status.loop_execution_us =
+		k_cyc_to_us_floor32(k_cycle_get_32() - loop_start_cycle);
+	max_loop_execution_us_ = MAX(max_loop_execution_us_, status.loop_execution_us);
+	status.max_loop_execution_us = max_loop_execution_us_;
+	channels::latest_chassis_realtime_status.write(status);
 }
 
 void ChassisModule::RunLoop()
 {
-	LOG_INF("chassis started");
+	LOG_INF("chassis started: imu_source=%u timeout=%u ms",
+		static_cast<unsigned int>(kSelectedImuSource),
+		static_cast<unsigned int>(kImuTimeoutMs));
 
 	CycleInput input = {};
 	wbr_control::scheduling::AbsolutePeriodicSchedule release(
@@ -887,6 +1004,7 @@ void ChassisModule::RunLoop()
 	for (;;) {
 		(void)release.WaitForNextRelease();
 		deadline_miss_count_ = release.total_missed_releases();
+		const uint32_t loop_start_cycle = k_cycle_get_32();
 
 		// 使用实际周期并限制异常调度延迟，避免冲击积分器和滤波器。
 		const uint64_t now_us = k_cyc_to_us_floor64(k_cycle_get_64());
@@ -898,14 +1016,21 @@ void ChassisModule::RunLoop()
 		}
 		last_loop_time_us_ = now_us;
 
-			// 单周期流水线：输入快照 -> FSM -> 控制计算 -> 执行器 -> 遥测。
-			CycleOutput output = {};
-			ReadCycleInput(input, now_ms, dt);
-			UpdateControlState(input);
-			ComputeControlOutput(input, output);
-			ApplyControlOutput(output);
-			PublishTelemetry(input, output);
+		// 单周期流水线：输入快照 -> FSM -> 控制计算 -> 执行器 -> 遥测。
+		CycleOutput output = {};
+		ReadCycleInput(input, now_ms, dt);
+		UpdateControlState(input);
+		ComputeControlOutput(input, output);
+		ApplyControlOutput(output);
+		//PublishTelemetry(input, output);
 		++loop_ticks_;
+		if ((loop_ticks_ % kRealtimeStatusPeriodTicks) == 0U) {
+			PublishRealtimeStatus(input, loop_start_cycle);
+		} else {
+			const uint32_t loop_execution_us =
+				k_cyc_to_us_floor32(k_cycle_get_32() - loop_start_cycle);
+			max_loop_execution_us_ = MAX(max_loop_execution_us_, loop_execution_us);
+		}
 	}
 }
 } // namespace modules

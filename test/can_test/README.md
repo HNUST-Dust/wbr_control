@@ -12,7 +12,7 @@
 ## 构建示例
 
 ```bash
-cmake -S wbr_control/test/can_test -B wbr_control/test/can_test/build -GNinja -DBOARD=hpm6750evk2
+cmake -S wbr_control/test/can_test -B wbr_control/test/can_test/build -GNinja -DBOARD=dust-hpm6750
 cmake --build wbr_control/test/can_test/build -j8
 ```
 

@@ -70,6 +70,9 @@ private:
 
 	const struct device *uart_dev_ = nullptr;
 	uint32_t last_sequence_ = 0U;
+	uint32_t last_probe_ms_ = 0U;
+	uint32_t tx_start_ms_ = 0U;
+	uint32_t tx_timeout_count_ = 0U;
 	uint32_t missed_release_count_ = 0U;
 	atomic_t tx_busy_ = ATOMIC_INIT(0);
 	uint8_t tx_frame_[protocols::VofaJustFloatFrameSize(channels::kOscilloscopeMaxChannels)] =
