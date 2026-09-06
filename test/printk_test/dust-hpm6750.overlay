@@ -1,9 +1,0 @@
-/* printk_test only exercises UART output; do not initialize board-default USB. */
-&uart0 {
-	status = "okay";
-	current-speed = <921600>;
-};
-
-&cherryusb_usb0 {
-	status = "disabled";
-};

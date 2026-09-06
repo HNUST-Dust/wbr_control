@@ -1,3 +1,4 @@
+#include <zephyr/sys/printk.h>
 /*
  * Copyright (c) 2026
  *
@@ -22,7 +23,7 @@ int main(void)
 {
 	uint32_t usb_base = DT_REG_ADDR(DT_NODELABEL(cherryusb_usb0));
 
-	printf("cherryusb interrupt test booted.\n");
+	printk("cherryusb interrupt test booted.\n");
 
 	int_test_init(0, usb_base);
 

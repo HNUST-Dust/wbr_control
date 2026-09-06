@@ -20,8 +20,7 @@ FILE_PATTERNS          = *.c *.cc *.cpp *.h *.hpp *.py *.md *.dox
 RECURSIVE              = YES
 EXCLUDE                = build \
                          test/can_test/build \
-                         test/cherryusb_cdc_acm_test/build \
-                         test/hi91_imu_test/build
+                         test/**/build
 EXCLUDE_PATTERNS       = */.git/* */__pycache__/* \
                          */build/*
 USE_MDFILE_AS_MAINPAGE = docs/doxygen_mainpage.md

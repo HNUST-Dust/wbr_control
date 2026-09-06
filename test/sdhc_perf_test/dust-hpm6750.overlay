@@ -28,3 +28,6 @@
 		status = "okay";
 	};
 };
+
+/* This standalone test does not use the USB controller. */
+&cherryusb_usb0 { status = "disabled"; };

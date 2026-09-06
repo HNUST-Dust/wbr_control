@@ -12,25 +12,19 @@
 #include <errno.h>
 
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/uart.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
 
 #include "modules/chassis/chassis_module.h"
 #include "modules/imu/hi91_imu_module.h"
+#include "modules/ahrs/ahrs.h"
 #include "modules/oscilloscope/oscilloscope_module.h"
 #include "modules/referee/referee_module.h"
 #include "modules/remote_input/remote_input_module.h"
 #include "modules/sys_state/sys_state_module.h"
 #include <channels/system_status_channel.h>
 #include <platform/board/board_identity.h>
-
-#include <hpm_iomux.h>
-#include <hpm_pmic_iomux.h>
-#include <hpm_soc.h>
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 
@@ -49,52 +43,6 @@ LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 namespace
 {
 
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC)
-void ForceUart0PinRoute()
-{
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC)
-	/* DUST-HPM6750 UART0 uses the two-stage SOC IOC -> PMIC IOC PY06/PY07 route. */
-	HPM_IOC->PAD[IOC_PAD_PY06].FUNC_CTL = IOC_PY06_FUNC_CTL_UART0_TXD;
-	HPM_IOC->PAD[IOC_PAD_PY07].FUNC_CTL = IOC_PY07_FUNC_CTL_UART0_RXD;
-	HPM_PIOC->PAD[IOC_PAD_PY06].FUNC_CTL = PIOC_PY06_FUNC_CTL_SOC_PY_06;
-	HPM_PIOC->PAD[IOC_PAD_PY07].FUNC_CTL = PIOC_PY07_FUNC_CTL_SOC_PY_07;
-#endif
-}
-
-void RawUart0Write(const char *text)
-{
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC) && \
-	DT_NODE_HAS_STATUS(DT_NODELABEL(uart0), okay)
-	const struct device *uart0 = DEVICE_DT_GET(DT_NODELABEL(uart0));
-	if (!device_is_ready(uart0)) {
-		return;
-	}
-	while (*text != '\0') {
-		uart_poll_out(uart0, static_cast<unsigned char>(*text++));
-	}
-#else
-	ARG_UNUSED(text);
-#endif
-}
-#endif
-
-void EmitUart0BootProbe()
-{
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC)
-	ForceUart0PinRoute();
-	RawUart0Write("\r\n[uart0-all] raw uart_poll_out @ 921600\r\n");
-	printk("[uart0-all] direct printk @ 921600\n");
-	LOG_INF("uart0-all: Zephyr logger @ 921600");
-#elif defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_PRINTK_AND_LOG)
-	printk("[uart0-probe] printk -> logger -> uart0 @ 921600\n");
-	LOG_INF("uart0 probe: LOG backend @ 921600");
-#elif defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_PRINTK)
-	printk("[uart0-probe] direct printk -> uart0 @ 921600\n");
-#elif defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_LOG)
-	LOG_INF("uart0 probe: LOG backend @ 921600");
-#endif
-}
-
 void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
 {
 	const channels::SystemStatusMessage status = {
@@ -112,7 +60,9 @@ void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
  */
 int main(void)
 {
-	EmitUart0BootProbe();
+	if (IS_ENABLED(CONFIG_WBR_CONTROL_RTT_DIAGNOSTICS)) {
+		printk("[printk] wbr_control RTT diagnostics ready\n");
+	}
 	LOG_INF("wbr_control started on %s", board_identity_name());
 	PublishSystemStatus(channels::kBooting, 0U);
 
@@ -201,7 +151,6 @@ int main(void)
 		++module_count;
 	}
 #endif
-#if defined(CONFIG_WBR_CONTROL_MODULE_OSCILLOSCOPE) && CONFIG_WBR_CONTROL_MODULE_OSCILLOSCOPE
 	{
 		static modules::OscilloscopeModule oscilloscope_module;
 		rc = oscilloscope_module.Start();
@@ -211,7 +160,6 @@ int main(void)
 		}
 		++module_count;
 	}
-#endif
 #if defined(CONFIG_WBR_CONTROL_MODULE_HI91_IMU) && CONFIG_WBR_CONTROL_MODULE_HI91_IMU
 	{
 		static modules::Hi91ImuModule hi91_imu_module;
@@ -223,20 +171,18 @@ int main(void)
 		++module_count;
 	}
 #endif
-	PublishSystemStatus(channels::kRunning, module_count);
-
-	/* 诊断版持续重发，避免串口在启动瞬间未打开而错过唯一探针。 */
-#if defined(CONFIG_WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC)
-	uint32_t sequence = 0U;
-	for (;;) {
-		ForceUart0PinRoute();
-		RawUart0Write("[uart0-all] raw uart_poll_out alive\r\n");
-		printk("[uart0-all] printk alive seq=%u\n", sequence);
-		LOG_INF("uart0-all: logger alive seq=%u", sequence);
-		++sequence;
-		k_sleep(K_SECONDS(1));
+#if defined(CONFIG_WBR_CONTROL_MODULE_AHRS) && CONFIG_WBR_CONTROL_MODULE_AHRS
+	{
+		static modules::Ahrs ahrs;
+		rc = ahrs.Start();
+		if (rc != 0) {
+			LOG_ERR("module start failed: ahrs (%d)", rc);
+			return rc;
+		}
+		++module_count;
 	}
 #endif
+	PublishSystemStatus(channels::kRunning, module_count);
 
 	/* 初始化结束后主线程不再承担周期任务，各模块由自己的线程运行。 */
 	k_sleep(K_FOREVER);

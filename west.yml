@@ -29,6 +29,8 @@ manifest:
     # Eigen 官方仓库在 GitLab（GitHub 的 eigenteam/eigen-git-mirror 已停更在 3.3.7）。
     - name: eigen
       url-base: https://gitlab.com
+    - name: sophus
+      url-base: https://github.com/strasdat
 
   defaults:
     remote: github
@@ -56,6 +58,14 @@ manifest:
       revision: main
       west-commands: scripts/west-commands.yml
 
+    # SEGGER RTT transport used by the non-UART shell/logging diagnostics.
+    # Keep this revision aligned with the Zephyr 3.7 manifest.
+    - name: segger
+      remote: upstream
+      repo-path: segger
+      path: segger
+      revision: b011c45b585e097d95d9cf93edf4f2e01588d3cd
+
     - name: CherryUSB
       remote: cherryusb-fork
       repo-path: CherryUSB
@@ -77,5 +87,14 @@ manifest:
       path: eigen
       revision: 3.4.0
 
+    # Sophus：基于 Eigen 的纯头文件李群库。固件仅使用固定尺寸 SO3f，禁止在
+    # 1 kHz 实时路径中使用字符串 frame、动态缓存或失败格式化路径。
+    - name: sophus
+      remote: sophus
+      repo-path: Sophus
+      path: sophus
+      revision: d0b7315a0d90fc6143defa54596a3a95d9fa10ec
+
   self:
     path: wbr_control
+    west-commands: scripts/west-commands.yml

@@ -22,6 +22,10 @@
 
 LOG_MODULE_REGISTER(littlefs_service, LOG_LEVEL_INF);
 
+#ifndef WBR_CONTROL_STORAGE_PARTITION_ID
+#define WBR_CONTROL_STORAGE_PARTITION_ID FIXED_PARTITION_ID(storage_partition)
+#endif
+
 namespace {
 
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(wbr_control_storage_lfs);
@@ -33,7 +37,7 @@ bool g_mounted = false;
 int EraseStoragePartition()
 {
 	const struct flash_area *area = nullptr;
-	int rc = flash_area_open(FIXED_PARTITION_ID(storage_partition), &area);
+	int rc = flash_area_open(WBR_CONTROL_STORAGE_PARTITION_ID, &area);
 	if (rc != 0) {
 		return rc;
 	}
@@ -50,7 +54,7 @@ int EraseStoragePartition()
 int ProbeStoragePartitionIo()
 {
 	const struct flash_area *area = nullptr;
-	int rc = flash_area_open(FIXED_PARTITION_ID(storage_partition), &area);
+	int rc = flash_area_open(WBR_CONTROL_STORAGE_PARTITION_ID, &area);
 	if (rc != 0) {
 		return rc;
 	}
@@ -114,7 +118,7 @@ int InitializeLittlefs()
 	g_lfs_mount.type = FS_LITTLEFS;
 	g_lfs_mount.mnt_point = "/lfs";
 	g_lfs_mount.fs_data = &wbr_control_storage_lfs;
-	g_lfs_mount.storage_dev = (void *)FIXED_PARTITION_ID(storage_partition);
+	g_lfs_mount.storage_dev = (void *)WBR_CONTROL_STORAGE_PARTITION_ID;
 
 	int rc = fs_mount(&g_lfs_mount);
 	if ((rc != 0) && (rc != -EALREADY)) {
@@ -122,7 +126,7 @@ int InitializeLittlefs()
 
 		int mkfs_rc = fs_mkfs(
 			FS_LITTLEFS,
-			static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
+			static_cast<uintptr_t>(WBR_CONTROL_STORAGE_PARTITION_ID),
 			&wbr_control_storage_lfs,
 			0);
 		if (mkfs_rc != 0) {
@@ -137,7 +141,7 @@ int InitializeLittlefs()
 
 			mkfs_rc = fs_mkfs(
 				FS_LITTLEFS,
-				static_cast<uintptr_t>(FIXED_PARTITION_ID(storage_partition)),
+				static_cast<uintptr_t>(WBR_CONTROL_STORAGE_PARTITION_ID),
 				&wbr_control_storage_lfs,
 				0);
 			if (mkfs_rc != 0) {

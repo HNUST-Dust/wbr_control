@@ -48,7 +48,7 @@
 	/delete-property/ cs-gpios;
 };
 
-/* Keep the UART0 debug console aligned with the project-wide 921600 baud setting. */
+/* Reserve UART0 for VOFA at the project-wide 921600 baud setting. */
 &uart0 {
 	status = "okay";
 	current-speed = <921600>;

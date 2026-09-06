@@ -44,7 +44,7 @@ wbr_control 已经不是“仅骨架”阶段，而是“主干可运行 + 分�
 - `core` 已彻底删除（无兼容层残留），统一使用 `modules/*`、`channels/*` 等根目录头路径。
 - 已去掉外层 `app/` 物理目录，语义目录直接位于应用根目录。
 - staged 模块已统一收敛到 `modules/staging/*`，active 与 staged 已物理分区。
-- 独立 `src/algorithms` 已拆除；算法随实际控制器或估计器维护。板载 IMU 的 Mahony 与 Quaternion EKF 位于 `src/modules/imu/onboard/`，不处理 HI91 数据。
+- 独立 `src/algorithms` 已拆除；算法随实际控制器或估计器维护。板载 IMU 的 Quaternion EKF 位于 `src/modules/ahrs/`，不处理 HI91 数据。
 - 平台历史资产已建立 `platform/legacy/*` 归档分区；`legacy_dm_h723` 已归档到 `platform/legacy/board/legacy_dm_h723`。
 
 ## 3. 构建现状

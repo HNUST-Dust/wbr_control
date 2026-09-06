@@ -4,66 +4,20 @@ source "Kconfig.zephyr"
 
 menu "wbr_control application options"
 
-choice WBR_CONTROL_UART0_OUTPUT_MODE
-	prompt "UART0 output mode"
-	default WBR_CONTROL_UART0_OUTPUT_DISABLED
-	help
-	  Select the sole owner of UART0. Each mode derives its required Zephyr
-	  console, printk and logging options here; mode fragments must select only
-	  one WBR_CONTROL_UART0_OUTPUT_* symbol.
-
-	  The console, printk, UART logger and VOFA oscilloscope cannot transmit
-	  independently on the same UART.
-
-config WBR_CONTROL_UART0_OUTPUT_DISABLED
-	bool "Disabled"
-
-config WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE
-	bool "VOFA oscilloscope only"
-	select SERIAL
-
-config WBR_CONTROL_UART0_OUTPUT_PRINTK
-	bool "printk only"
-	select SERIAL
-	select CONSOLE
-	select UART_CONSOLE
-	select PRINTK
-
-config WBR_CONTROL_UART0_OUTPUT_LOG
-	bool "Zephyr logger only"
-	select SERIAL
-	select CONSOLE
-	select UART_CONSOLE
+config WBR_CONTROL_RTT_DIAGNOSTICS
+	bool "Enable shell, logging and printk diagnostics over SEGGER RTT"
+	depends on HAS_SEGGER_RTT
+	select USE_SEGGER_RTT
+	select SHELL
+	select SHELL_BACKEND_RTT
+	select SHELL_LOG_BACKEND
 	select LOG
-	select LOG_BACKEND_UART
-
-config WBR_CONTROL_UART0_OUTPUT_PRINTK_AND_LOG
-	bool "printk and Zephyr logger"
-	select SERIAL
-	select CONSOLE
-	select UART_CONSOLE
-	select PRINTK
-	select LOG
-	select LOG_BACKEND_UART
 	select LOG_PRINTK
-	help
-	  Route printk() calls through the logging subsystem so printk and LOG_*
-	  messages share one serialized UART backend.
-
-config WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
-	bool "Diagnostic: raw UART, printk, logger and VOFA oscilloscope"
-	select SERIAL
-	select CONSOLE
-	select UART_CONSOLE
 	select PRINTK
-	select LOG
-	select LOG_BACKEND_UART
 	help
-	  Enable every UART0 output path for hardware diagnosis. This mode is not
-	  intended for normal control operation because text and VOFA binary frames
-	  deliberately share the same UART stream.
-
-endchoice
+	  Route the interactive shell, LOG_* messages and printk() through the
+	  RTT shell backend. This path is independent of UART0, so it can remain
+	  enabled while UART0 carries the binary VOFA oscilloscope stream.
 
 config WBR_CONTROL_MODULE_REMOTE_INPUT
 	bool "Enable remote_input module"
@@ -85,10 +39,10 @@ config WBR_CONTROL_MODULE_REFEREE
 
 config WBR_CONTROL_MODULE_OSCILLOSCOPE
 	bool
-	default y if WBR_CONTROL_UART0_OUTPUT_OSCILLOSCOPE || WBR_CONTROL_UART0_OUTPUT_ALL_DIAGNOSTIC
+	default y
 	help
-	  Internal switch derived from the UART0 output mode. The module sends
-	  the latest oscilloscope sample over UART0 using the JustFloat protocol.
+	  UART0 is permanently reserved for the VOFA oscilloscope binary stream.
+	  Diagnostics use SEGGER RTT instead of UART0.
 
 config WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE
 	int "VOFA oscilloscope UART baudrate"
@@ -112,6 +66,61 @@ config WBR_CONTROL_MODULE_HI91_IMU
 	help
 	  Enable the HI91 external IMU module on UART2. The module parses HI91
 	  binary frames and publishes the latest IMU sample to channels.
+
+config WBR_CONTROL_MODULE_AHRS
+	bool "Enable onboard AHRS module"
+	default n
+	depends on SPI && SPI_ASYNC && SPI_HPM_SPI_DMA && GPIO
+	help
+	  Enable the board AHRS. Its single thread owns the onboard ICM42688P-HXY,
+	  performs asynchronous SPI HDMA reads, calibrates gyro bias, and updates
+	  the quaternion EKF estimator from each completed sample.
+	  Devicetree aliases onboard-imu-cs and onboard-imu-drdy must describe the
+	  custom PCB connections.
+
+config WBR_CONTROL_ONBOARD_IMU_SPI_FREQUENCY_HZ
+	int "Onboard ICM42688P SPI frequency"
+	default 8000000
+	range 100000 24000000
+	depends on WBR_CONTROL_MODULE_AHRS
+	help
+	  SPI2 bus frequency used for register access and 12-byte six-axis
+	  burst reads. Start conservatively if PCB signal integrity is unknown.
+
+config WBR_CONTROL_ONBOARD_IMU_CALIBRATION_SAMPLES
+	int "Stationary gyro calibration sample count"
+	default 1000
+	range 100 5000
+	depends on WBR_CONTROL_MODULE_AHRS
+	help
+	  Number of consecutive stationary 1 kHz AHRS samples used to estimate the
+	  startup gyro bias. The proven BMI088 implementation used a one-second,
+	  1000-sample average. The counter resets if motion is detected, so the
+	  robot must remain still until calibration completes.
+
+config WBR_CONTROL_ONBOARD_IMU_BODY_MAP_CONFIRMED
+	bool "Onboard IMU sensor-to-body map verified on hardware"
+	default n
+	depends on WBR_CONTROL_MODULE_AHRS
+	help
+	  Enable only after physically rotating the assembled robot around each
+	  body axis and verifying the configured axis order and signs. The chassis
+	  cannot select the onboard IMU until this acknowledgement is enabled.
+
+choice WBR_CONTROL_CHASSIS_IMU_SOURCE
+	prompt "Chassis attitude source"
+	default WBR_CONTROL_CHASSIS_IMU_HI91
+	depends on WBR_CONTROL_MODULE_CHASSIS
+
+config WBR_CONTROL_CHASSIS_IMU_HI91
+	bool "HI91 external IMU"
+	depends on WBR_CONTROL_MODULE_HI91_IMU
+
+config WBR_CONTROL_CHASSIS_IMU_ONBOARD_EKF
+	bool "Onboard IMU quaternion EKF attitude"
+	depends on WBR_CONTROL_MODULE_AHRS && WBR_CONTROL_ONBOARD_IMU_BODY_MAP_CONFIRMED
+
+endchoice
 
 config WBR_CONTROL_HI91_IMU_UART_BAUDRATE
 	int "HI91 IMU UART baudrate"
