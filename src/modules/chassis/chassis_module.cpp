@@ -29,6 +29,7 @@
 #include <tf_tree.h>
 #include "leg_vmc.h"
 #include "lqr_schedule.h"
+#include "protocols/motors/dm_motor_protocol.h"
 
 LOG_MODULE_REGISTER(chassis_module, LOG_LEVEL_INF);
 
@@ -66,29 +67,7 @@ enum class LqrOutput : uint8_t {
 	kCount,
 };
 
-enum class TelemetryChannel : uint8_t {
-	kControlState = 0U,
-	kCommonLegAngleDeg,
-	kLeftSentWheelTorque,
-	kRightSentWheelTorque,
-	kPitchDeg,
-	kLeftBodyOnLegTorque,
-	kRightBodyOnLegTorque,
-	kLegAngleWheelContribution,
-	kPitchWheelContribution,
-	kTargetLegLength,
-	kLeftLegLength,
-	kRightLegLength,
-	kImuMaxSensorIntervalMs,
-	kImuCrcErrorCount,
-	kImuGapWithCrcCount,
-	kImuGapWithoutCrcCount,
-	kDmArmResetReason,
-	kImuAgeUs,
-	kImuMaxPublishIntervalUs,
-	kImuTransportErrorCount,
-	kCount,
-};
+
 
 template <typename Enum> constexpr size_t ToIndex(Enum value)
 {
@@ -159,12 +138,25 @@ constexpr double kGravity = 9.80665;
 constexpr double kRobotMass = 12.054;
 constexpr double kDefaultDt = 0.001;
 constexpr uint32_t kControlPeriodMs = 1U;
-constexpr double kTargetLegLengthMin = 0.15362;
-constexpr double kTargetLegLengthMax = 0.31101;
-constexpr double kTargetLegLengthRate = 0.06;
+
+
+// 起立交接后逐渐恢复稳态姿态参考，避免将接管姿态作为 LQR 误差阶跃。
+constexpr double kBalanceThetaReferenceRate = 1.0;//5
+constexpr double kBalancePitchReferenceRate = 0.6;//3
+constexpr size_t kTelemetryChannelCount = 37U;
 
 constexpr double kPerSideGainScale = 0.5;
 constexpr double kPositionErrorLimit = 0.15;
+// 遥控量先经过死区和斜坡，再作为 LQR 平移参考及左右轮差速参考。
+constexpr double kRemoteDeadband = 0.05;
+constexpr double kMaxBodySpeed = 0.8;
+constexpr double kBodyAccelerationLimit = 1.2;
+constexpr double kMaxTurnWheelSpeed = 0.6;
+constexpr double kTurnAccelerationLimit = 1.5;
+constexpr double kTurnSpeedKp = 1.5;
+constexpr double kTurnTorqueLimit = 1.2;
+// 轮电机差动力矩会通过定子向两条腿施加反向扰动。前馈在腿角差出现前就抵消它。
+constexpr double kTurnLegTorqueFeedforward = 1.6;
 // false 表示将受限的位置误差和估计速度送入完整六状态 LQR。
 constexpr bool kHoldLqrTranslationErrorAtZero = false;
 constexpr double kLegCoordinateKp = 6.0;
@@ -173,6 +165,8 @@ constexpr double kLegCoordinateTorqueLimit = 2.0;
 constexpr double kDjiCurrentPerNm = 3450.0;
 // ±16384 是 DJI 0x200 协议范围保护，不是底盘力矩限制。
 constexpr int16_t kDjiProtocolCurrentLimit = 16384;
+constexpr double kWheelTorqueLimit =
+	static_cast<double>(kDjiProtocolCurrentLimit) / kDjiCurrentPerNm;
 constexpr double kJointTorqueLimit = 54.0;
 
 // 输入新鲜度、安全保护和 DM 电机使能时序。
@@ -189,6 +183,25 @@ constexpr uint32_t kDmModePeriodTicks = 10U;
 // LQR 的腿部平衡角偏置。
 constexpr double kThetaBalanceBias = 5.0 * kDegToRad;
 
+double MoveToward(double current, double target, double max_delta)
+{
+	return current + std::clamp(target - current, -max_delta, max_delta);
+}
+
+double ApplyRemoteDeadband(double value)
+{
+	if (!std::isfinite(value)) {
+		return 0.0;
+	}
+	const double limited = std::clamp(value, -1.0, 1.0);
+	const double magnitude = std::abs(limited);
+	if (magnitude <= kRemoteDeadband) {
+		return 0.0;
+	}
+	return std::copysign((magnitude - kRemoteDeadband) / (1.0 - kRemoteDeadband),
+			     limited);
+}
+
 constexpr protocols::DmMitRange kDmRange = {
 	.p_min = -12.56637f,
 	.p_max = 12.56637f,
@@ -204,7 +217,7 @@ constexpr protocols::DmMitRange kDmRange = {
 
 static_assert(ToIndex(LqrState::kCount) == 6U);
 static_assert(ToIndex(ChassisJoint::kCount) == 4U);
-static_assert(ToIndex(TelemetryChannel::kCount) == channels::kOscilloscopeMaxChannels);
+static_assert(kTelemetryChannelCount <= channels::kOscilloscopeMaxChannels);
 
 #if defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_ONBOARD_EKF)
 constexpr channels::ChassisImuSource kSelectedImuSource =
@@ -215,11 +228,13 @@ constexpr channels::ChassisImuSource kSelectedImuSource =
  * @param imu AHRS 在底盘 IMU 原始坐标系中发布的滤波结果。
  * @param chassis_pitch_deg 接收底盘坐标系俯仰角，单位为度。
  * @param chassis_pitch_rate_rad_s 接收底盘坐标系俯仰角速度，单位为 rad/s。
- * @return 两项 TF 转换均成功且结果有限时返回 true。
+ * @param chassis_yaw_rate_rad_s 接收底盘坐标系偏航角速度，单位为 rad/s。
+ * @return 姿态与角速度 TF 转换均成功且结果有限时返回 true。
  */
 bool TransformOnboardImuToChassis(const channels::OnboardImuSample &imu,
 					float &chassis_pitch_deg,
-					float &chassis_pitch_rate_rad_s)
+					float &chassis_pitch_rate_rad_s,
+					float &chassis_yaw_rate_rad_s)
 {
 	constexpr float kFloatDegToRad = 0.01745329251994329577F;
 	constexpr float kFloatRadToDeg = 57.295779513082320876F;
@@ -258,8 +273,10 @@ bool TransformOnboardImuToChassis(const channels::OnboardImuSample &imu,
 	const float pitch_sine = std::clamp(-chassis_attitude(2, 0), -1.0F, 1.0F);
 	chassis_pitch_deg = std::asin(pitch_sine) * kFloatRadToDeg;
 	chassis_pitch_rate_rad_s = chassis_gyro.y();
+	chassis_yaw_rate_rad_s = chassis_gyro.z();
 	return std::isfinite(chassis_pitch_deg) &&
-	       std::isfinite(chassis_pitch_rate_rad_s);
+	       std::isfinite(chassis_pitch_rate_rad_s) &&
+	       std::isfinite(chassis_yaw_rate_rad_s);
 }
 #elif defined(CONFIG_WBR_CONTROL_CHASSIS_IMU_HI91)
 constexpr channels::ChassisImuSource kSelectedImuSource =
@@ -287,6 +304,7 @@ struct ChassisModule::CycleInput {
 		bool valid = false;
 		float pitch_deg = 0.0F;
 		float pitch_rate_rad_s = 0.0F;
+		float yaw_rate_rad_s = 0.0F;
 	};
 
 	SidePair<ChassisMotorFeedbackRawFrame> wheel_frame;
@@ -323,6 +341,12 @@ struct ChassisModule::CycleOutput {
 	double pitch_wheel_torque_contribution = 0.0;
 	SidePair<double> leg_axial_force;
 	SidePair<JointPair<double>> joint_torque;
+	double raw_body_speed = 0.0;
+	double estimated_body_speed = 0.0;
+	double measured_turn_wheel_speed = 0.0;
+	double requested_turn_torque = 0.0;
+	double allocated_turn_torque = 0.0;
+	double turn_leg_torque_feedforward = 0.0;
 };
 
 ChassisModule::ChassisModule()
@@ -428,7 +452,8 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 		new_imu.sequence = 1U;
 		new_imu.precise_timestamp_us = onboard_imu.timestamp_us;
 		const bool transform_valid = TransformOnboardImuToChassis(
-			onboard_imu, new_imu.pitch_deg, new_imu.pitch_rate_rad_s);
+			onboard_imu, new_imu.pitch_deg, new_imu.pitch_rate_rad_s,
+			new_imu.yaw_rate_rad_s);
 		new_imu.valid = onboard_imu.valid && transform_valid &&
 				IS_ENABLED(CONFIG_WBR_CONTROL_ONBOARD_IMU_BODY_MAP_CONFIRMED);
 	}
@@ -449,6 +474,9 @@ void ChassisModule::ReadCycleInput(CycleInput &input, uint32_t now_ms, double dt
 		/* HI91 protocol data is already mapped to the historical chassis frame. */
 		new_imu.pitch_rate_rad_s = static_cast<float>(
 			static_cast<double>(hi91_imu.gyro_dps[0]) * kDpsToRadPerSec);
+		// HI91 历史底盘映射中 Z 轴为偏航轴；闭环接入前先通过遥测确认符号。
+		new_imu.yaw_rate_rad_s = static_cast<float>(
+			static_cast<double>(hi91_imu.gyro_dps[2]) * kDpsToRadPerSec);
 	}
 #endif
 	if (new_imu.sequence != 0U) {
@@ -570,6 +598,8 @@ void ChassisModule::UpdateControlState(const CycleInput &input)
 		stool_ready_ = false;
 		stool_controller_.Reset();
 		target_leg_length_ = StoolController::kTargetLegLength;
+		balance_theta_reference_ = kThetaBalanceBias;
+		balance_pitch_reference_ = 0.0;
 		last_requested_enable_ = input.requested_enable;
 		LOG_INF("chassis request %s", input.requested_enable ? "enabled" : "disabled");
 	}
@@ -603,8 +633,7 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 {
 	output = {};
 	if (control_state_ == ControlState::kStool) {
-		// 撑起状态负责腿长收缩、腿角对齐和关节级联 PID。
-		target_leg_length_ = StoolController::kTargetLegLength;
+		// 撑起状态先收腿，再执行腿角对齐和关节级联 PID。
 		StoolControllerInput stool_input = {};
 		stool_input.dt = input.dt;
 		stool_input.pitch = input.pitch;
@@ -622,6 +651,7 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 			input.joint_velocity.right.d,
 		};
 		const StoolControllerOutput stool = stool_controller_.Update(stool_input);
+		target_leg_length_ = stool.leg_length_reference;
 		output.joint_torque.left.b = stool.joint_torque[ToIndex(ChassisJoint::kLeftB)];
 		output.joint_torque.left.d = stool.joint_torque[ToIndex(ChassisJoint::kLeftD)];
 		output.joint_torque.right.b = stool.joint_torque[ToIndex(ChassisJoint::kRightB)];
@@ -632,8 +662,10 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 			balance_phase_reached_ = true;
 			control_state_ = ControlState::kBalance;
 			target_leg_length_ = 0.5 * (input.leg.left.length + input.leg.right.length);
+			balance_theta_reference_ = input.common_theta;
+			balance_pitch_reference_ = input.pitch;
 			ResetControlState();
-			LOG_INF("stool theta within tolerance; entering full LQR");
+			LOG_INF("stool ready; entering full LQR with synchronized attitude references");
 		}
 		return;
 	}
@@ -641,6 +673,13 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 	if (control_state_ != ControlState::kBalance) {
 		return;
 	}
+
+	// 从交接姿态以受限速率回到稳态目标，角速度反馈始终保持完整控制权。
+	balance_theta_reference_ = MoveToward(
+		balance_theta_reference_, kThetaBalanceBias,
+		kBalanceThetaReferenceRate * input.dt);
+	balance_pitch_reference_ = MoveToward(
+		balance_pitch_reference_, 0.0, kBalancePitchReferenceRate * input.dt);
 
 	// 平衡控制第一步：结合轮速和腿部运动补偿估计机体前向速度。
 	const SidePair<double> sin_theta = {
@@ -675,22 +714,38 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 	calculate_body_speed(Side::kLeft);
 	calculate_body_speed(Side::kRight);
 	const double raw_common_x_speed = 0.5 * (body_speed.left + body_speed.right);
+	// 正值表示左轮向前、右轮向后，与遥控器横向通道的正方向一致。
+	output.measured_turn_wheel_speed = 0.5 * (body_speed.left - body_speed.right);
+	output.raw_body_speed = raw_common_x_speed;
 	// IMU 前向加速度轴尚未标定，暂传 0，避免引入错误的轴向和符号。
 	const BodyMotionState &motion =
 		body_motion_estimator_.Update(raw_common_x_speed, 0.0, input.dt);
+	output.estimated_body_speed = motion.speed;
+	const bool motion_command_enabled = input.remote.run && input.requested_enable;
+	const double body_command =
+		motion_command_enabled ? ApplyRemoteDeadband(input.remote.chassis_x) : 0.0;
+	const double turn_command =
+		motion_command_enabled ? ApplyRemoteDeadband(input.remote.chassis_rotate) : 0.0;
+	target_body_speed_ = MoveToward(target_body_speed_, body_command * kMaxBodySpeed,
+				       kBodyAccelerationLimit * input.dt);
+	target_turn_speed_ = MoveToward(target_turn_speed_, turn_command * kMaxTurnWheelSpeed,
+				       kTurnAccelerationLimit * input.dt);
+	target_body_position_ += target_body_speed_ * input.dt;
 	const double position_error =
-		std::clamp(motion.position, -kPositionErrorLimit, kPositionErrorLimit);
+		std::clamp(motion.position - target_body_position_, -kPositionErrorLimit,
+			   kPositionErrorLimit);
 
 	// 第二步：按平均腿长调度 LQR 增益，得到轮毂和腿部姿态力矩。
 	constexpr size_t kLqrStateCount = ToIndex(LqrState::kCount);
 	double state_error[kLqrStateCount] = {};
-	state_error[ToIndex(LqrState::kLegAngle)] = input.common_theta - kThetaBalanceBias;
+	state_error[ToIndex(LqrState::kLegAngle)] =
+		input.common_theta - balance_theta_reference_;
 	state_error[ToIndex(LqrState::kLegAngularVelocity)] = input.common_theta_rate;
 	state_error[ToIndex(LqrState::kPosition)] =
 		kHoldLqrTranslationErrorAtZero ? 0.0 : position_error;
 	state_error[ToIndex(LqrState::kSpeed)] =
-		kHoldLqrTranslationErrorAtZero ? 0.0 : motion.speed;
-	state_error[ToIndex(LqrState::kPitch)] = input.pitch;
+		kHoldLqrTranslationErrorAtZero ? 0.0 : motion.speed - target_body_speed_;
+	state_error[ToIndex(LqrState::kPitch)] = input.pitch - balance_pitch_reference_;
 	state_error[ToIndex(LqrState::kPitchRate)] = input.pitch_rate;
 	const double common_leg_length = 0.5 * (input.leg.left.length + input.leg.right.length);
 	double common_gain[ToIndex(LqrOutput::kCount)][kLqrStateCount] = {};
@@ -714,10 +769,21 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 	}
 	const double wheel_torque = -kPerSideGainScale * wheel_sum;
 	const double leg_torque = -kPerSideGainScale * leg_sum;
+	const double common_wheel_torque = std::isfinite(wheel_torque) ? wheel_torque : 0.0;
+	output.requested_turn_torque = std::clamp(
+		kTurnSpeedKp * (target_turn_speed_ - output.measured_turn_wheel_speed),
+		-kTurnTorqueLimit, kTurnTorqueLimit);
+	// 差动力矩只使用共模平衡力矩之外的余量，避免转向命令削弱平衡控制权。
+	const double turn_torque_available =
+		std::max(0.0, kWheelTorqueLimit - std::abs(common_wheel_torque));
+	output.allocated_turn_torque = std::clamp(
+		output.requested_turn_torque, -turn_torque_available, turn_torque_available);
+	// 正转向力矩必须驱动 measured_turn_wheel_speed 增大，形成差速负反馈。
+	output.physical_wheel_torque.left =
+		common_wheel_torque + output.allocated_turn_torque;
+	output.physical_wheel_torque.right =
+		common_wheel_torque - output.allocated_turn_torque;
 	const auto assign_lqr_output = [&](Side side) {
-		// 轮毂力矩不在控制器内截断，最终由 DJI 协议范围保护。
-		output.physical_wheel_torque.Get(side) =
-			std::isfinite(wheel_torque) ? wheel_torque : 0.0;
 		// LQR 腿部姿态力矩保留完整控制权，最终由关节力矩上限保护。
 		output.requested_body_on_leg_torque.Get(side) =
 			std::isfinite(leg_torque) ? leg_torque : 0.0;
@@ -725,6 +791,17 @@ void ChassisModule::ComputeControlOutput(const CycleInput &input, CycleOutput &o
 	};
 	assign_lqr_output(Side::kLeft);
 	assign_lqr_output(Side::kRight);
+
+	/*
+	 * 差动转向力矩是六状态共模 LQR 之外的输入。轮电机定子会对腿施加与
+	 * 轮力矩相反的反作用力矩；把同一个已分配差动力矩前馈给腿部 VMC，
+	 * 可在腿角差形成前抵消扰动。后面的协调 PD 只负责摩擦、结构参数和
+	 * 力矩常数误差，因此不需要通过限制转向性能来避免“劈叉”。
+	 */
+	output.turn_leg_torque_feedforward =
+		kTurnLegTorqueFeedforward * output.allocated_turn_torque;
+	output.body_on_leg_torque.left += output.turn_leg_torque_feedforward;
+	output.body_on_leg_torque.right -= output.turn_leg_torque_feedforward;
 
 	// 左右腿协调项只在两侧之间重分配力矩，不改变总力矩。
 	const double coordinate_torque_request =
@@ -878,6 +955,9 @@ void ChassisModule::ApplyControlOutput(CycleOutput &output)
 void ChassisModule::ResetControlState()
 {
 	body_motion_estimator_.Reset();
+	target_body_speed_ = 0.0;
+	target_body_position_ = 0.0;
+	target_turn_speed_ = 0.0;
 	side_state_ = {};
 }
 
@@ -961,13 +1041,48 @@ void ChassisModule::PublishTelemetry(const CycleInput &input, const CycleOutput 
 	channels::OscilloscopeSample sample = {};
 	sample.sequence = ++sequence;
 	sample.uptime_ms = k_uptime_get_32();
-	sample.channel_count = 5;
+	sample.channel_count = kTelemetryChannelCount;
 
 	sample.value[0] = balance_state_x10;
-	sample.value[1] = input.pitch / kDegToRad;
-	sample.value[2] = input.pitch_rate / kDegToRad;
-	sample.value[3] = input.common_theta / kDegToRad;
-	sample.value[4] = input.common_theta_rate / kDegToRad;
+	sample.value[1] = input.common_theta / kDegToRad;
+	sample.value[2] = input.common_theta_rate;
+	sample.value[3] = input.pitch / kDegToRad;
+	sample.value[4] = input.pitch_rate;
+	sample.value[5] = input.leg.left.length;
+	sample.value[6] = input.leg.left.length_rate;
+	sample.value[7] = input.leg.right.length;
+	sample.value[8] = input.leg.right.length_rate;
+	sample.value[9] = target_leg_length_;
+	sample.value[10] = output.physical_wheel_torque.left;
+	sample.value[11] = output.physical_wheel_torque.right;
+	sample.value[12] = output.sent_wheel_torque.left;
+	sample.value[13] = output.sent_wheel_torque.right;
+	sample.value[14] = wheel_feedback_.left.current;
+	sample.value[15] = wheel_feedback_.right.current;
+	sample.value[16] = output.joint_torque.left.b;
+	sample.value[17] = output.joint_torque.left.d;
+	sample.value[18] = output.joint_torque.right.b;
+	sample.value[19] = output.joint_torque.right.d;
+	sample.value[20] = protocols::DmFeedbackTorque(joint_feedback_.left.b, kDmRange);
+	sample.value[21] = protocols::DmFeedbackTorque(joint_feedback_.left.d, kDmRange);
+	sample.value[22] = protocols::DmFeedbackTorque(joint_feedback_.right.b, kDmRange);
+	sample.value[23] = protocols::DmFeedbackTorque(joint_feedback_.right.d, kDmRange);
+	sample.value[24] = output.raw_body_speed;
+	sample.value[25] = output.estimated_body_speed;
+	sample.value[26] = input.feedback_valid ? 1.0 : 0.0;
+	// 27 以后只保留遥控运动和转向解耦调试所需的紧凑通道。
+	sample.value[27] = input.remote.chassis_x;
+	sample.value[28] = input.remote.chassis_rotate;
+	sample.value[29] = target_body_speed_;
+	sample.value[30] = target_turn_speed_;
+	sample.value[31] = output.measured_turn_wheel_speed;
+	sample.value[32] = input.imu.yaw_rate_rad_s;
+	sample.value[33] = output.allocated_turn_torque;
+	sample.value[34] =
+		std::remainder(input.leg.left.angle - input.leg.right.angle, kTwoPi) /
+		kDegToRad;
+	sample.value[35] = input.leg.left.angle_rate - input.leg.right.angle_rate;
+	sample.value[36] = output.turn_leg_torque_feedforward;
 	channels::latest_oscilloscope_sample.write(sample);
 }
 

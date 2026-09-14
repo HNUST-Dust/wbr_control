@@ -18,7 +18,7 @@
 
 namespace channels {
 
-constexpr size_t kOscilloscopeMaxChannels = 20U; ///< 单帧示波器遥测允许的最大浮点通道数。
+constexpr size_t kOscilloscopeMaxChannels = 37U; ///< 单帧示波器遥测允许的最大浮点通道数。
 
 /** @brief 发送给调试示波器的一组采样通道。 */
 struct OscilloscopeSample {

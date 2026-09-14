@@ -205,6 +205,11 @@ private:
 	BodyMotionEstimator body_motion_estimator_;
 	bool stool_ready_ = false;
 	double target_leg_length_ = StoolController::kTargetLegLength;
+	double balance_theta_reference_ = 0.0;
+	double balance_pitch_reference_ = 0.0;
+	double target_body_speed_ = 0.0;
+	double target_body_position_ = 0.0;
+	double target_turn_speed_ = 0.0;
 	SidePair<SideState> side_state_;
 	SidePair<protocols::DjiMotorFeedback> wheel_feedback_;
 	SidePair<JointPair<protocols::DmMotorFeedbackNormal>> joint_feedback_;
