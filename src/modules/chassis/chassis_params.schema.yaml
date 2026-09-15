@@ -1,0 +1,442 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  mechanics.wheel_reduction:
+    cpp_name: kWheelReduction
+    cpp_type: double
+    min: 0.0
+  mechanics.wheel_radius_m:
+    cpp_name: kWheelRadius
+    cpp_type: double
+    min: 0.0
+  mechanics.half_wheel_track_m:
+    cpp_name: kHalfWheelTrack
+    cpp_type: double
+    min: 0.0
+  mechanics.gravity_mps2:
+    cpp_name: kGravity
+    cpp_type: double
+    min: 0.0
+  mechanics.robot_mass_kg:
+    cpp_name: kRobotMass
+    cpp_type: double
+    min: 0.0
+  timing.default_dt_s:
+    cpp_name: kDefaultDt
+    cpp_type: double
+    min: 0.0
+    max: 0.1
+  timing.control_period_ms:
+    cpp_name: kControlPeriodMs
+    cpp_type: uint32_t
+    min: 1
+    max: 1000
+  timing.realtime_status_period_ticks:
+    cpp_name: kRealtimeStatusPeriodTicks
+    cpp_type: uint32_t
+    min: 1
+  balance.theta_reference_rate_rad_s:
+    cpp_name: kBalanceThetaReferenceRate
+    cpp_type: double
+    min: 0.0
+  balance.pitch_reference_rate_rad_s:
+    cpp_name: kBalancePitchReferenceRate
+    cpp_type: double
+    min: 0.0
+  balance.theta_bias_deg:
+    cpp_name: kThetaBalanceBiasDeg
+    cpp_type: double
+    min: -90.0
+    max: 90.0
+  balance.position_error_limit_m:
+    cpp_name: kPositionErrorLimit
+    cpp_type: double
+    min: 0.0
+  balance.remote_deadband:
+    cpp_name: kRemoteDeadband
+    cpp_type: double
+    min: 0.0
+    max: 0.99
+  balance.max_body_speed_mps:
+    cpp_name: kMaxBodySpeed
+    cpp_type: double
+    min: 0.0
+  balance.body_acceleration_limit_mps2:
+    cpp_name: kBodyAccelerationLimit
+    cpp_type: double
+    min: 0.0
+  balance.max_turn_wheel_speed_mps:
+    cpp_name: kMaxTurnWheelSpeed
+    cpp_type: double
+    min: 0.0
+  balance.turn_acceleration_limit_mps2:
+    cpp_name: kTurnAccelerationLimit
+    cpp_type: double
+    min: 0.0
+  balance.turn_torque_limit_nm:
+    cpp_name: kTurnTorqueLimit
+    cpp_type: double
+    min: 0.0
+  balance.yaw_tracking_error_limit_deg:
+    cpp_name: kYawTrackingErrorLimitDeg
+    cpp_type: double
+    min: 0.0
+    max: 180.0
+  balance.yaw_rate_filter_cutoff_hz:
+    cpp_name: kYawRateFilterCutoffHz
+    cpp_type: double
+    min: 0.0
+  balance.differential_leg_torque_limit_nm:
+    cpp_name: kDifferentialLegTorqueLimit
+    cpp_type: double
+    min: 0.0
+  balance.hold_lqr_translation_error_at_zero:
+    cpp_name: kHoldLqrTranslationErrorAtZero
+    cpp_type: bool
+  actuator.dji_current_per_nm:
+    cpp_name: kDjiCurrentPerNm
+    cpp_type: double
+    min: 0.0
+  actuator.dji_protocol_current_limit:
+    cpp_name: kDjiProtocolCurrentLimit
+    cpp_type: int16_t
+    min: 1
+    max: 32767
+  actuator.joint_torque_limit_nm:
+    cpp_name: kJointTorqueLimit
+    cpp_type: double
+    min: 0.0
+  actuator.wheel_command_can_id:
+    cpp_name: kWheelCommandId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  safety.remote_timeout_ms:
+    cpp_name: kRemoteTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  safety.imu_timeout_ms:
+    cpp_name: kImuTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  safety.motor_timeout_us:
+    cpp_name: kMotorTimeoutUs
+    cpp_type: uint64_t
+    min: 1
+  safety.tilt_cutoff_deg:
+    cpp_name: kTiltCutoffDeg
+    cpp_type: double
+    min: 0.0
+    max: 180.0
+  safety.dm_clear_ticks:
+    cpp_name: kDmClearTicks
+    cpp_type: uint32_t
+    min: 0
+  safety.dm_arm_ticks:
+    cpp_name: kDmArmTicks
+    cpp_type: uint32_t
+    min: 1
+  safety.dm_mode_period_ticks:
+    cpp_name: kDmModePeriodTicks
+    cpp_type: uint32_t
+    min: 1
+  mechanics.leg_geometry_m.ab:
+    cpp_name: kLengthAB
+    cpp_type: double
+    min: 0.0
+  mechanics.leg_geometry_m.bc:
+    cpp_name: kLengthBC
+    cpp_type: double
+    min: 0.0
+  mechanics.leg_geometry_m.cd:
+    cpp_name: kLengthCD
+    cpp_type: double
+    min: 0.0
+  mechanics.leg_geometry_m.ad:
+    cpp_name: kLengthAD
+    cpp_type: double
+    min: 0.0
+  mechanics.leg_geometry_m.ag:
+    cpp_name: kLengthAG
+    cpp_type: double
+    min: 0.0
+  mechanics.leg_geometry_m.gh:
+    cpp_name: kLengthGH
+    cpp_type: double
+    min: 0.0
+  stool.target_leg_length_m:
+    cpp_name: kStoolTargetLegLength
+    cpp_type: double
+    min: 0.0
+  stool.joint_velocity_filter_cutoff_hz:
+    cpp_name: kJointVelocityFilterCutoffHz
+    cpp_type: double
+    min: 0.0
+  stool.ready_theta_tolerance_deg:
+    cpp_name: kReadyThetaToleranceDeg
+    cpp_type: double
+    min: 0.0
+    max: 90.0
+  stool.leg_length_reference_rate_mps:
+    cpp_name: kLegLengthReferenceRate
+    cpp_type: double
+    min: 0.0
+  stool.swing_start_length_tolerance_m:
+    cpp_name: kSwingStartLengthTolerance
+    cpp_type: double
+    min: 0.0
+  stool.joint_position_kp:
+    cpp_name: kJointPositionKp
+    cpp_type: double
+    min: 0.0
+  stool.joint_position_ki:
+    cpp_name: kJointPositionKi
+    cpp_type: double
+    min: 0.0
+  stool.joint_position_max_speed_rad_s:
+    cpp_name: kJointPositionMaxSpeed
+    cpp_type: double
+    min: 0.0
+  stool.joint_speed_kp:
+    cpp_name: kJointSpeedKp
+    cpp_type: double
+    min: 0.0
+  stool.joint_speed_ki:
+    cpp_name: kJointSpeedKi
+    cpp_type: double
+    min: 0.0
+  stool.joint_integral_torque_limit_nm:
+    cpp_name: kJointIntegralTorqueLimit
+    cpp_type: double
+    min: 0.0
+  stool.joint_torque_max_nm:
+    cpp_name: kJointTorqueMax
+    cpp_type: double
+    min: 0.0
+  vmc.leg_length_kp:
+    cpp_name: kLegLengthKp
+    cpp_type: double
+    min: 0.0
+  vmc.leg_length_ki:
+    cpp_name: kLegLengthKi
+    cpp_type: double
+    min: 0.0
+  vmc.leg_length_kd:
+    cpp_name: kLegLengthKd
+    cpp_type: double
+    min: 0.0
+  vmc.retract_feedforward_n:
+    cpp_name: kRetractFeedforward
+    cpp_type: double
+    min: 0.0
+  vmc.retract_feedforward_deadband_m:
+    cpp_name: kRetractFeedforwardDeadband
+    cpp_type: double
+    min: 0.0
+  vmc.extend_velocity_feedforward:
+    cpp_name: kExtendVelocityFeedforward
+    cpp_type: double
+    min: 0.0
+  vmc.velocity_feedforward_deadband_mps:
+    cpp_name: kVelocityFeedforwardDeadband
+    cpp_type: double
+    min: 0.0
+  vmc.integral_force_limit_n:
+    cpp_name: kIntegralForceLimit
+    cpp_type: double
+    min: 0.0
+  vmc.force_limit_n:
+    cpp_name: kForceLimit
+    cpp_type: double
+    min: 0.0
+  motion_estimator.process_noise:
+    cpp_name: kProcessNoise
+    cpp_type: double
+    min: 0.0
+  motion_estimator.speed_measurement_noise:
+    cpp_name: kSpeedMeasurementNoise
+    cpp_type: double
+    min: 0.0
+  motion_estimator.acceleration_measurement_noise:
+    cpp_name: kAccelerationMeasurementNoise
+    cpp_type: double
+    min: 0.0
+  actuator.dm_range.position_min_rad:
+    cpp_name: kDmPositionMin
+    cpp_type: float
+  actuator.dm_range.position_max_rad:
+    cpp_name: kDmPositionMax
+    cpp_type: float
+  actuator.dm_range.velocity_min_rad_s:
+    cpp_name: kDmVelocityMin
+    cpp_type: float
+  actuator.dm_range.velocity_max_rad_s:
+    cpp_name: kDmVelocityMax
+    cpp_type: float
+  actuator.dm_range.kp_min:
+    cpp_name: kDmKpMin
+    cpp_type: float
+  actuator.dm_range.kp_max:
+    cpp_name: kDmKpMax
+    cpp_type: float
+  actuator.dm_range.kd_min:
+    cpp_name: kDmKdMin
+    cpp_type: float
+  actuator.dm_range.kd_max:
+    cpp_name: kDmKdMax
+    cpp_type: float
+  actuator.dm_range.torque_min_nm:
+    cpp_name: kDmTorqueMin
+    cpp_type: float
+  actuator.dm_range.torque_max_nm:
+    cpp_name: kDmTorqueMax
+    cpp_type: float
+  hardware.left.wheel_bus:
+    cpp_name: kLeftWheelBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.left.wheel_can_id:
+    cpp_name: kLeftWheelCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.left.joint_b_bus:
+    cpp_name: kLeftJointBBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.left.joint_b_can_id:
+    cpp_name: kLeftJointBCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.left.joint_d_bus:
+    cpp_name: kLeftJointDBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.left.joint_d_can_id:
+    cpp_name: kLeftJointDCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.left.kinematic_branch:
+    cpp_name: kLeftKinematicBranch
+    cpp_type: int
+    allowed:
+    - -1
+    - 1
+  hardware.left.leg_angle_offset_rad:
+    cpp_name: kLeftLegAngleOffset
+    cpp_type: double
+  hardware.left.leg_coordinate_sign:
+    cpp_name: kLeftLegCoordinateSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.left.wheel_feedback_sign:
+    cpp_name: kLeftWheelFeedbackSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.left.vmc_torque_sign:
+    cpp_name: kLeftVmcTorqueSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.left.wheel_command_sign:
+    cpp_name: kLeftWheelCommandSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.right.wheel_bus:
+    cpp_name: kRightWheelBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.right.wheel_can_id:
+    cpp_name: kRightWheelCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.right.joint_b_bus:
+    cpp_name: kRightJointBBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.right.joint_b_can_id:
+    cpp_name: kRightJointBCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.right.joint_d_bus:
+    cpp_name: kRightJointDBus
+    cpp_type: uint8_t
+    min: 0
+    max: 255
+  hardware.right.joint_d_can_id:
+    cpp_name: kRightJointDCanId
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  hardware.right.kinematic_branch:
+    cpp_name: kRightKinematicBranch
+    cpp_type: int
+    allowed:
+    - -1
+    - 1
+  hardware.right.leg_angle_offset_rad:
+    cpp_name: kRightLegAngleOffset
+    cpp_type: double
+  hardware.right.leg_coordinate_sign:
+    cpp_name: kRightLegCoordinateSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.right.wheel_feedback_sign:
+    cpp_name: kRightWheelFeedbackSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.right.vmc_torque_sign:
+    cpp_name: kRightVmcTorqueSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  hardware.right.wheel_command_sign:
+    cpp_name: kRightWheelCommandSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+constraints:
+- kind: less_than
+  left: safety.dm_clear_ticks
+  right: safety.dm_arm_ticks
+- kind: less_than
+  left: actuator.dm_range.position_min_rad
+  right: actuator.dm_range.position_max_rad
+- kind: less_than
+  left: actuator.dm_range.velocity_min_rad_s
+  right: actuator.dm_range.velocity_max_rad_s
+- kind: less_than
+  left: actuator.dm_range.kp_min
+  right: actuator.dm_range.kp_max
+- kind: less_than
+  left: actuator.dm_range.kd_min
+  right: actuator.dm_range.kd_max
+- kind: less_than
+  left: actuator.dm_range.torque_min_nm
+  right: actuator.dm_range.torque_max_nm

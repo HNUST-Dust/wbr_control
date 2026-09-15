@@ -2,7 +2,7 @@
 * @file src/modules/chassis/leg_kinematics.h
  * @ingroup wbr_modules
  * @brief 实现五连杆腿部的正逆运动学与雅可比计算。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #ifndef WBR_CONTROL_CORE_LEG_KINEMATICS_H_

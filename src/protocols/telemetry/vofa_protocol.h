@@ -32,14 +32,14 @@ constexpr size_t VofaJustFloatFrameSize(size_t channel_count)
 
 /**
  * @brief 将浮点通道编码为 VOFA+ JustFloat 数据帧。
- * @param[in] channels 待编码的浮点采样通道数组。
+ * @param[in] msg 待编码的浮点采样通道数组。
  * @param channel_count 浮点采样通道数量。
  * @param[out] out 接收结果的输出对象；不得为空。
  * @param out_capacity `out` 缓冲区容量，单位为字节。
  * @param[out] out_size 接收实际编码帧长度的指针；不得为空。
  * @return 成功返回 0，参数无效或底层操作失败时返回负 errno 错误码。
  */
-int EncodeVofaJustFloat(const float *channels,
+int EncodeVofaJustFloat(const float *msg,
 		    size_t channel_count,
 		    uint8_t *out,
 		    size_t out_capacity,

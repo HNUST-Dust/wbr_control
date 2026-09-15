@@ -1,0 +1,122 @@
+# Chassis parameters are converted to constexpr C++ during the build.
+# Keep units in field names and change schema_version when the format changes.
+schema_version: 1
+
+mechanics:
+  wheel_reduction: 15.764705882352942
+  wheel_radius_m: 0.058
+  half_wheel_track_m: 0.215
+  gravity_mps2: 9.80665
+  robot_mass_kg: 12.054
+  leg_geometry_m:
+    ab: 0.0945
+    bc: 0.1125
+    cd: 0.116
+    ad: 0.090
+    ag: 0.210
+    gh: 0.250
+
+timing:
+  default_dt_s: 0.001
+  control_period_ms: 1
+  realtime_status_period_ticks: 100
+
+balance:
+  theta_reference_rate_rad_s: 1.0
+  pitch_reference_rate_rad_s: 0.6
+  theta_bias_deg: 5.0
+  position_error_limit_m: 0.15
+  remote_deadband: 0.05
+  max_body_speed_mps: 0.8
+  body_acceleration_limit_mps2: 1.2
+  max_turn_wheel_speed_mps: 0.6
+  turn_acceleration_limit_mps2: 1.5
+  turn_torque_limit_nm: 1.2
+  yaw_tracking_error_limit_deg: 45.0
+  yaw_rate_filter_cutoff_hz: 20.0
+  differential_leg_torque_limit_nm: 4.0
+  hold_lqr_translation_error_at_zero: false
+
+stool:
+  target_leg_length_m: 0.150
+  joint_velocity_filter_cutoff_hz: 35.0
+  ready_theta_tolerance_deg: 5.0
+  leg_length_reference_rate_mps: 1.2
+  swing_start_length_tolerance_m: 0.05
+  joint_position_kp: 20.0
+  joint_position_ki: 0.0
+  joint_position_max_speed_rad_s: 44.0
+  joint_speed_kp: 4.0
+  joint_speed_ki: 0.0
+  joint_integral_torque_limit_nm: 20.0
+  joint_torque_max_nm: 54.0
+
+vmc:
+  leg_length_kp: 600.0
+  leg_length_ki: 100.0
+  leg_length_kd: 120.0
+  retract_feedforward_n: 10.0
+  retract_feedforward_deadband_m: 0.003
+  extend_velocity_feedforward: 60.0
+  velocity_feedforward_deadband_mps: 0.005
+  integral_force_limit_n: 60.0
+  force_limit_n: 150.0
+
+motion_estimator:
+  process_noise: 0.1
+  speed_measurement_noise: 100.0
+  acceleration_measurement_noise: 1.0e+12
+
+actuator:
+  dji_current_per_nm: 3450.0
+  dji_protocol_current_limit: 16384
+  joint_torque_limit_nm: 54.0
+  wheel_command_can_id: 0x200
+  dm_range:
+    position_min_rad: -12.56637
+    position_max_rad: 12.56637
+    velocity_min_rad_s: -45.0
+    velocity_max_rad_s: 45.0
+    kp_min: 0.0
+    kp_max: 500.0
+    kd_min: 0.0
+    kd_max: 5.0
+    torque_min_nm: -54.0
+    torque_max_nm: 54.0
+
+safety:
+  remote_timeout_ms: 1000
+  imu_timeout_ms: 3
+  motor_timeout_us: 2000
+  tilt_cutoff_deg: 75.0
+  dm_clear_ticks: 50
+  dm_arm_ticks: 300
+  dm_mode_period_ticks: 10
+
+hardware:
+  left:
+    wheel_bus: 3
+    wheel_can_id: 0x201
+    joint_b_bus: 3
+    joint_b_can_id: 0x00
+    joint_d_bus: 3
+    joint_d_can_id: 0x03
+    kinematic_branch: 1
+    leg_angle_offset_rad: -0.036063
+    leg_coordinate_sign: -1.0
+    wheel_feedback_sign: 1.0
+    vmc_torque_sign: -1.0
+    wheel_command_sign: -1.0
+  right:
+    wheel_bus: 2
+    wheel_can_id: 0x201
+    joint_b_bus: 2
+    joint_b_can_id: 0x01
+    joint_d_bus: 2
+    joint_d_can_id: 0x02
+    kinematic_branch: -1
+    leg_angle_offset_rad: -3.121010
+    leg_coordinate_sign: 1.0
+    wheel_feedback_sign: -1.0
+    vmc_torque_sign: 1.0
+    wheel_command_sign: 1.0

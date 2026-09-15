@@ -45,21 +45,21 @@ if rg -n \
   exit 1
 fi
 
-# channels 是最低层消息契约，不依赖业务模块、协议或平台实现。
+# msg 是最低层消息契约，不依赖业务模块、协议或平台实现。
 if rg -n \
   '#include [<"](?:modules|protocols|platform)/|modules::|platform::|protocols::' \
-  "${ROOT_DIR}/channels" \
+  "${ROOT_DIR}/msg" \
   "${SOURCE_GLOBS[@]}"; then
-  echo "channels must not depend on modules, protocols, or platform." >&2
+  echo "msg must not depend on modules, protocols, or platform." >&2
   exit 1
 fi
 
 # protocols 只负责编解码，不依赖应用层。
 if rg -n \
-  '#include [<"](?:modules|channels|platform)/|modules::|channels::|platform::' \
+  '#include [<"](?:modules|msg|platform)/|modules::|msg::|platform::' \
   "${ROOT_DIR}/src/protocols" \
   "${SOURCE_GLOBS[@]}"; then
-  echo "protocols must not depend on modules, channels, or platform." >&2
+  echo "protocols must not depend on modules, msg, or platform." >&2
   exit 1
 fi
 

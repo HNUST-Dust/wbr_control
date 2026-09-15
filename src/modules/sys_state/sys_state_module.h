@@ -4,7 +4,7 @@
 * @file src/modules/sys_state/sys_state_module.h
  * @ingroup wbr_modules
  * @brief 管理系统状态、使能条件与故障状态。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once

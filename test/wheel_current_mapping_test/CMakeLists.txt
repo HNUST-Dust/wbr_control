@@ -15,9 +15,9 @@ target_include_directories(app PRIVATE
 
 target_sources(app PRIVATE
   src/main.cpp
-  ../../channels/oscilloscope_sample.cpp
-  ../../channels/remote_input_state.cpp
-  ../../channels/uart_raw_frame_queue.cpp
+  ../../msg/oscilloscope_sample.cpp
+  ../../msg/remote_input_state.cpp
+  ../../msg/uart_raw_frame_queue.cpp
   ../../src/modules/oscilloscope/oscilloscope_module.cpp
   ../../src/modules/remote_input/remote_input_module.cpp
   ../../src/protocols/motors/dji_motor_protocol.cpp

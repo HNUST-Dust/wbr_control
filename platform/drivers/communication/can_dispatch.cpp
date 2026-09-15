@@ -17,8 +17,8 @@
 
 #include <drivers/can/hpmicro_can_batch.h>
 
-#include <channels/chassismotors_feedback_raw.hpp>
-#include <channels/chassismotors_send_raw.hpp>
+#include <msg/chassismotors_feedback_raw.hpp>
+#include <msg/chassismotors_send_raw.hpp>
 #include <platform/drivers/communication/can_dispatch.h>
 #include <scheduling/thread_priorities.h>
 
@@ -108,21 +108,21 @@ void AtomicUpdateMax(atomic_t *target, uint32_t candidate)
 	}
 }
 
-SeqlockValue<ChassisMotorSendRawFrame> *TxSlotStorage(uint8_t slot)
+LatestValue<msg::ChassisMotorSendRawFrame> *TxSlotStorage(uint8_t slot)
 {
 	switch (static_cast<platform::CanTxSlot>(slot)) {
 	case platform::CanTxSlot::kLeftWheel:
-		return &left_wheel_send_raw;
+		return &msg::left_wheel_send_raw;
 	case platform::CanTxSlot::kRightWheel:
-		return &right_wheel_send_raw;
+		return &msg::right_wheel_send_raw;
 	case platform::CanTxSlot::kLeftJointB:
-		return &left_b_motor_send_raw;
+		return &msg::left_b_motor_send_raw;
 	case platform::CanTxSlot::kLeftJointD:
-		return &left_d_motor_send_raw;
+		return &msg::left_d_motor_send_raw;
 	case platform::CanTxSlot::kRightJointB:
-		return &right_b_motor_send_raw;
+		return &msg::right_b_motor_send_raw;
 	case platform::CanTxSlot::kRightJointD:
-		return &right_d_motor_send_raw;
+		return &msg::right_d_motor_send_raw;
 	default:
 		return nullptr;
 	}
@@ -384,8 +384,8 @@ void CanTxLoop(void *bus_arg, void *, void *)
 				continue;
 			}
 
-			SeqlockValue<ChassisMotorSendRawFrame> *storage = TxSlotStorage(slot);
-			ChassisMotorSendRawFrame source = {};
+			LatestValue<msg::ChassisMotorSendRawFrame> *storage = TxSlotStorage(slot);
+			msg::ChassisMotorSendRawFrame source = {};
 			const atomic_val_t generation = atomic_get(&g_tx_slot_generation[slot]);
 			if ((storage == nullptr) || !storage->read(source) ||
 			    (source.bus != worker_bus) || (source.dlc > 8U)) {
@@ -459,7 +459,7 @@ void CanRxCallback(const struct device *dev, struct can_frame *frame, void *user
 	BusRxStats &stats = g_rx_stats[bus];
 	++stats.total;
 
-	ChassisMotorFeedbackRawFrame rx_frame = {};
+	msg::ChassisMotorFeedbackRawFrame rx_frame = {};
 	rx_frame.timestamp_us = k_ticks_to_us_floor64(k_uptime_ticks());
 	rx_frame.precise_timestamp_us = k_cyc_to_us_floor64(k_cycle_get_64());
 	rx_frame.valid = true;
@@ -475,7 +475,7 @@ void CanRxCallback(const struct device *dev, struct can_frame *frame, void *user
 	} else if (bus == 2U) {
 		switch (static_cast<uint16_t>(frame->id)) {
 			case kRightWheelId:
-				right_wheel_feedback_raw.write(rx_frame);
+				msg::right_wheel_feedback_raw.write(rx_frame);
 				routed = true;
 				routed_slot = static_cast<size_t>(platform::CanTxSlot::kRightWheel);
 				break;
@@ -483,11 +483,11 @@ void CanRxCallback(const struct device *dev, struct can_frame *frame, void *user
 				break;
 			}
 			if (!routed && (frame->id == kRightJointBMasterId)) {
-				right_b_motor_feedback_raw.write(rx_frame);
+				msg::right_b_motor_feedback_raw.write(rx_frame);
 				routed = true;
 				routed_slot = static_cast<size_t>(platform::CanTxSlot::kRightJointB);
 			} else if (!routed && (frame->id == kRightJointDMasterId)) {
-				right_d_motor_feedback_raw.write(rx_frame);
+				msg::right_d_motor_feedback_raw.write(rx_frame);
 				routed = true;
 				routed_slot = static_cast<size_t>(platform::CanTxSlot::kRightJointD);
 			}
@@ -495,7 +495,7 @@ void CanRxCallback(const struct device *dev, struct can_frame *frame, void *user
 	} else if (bus == 3U) {
 		switch (static_cast<uint16_t>(frame->id)) {
 		case kLeftWheelId:
-			left_wheel_feedback_raw.write(rx_frame);
+			msg::left_wheel_feedback_raw.write(rx_frame);
 			routed = true;
 			routed_slot = static_cast<size_t>(platform::CanTxSlot::kLeftWheel);
 			break;
@@ -503,11 +503,11 @@ void CanRxCallback(const struct device *dev, struct can_frame *frame, void *user
 			break;
 		}
 		if (!routed && (frame->id == kLeftJointBMasterId)) {
-			left_b_motor_feedback_raw.write(rx_frame);
+			msg::left_b_motor_feedback_raw.write(rx_frame);
 			routed = true;
 			routed_slot = static_cast<size_t>(platform::CanTxSlot::kLeftJointB);
 		} else if (!routed && (frame->id == kLeftJointDMasterId)) {
-			left_d_motor_feedback_raw.write(rx_frame);
+			msg::left_d_motor_feedback_raw.write(rx_frame);
 			routed = true;
 			routed_slot = static_cast<size_t>(platform::CanTxSlot::kLeftJointD);
 		}
@@ -680,7 +680,7 @@ int SubmitCanStandardFrame(CanTxSlot slot, uint8_t bus, uint16_t can_id, const u
 		return -EINVAL;
 	}
 
-	ChassisMotorSendRawFrame frame = {};
+	msg::ChassisMotorSendRawFrame frame = {};
 	frame.bus = bus;
 	frame.can_id = can_id;
 	frame.dlc = dlc;
@@ -688,7 +688,7 @@ int SubmitCanStandardFrame(CanTxSlot slot, uint8_t bus, uint16_t can_id, const u
 		frame.data[i] = data[i];
 	}
 
-	SeqlockValue<ChassisMotorSendRawFrame> *storage = TxSlotStorage(slot_index);
+	LatestValue<msg::ChassisMotorSendRawFrame> *storage = TxSlotStorage(slot_index);
 	if (storage == nullptr) {
 		return -EINVAL;
 	}

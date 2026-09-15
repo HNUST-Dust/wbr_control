@@ -6,7 +6,7 @@
 
 /** @defgroup wbr_control wbr_control 固件 */
 
-/** @defgroup wbr_channels 数据通道
+/** @defgroup wbr_msg 数据通道
  *  @ingroup wbr_control
  *  @brief 定义线程之间交换的快照、原始帧和系统状态消息。
  */

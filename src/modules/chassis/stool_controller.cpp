@@ -14,26 +14,15 @@
 #include <algorithm>
 #include <cmath>
 
+#include "chassis_config.h"
+
 namespace
 {
 
-constexpr double kTwoPi = 6.28318530717958647692;
-constexpr double kDegToRad = 0.01745329251994329577;
-constexpr double kJointVelocityFilterCutoffHz = 35.0;
-constexpr double kReadyThetaTolerance = 5.0 * kDegToRad;
-constexpr double kLegLengthReferenceRate = 1.2;
-constexpr double kSwingStartLengthTolerance = 0.05;
-
-constexpr double kJointPositionKp = 20.0;
-constexpr double kJointPositionKi = 0.0;
-constexpr double kJointPositionMaxSpeed = 44.0;
-constexpr double kJointSpeedKp = 4.0;
-constexpr double kJointSpeedKi = 0.0;
-constexpr double kJointIntegralTorqueLimit = 20.0;
-constexpr double kJointTorqueMax = 54.0;
-
-constexpr int kBranch[2] = {1, -1};
-constexpr double kLegAngleOffset[2] = {-0.036063, -3.121010};
+using namespace modules::chassis_config;
+constexpr double kReadyThetaTolerance = kReadyThetaToleranceDeg * kDegToRad;
+constexpr int kBranch[2] = {kLeftKinematicBranch, kRightKinematicBranch};
+constexpr double kLegAngleOffset[2] = {kLeftLegAngleOffset, kRightLegAngleOffset};
 
 } // namespace
 
@@ -111,13 +100,13 @@ void StoolController::UpdatePoseTarget(const StoolControllerInput &input)
 	const double maximum_length_step = kLegLengthReferenceRate * bounded_dt;
 	for (size_t side = 0U; side < input.leg.size(); ++side) {
 		leg_length_reference_[side] += std::clamp(
-			kTargetLegLength - leg_length_reference_[side],
+			kStoolTargetLegLength - leg_length_reference_[side],
 			-maximum_length_step, maximum_length_step);
 	}
 	if (!swing_active_) {
 		swing_active_ = std::all_of(
 			input.leg.begin(), input.leg.end(), [](const LegKinematics &leg) {
-				return std::abs(leg.length - kTargetLegLength) <=
+				return std::abs(leg.length - kStoolTargetLegLength) <=
 				       kSwingStartLengthTolerance;
 			});
 	}

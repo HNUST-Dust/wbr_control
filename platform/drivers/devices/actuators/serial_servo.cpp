@@ -11,7 +11,7 @@
 
 #include <errno.h>
 
-#include <channels/serialservo_send_raw.hpp>
+#include <msg/serialservo_send_raw.hpp>
 #include <zephyr/devicetree.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
@@ -89,9 +89,9 @@ int SendStopPacket(uint8_t id)
 
 void TxLoop(void *, void *, void *)
 {
-	SeqlockValue<SerialServoSendRawFrame> *const slots[] = {
-		&yaw_servo_send_raw,
-		&pitch_servo_send_raw,
+	LatestValue<msg::SerialServoSendRawFrame> *const slots[] = {
+		&msg::yaw_servo_send_raw,
+		&msg::pitch_servo_send_raw,
 	};
 	uint32_t last_sequence[sizeof(slots) / sizeof(slots[0])] = {};
 
@@ -102,7 +102,7 @@ void TxLoop(void *, void *, void *)
 				continue;
 			}
 
-			SerialServoSendRawFrame value = {};
+			msg::SerialServoSendRawFrame value = {};
 			if (!slots[i]->read(value)) {
 				continue;
 			}

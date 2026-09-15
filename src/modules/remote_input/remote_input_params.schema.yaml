@@ -1,0 +1,38 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  remote_input.rx_idle_timeout_us:
+    cpp_name: kRemoteInputRxIdleTimeoutUs
+    cpp_type: int32_t
+    min: 1
+  remote_input.wfly_sbus_mid:
+    cpp_name: kRemoteInputWflySbusMid
+    cpp_type: float
+    min: 0
+    max: 2047
+  remote_input.wfly_sbus_scale:
+    cpp_name: kRemoteInputWflySbusScale
+    cpp_type: float
+    min: 0
+  remote_input.wfly_switch_low_mid_threshold:
+    cpp_name: kRemoteInputWflySwitchLowMidThreshold
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  remote_input.wfly_switch_mid_high_threshold:
+    cpp_name: kRemoteInputWflySwitchMidHighThreshold
+    cpp_type: uint16_t
+    min: 0
+    max: 2047
+  remote_input.wfly_frame_lost_timeout_ms:
+    cpp_name: kRemoteInputWflyFrameLostTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+constraints:
+- kind: less_than
+  left: remote_input.wfly_switch_low_mid_threshold
+  right: remote_input.wfly_switch_mid_high_threshold

@@ -1,0 +1,8 @@
+schema_version: 1
+system_state:
+  pwm_levels: 64
+  led_frame_ms: 8
+  breath_steps: 200
+  buzzer_period_us: 2000
+  buzzer_tick_percent: 20
+  buzzer_tick_steps: 5

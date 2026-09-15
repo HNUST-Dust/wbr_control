@@ -28,7 +28,7 @@ wbr_control 已经不是“仅骨架”阶段，而是“主干可运行 + 分�
 - src/main.cpp：启动编排
 - modules：remote_input、chassis 等业务模块
 - services：chassis_tuning
-- channels：zbus 消息主题
+- msg：zbus 消息主题
 - protocols：motors 协议编解码
 - platform：uart/can/littlefs 与板级封装
 
@@ -40,8 +40,8 @@ wbr_control 已经不是“仅骨架”阶段，而是“主干可运行 + 分�
 
 结构迁移状态（阶段 B）：
 - 启动编排已收敛到 `src/main.cpp`，模块实例也在 main 中直接拉起。
-- 核心命名空间已迁移为顶层领域命名空间（如 `modules`、`channels`、`protocols`、`services`）。
-- `core` 已彻底删除（无兼容层残留），统一使用 `modules/*`、`channels/*` 等根目录头路径。
+- 核心命名空间已迁移为顶层领域命名空间（如 `modules`、`msg`、`protocols`、`services`）。
+- `core` 已彻底删除（无兼容层残留），统一使用 `modules/*`、`msg/*` 等根目录头路径。
 - 已去掉外层 `app/` 物理目录，语义目录直接位于应用根目录。
 - staged 模块已统一收敛到 `modules/staging/*`，active 与 staged 已物理分区。
 - 独立 `src/algorithms` 已拆除；算法随实际控制器或估计器维护。板载 IMU 的 Quaternion EKF 位于 `src/modules/ahrs/`，不处理 HI91 数据。
@@ -52,7 +52,7 @@ wbr_control 已经不是“仅骨架”阶段，而是“主干可运行 + 分�
 默认构建已接入：
 - modules：remote_input、chassis
 - services：chassis_tuning
-- channels：system_status、chassis_command、chassis_state、remote_input、motor_feedback
+- msg：system_status、chassis_command、chassis_state、remote_input、motor_feedback
 - protocols/motors：dji、dm、cubemars（按具体协议直接接入）
 - 模块专用算法：随对应 module 一起构建
 - platform：board_identity
@@ -101,7 +101,7 @@ P1（下一阶段）：
 
 P2（演进）：
 4. include 可见范围收敛
-- 已完成第二步：上层 include 已迁移到应用根目录下的领域前缀（如 `modules/...`、`channels/...`、`platform/...`）。
+- 已完成第二步：上层 include 已迁移到应用根目录下的领域前缀（如 `modules/...`、`msg/...`、`platform/...`）。
 
 5. 回归测试与回放资产补齐
 - 已完成第一步：新增最小 smoke 回归脚本 `applications/wbr_control/tools/smoke_regression.sh`（文档见 `applications/wbr_control/docs/SMOKE_REGRESSION.md`）；后续仍需补齐行为一致性回放与实机时序测试。

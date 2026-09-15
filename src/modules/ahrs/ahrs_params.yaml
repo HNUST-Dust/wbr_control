@@ -1,0 +1,24 @@
+schema_version: 1
+ahrs:
+  gravity_mps2: 9.80665
+  accel_lsb_per_g: 4096.0
+  gyro_lsb_per_dps: 16.384
+  sample_frequency_hz: 1000.0
+  period_ms: 1
+  nominal_sample_interval_us: 1000
+  minimum_sane_sample_interval_us: 400
+  maximum_sane_sample_interval_us: 5000
+  calibration_accel_tolerance_mps2: 2.0
+  calibration_gyro_limit_rad_s: 0.1
+  temperature:
+    target_c: 45.0
+    calibration_window_c: 0.5
+    cutoff_c: 80.0
+    minimum_c: -40.0
+    maximum_c: 100.0
+    max_duty_percent: 100.0
+    kp: 10.0
+    ki: 0.5
+  ekf:
+    stable_accel_tolerance_mps2: 0.5
+    stable_gyro_limit_rad_s: 0.3

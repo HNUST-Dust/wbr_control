@@ -48,7 +48,7 @@
 - 板级和外设初始化：交给 `boards/`、DTS、Kconfig、Zephyr 驱动初始化
 - 应用启动编排：交给 `src/main.cpp`
 - 模块注册与拉起：交给 `modules/module_manager.*`
-- 数据分发：交给 `platform/drivers/communication/*` + `channels/*`
+- 数据分发：交给 `platform/drivers/communication/*` + `msg/*`
 
 也就是说，Zephyr 下不应再保留一个统一的“全局启动任务”去做所有事情。
 
@@ -145,8 +145,8 @@ applications/wbr_control/
       remote_input/
       referee/
     zbus/
-      channels.h
-      channels.cpp
+      msg.h
+      msg.cpp
       observers.h
     topics/
       remote_input_channel.h
@@ -248,7 +248,7 @@ applications/wbr_control/
 - 删除 `app/features/` 下和 `modules/` 语义重复的旧占位文件
 - 保留并强化 `modules/` 作为主功能目录
 - 放弃自建 `app/pubsub/`，改为使用官方 `zbus`
-- 保留 `channels/` 作为消息类型定义层
+- 保留 `msg/` 作为消息类型定义层
 - 将设备占位命名从旧 `dvc_*` 风格切到角色命名
 - 维持 `protocols/pc_link` 作为链路层命名
 
@@ -265,7 +265,7 @@ applications/wbr_control/
 为了风险最小，建议后续按这个顺序继续收敛：
 
 1. 先把 `modules/` 的 C++ 生命周期接口定型
-2. 再把 `channels/` 的基础接口定型
+2. 再把 `msg/` 的基础接口定型
 3. 再把 `debug/` 与 `platform/storage/` 的接入边界定型
 4. 再定 `remote_input_module`、`referee_module` 这类输入模块的话题输出
 5. 然后定 `chassis`、`gimbal`、`arm`、`gantry` 的命令与状态话题

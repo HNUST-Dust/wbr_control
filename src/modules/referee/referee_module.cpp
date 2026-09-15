@@ -13,7 +13,7 @@
 
 #include "referee_module.h"
 
-#include <channels/uart_raw_frame_queue.h>
+#include <msg/uart_raw_frame_queue.hpp>
 #include <protocols/referee/referee_protocol.h>
 #include <scheduling/thread_priorities.h>
 
@@ -52,8 +52,8 @@ void RefereeModule::RunLoop()
 	LOG_INF("referee module started");
 
 	while (true) {
-		channels::UartRawFrameMessage frame = {};
-		if (k_msgq_get(&channels::referee_uart_raw_msgq, &frame, K_FOREVER) != 0) {
+		msg::UartRawFrameMessage frame = {};
+		if (msg::referee_uart_raw_messages.Pop(frame, K_FOREVER) != 0) {
 			continue;
 		}
 		FeedBytes(frame.data, frame.len);
@@ -64,8 +64,8 @@ void RefereeModule::RunLoop()
 void RefereeModule::DecodeUartFramesInQueue()
 {
 	while (true) {
-		channels::UartRawFrameMessage frame = {};
-		if (k_msgq_get(&channels::referee_uart_raw_msgq, &frame, K_NO_WAIT) != 0) {
+		msg::UartRawFrameMessage frame = {};
+		if (msg::referee_uart_raw_messages.Pop(frame, K_NO_WAIT) != 0) {
 			break;
 		}
 

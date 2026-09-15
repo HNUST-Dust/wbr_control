@@ -17,10 +17,11 @@
 #include <zephyr/timing/timing.h>
 #include <zephyr/devicetree.h>
 
-#include <channels/onboard_imu_sample.hpp>
-#include <channels/oscilloscope_sample.hpp>
+#include <msg/onboard_imu_sample.hpp>
+#include <msg/oscilloscope_sample.hpp>
 #include <scheduling/periodic_schedule.h>
 #include <scheduling/thread_priorities.h>
+#include <ahrs_params_generated.h>
 
 #if defined(CONFIG_WBR_CONTROL_MODULE_AHRS)
 
@@ -34,31 +35,38 @@ namespace {
 constexpr size_t kAxisCount = 3U;
 constexpr uint32_t kCalibrationSampleCount =
 	CONFIG_WBR_CONTROL_ONBOARD_IMU_CALIBRATION_SAMPLES;
-constexpr float kGravityMps2 = 9.80665F;
-constexpr float kAccelLsbPerG = 4096.0F;
-constexpr float kGyroLsbPerDps = 16.384F;
+constexpr float kGravityMps2 = modules::ahrs_params::kAhrsGravityMps2;
+constexpr float kAccelLsbPerG = modules::ahrs_params::kAhrsAccelLsbPerG;
+constexpr float kGyroLsbPerDps = modules::ahrs_params::kAhrsGyroLsbPerDps;
 constexpr float kDegToRad = 0.01745329251994329577F;
-constexpr float kSampleFrequencyHz = 1000.0F;
-constexpr uint32_t kAhrsPeriodMs = 1U;
-constexpr uint32_t kNominalSampleIntervalUs = 1000U;
-constexpr uint32_t kMinimumSaneSampleIntervalUs = 400U;
-constexpr uint32_t kMaximumSaneSampleIntervalUs = 5000U;
+constexpr float kSampleFrequencyHz = modules::ahrs_params::kAhrsSampleFrequencyHz;
+constexpr uint32_t kAhrsPeriodMs = modules::ahrs_params::kAhrsPeriodMs;
+constexpr uint32_t kNominalSampleIntervalUs =
+	modules::ahrs_params::kAhrsNominalSampleIntervalUs;
+constexpr uint32_t kMinimumSaneSampleIntervalUs =
+	modules::ahrs_params::kAhrsMinimumSaneSampleIntervalUs;
+constexpr uint32_t kMaximumSaneSampleIntervalUs =
+	modules::ahrs_params::kAhrsMaximumSaneSampleIntervalUs;
 /* The HXY part can carry a sizeable board-level acceleration scale/offset
  * error. Accept a stationary 1 g vector here, then estimate one scalar gain
  * from the complete calibration window before feeding acceleration to EKF.
  */
-constexpr float kCalibrationAccelToleranceMps2 = 2.0F;
-constexpr float kCalibrationGyroLimitRadS = 0.1F;
-constexpr float kTemperatureTargetC = 45.0F;
-constexpr float kTemperatureCalibrationWindowC = 0.5F;
-constexpr float kTemperatureCutoffC = 80.0F;
-constexpr float kTemperatureMinimumC = -40.0F;
-constexpr float kTemperatureMaximumC = 100.0F;
-constexpr float kTemperatureMaxDutyPercent = 100.0F;
+constexpr float kCalibrationAccelToleranceMps2 =
+	modules::ahrs_params::kAhrsCalibrationAccelToleranceMps2;
+constexpr float kCalibrationGyroLimitRadS =
+	modules::ahrs_params::kAhrsCalibrationGyroLimitRadS;
+constexpr float kTemperatureTargetC = modules::ahrs_params::kAhrsTemperatureTargetC;
+constexpr float kTemperatureCalibrationWindowC =
+	modules::ahrs_params::kAhrsTemperatureCalibrationWindowC;
+constexpr float kTemperatureCutoffC = modules::ahrs_params::kAhrsTemperatureCutoffC;
+constexpr float kTemperatureMinimumC = modules::ahrs_params::kAhrsTemperatureMinimumC;
+constexpr float kTemperatureMaximumC = modules::ahrs_params::kAhrsTemperatureMaximumC;
+constexpr float kTemperatureMaxDutyPercent =
+	modules::ahrs_params::kAhrsTemperatureMaxDutyPercent;
 /* The measured plant reaches about 88 degC at continuous full power;
  * the independent 80 degC cutoff remains the safety limit. */
-constexpr float kTemperatureKp = 10.0F;
-constexpr float kTemperatureKi = 0.5F;
+constexpr float kTemperatureKp = modules::ahrs_params::kAhrsTemperatureKp;
+constexpr float kTemperatureKi = modules::ahrs_params::kAhrsTemperatureKi;
 K_THREAD_STACK_DEFINE(g_ahrs_stack, 4096);
 
 int16_t DecodeBigEndian(const uint8_t *bytes)
@@ -188,7 +196,7 @@ void Ahrs::UpdateImuTemperatureControl(float dt_seconds)
 void Ahrs::PublishTelemetry()
 {
 	static uint32_t sequence = 0U;
-	channels::OscilloscopeSample sample = {};
+	msg::OscilloscopeSample sample = {};
 	sample.sequence = ++ sequence;
 	sample.uptime_ms = k_uptime_get_32();
 	sample.channel_count = 5;
@@ -198,7 +206,7 @@ void Ahrs::PublishTelemetry()
 	sample.value[2] = ekf_.RollDeg();
 	sample.value[3] = imu_temperature_c_;
 	sample.value[4] = imu_heater_duty_percent_;
-	channels::latest_oscilloscope_sample.write(sample);
+	msg::latest_oscilloscope_sample.write(sample);
 }
 
 void Ahrs::ProcessBurst(const OnboardImu::Burst &burst)
@@ -352,7 +360,7 @@ void Ahrs::UpdateEstimator(const float gyro_rad_s[3], const float accel_mps2[3],
 
 void Ahrs::PublishSample(uint32_t data_ready_cycle)
 {
-	channels::OnboardImuSample sample = {};
+	msg::OnboardImuSample sample = {};
 	const uint64_t publish_cycle = k_cycle_get_64();
 	const uint32_t acquisition_cycles =
 		static_cast<uint32_t>(publish_cycle) - data_ready_cycle;
@@ -364,7 +372,7 @@ void Ahrs::PublishSample(uint32_t data_ready_cycle)
 	sample.euler_deg[2] = ekf_.YawDeg();
 	sample.valid = calibrated_ && timing_valid_ && attitude_initialized_ &&
 		       sensor_data_valid_ && ekf_.Healthy();
-	channels::latest_onboard_imu_sample.write(sample);
+	msg::latest_onboard_imu_sample.write(sample);
 }
 }  // namespace modules
 

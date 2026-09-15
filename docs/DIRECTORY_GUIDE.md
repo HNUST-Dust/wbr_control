@@ -24,15 +24,15 @@
 
 - src/: Zephyr 主入口
 - modules/: 模块生命周期管理
-- 应用根目录：领域语义聚合入口（含 channels/modules/services/protocols）
+- 应用根目录：领域语义聚合入口（含 msg/modules/services/protocols）
 - modules/: legacy 说明目录（实体实现已迁移至 modules）
 - services/: legacy 说明目录（实体实现已迁移至 services）
-- channels/: legacy 说明目录（实体实现已迁移至 channels）
+- msg/: legacy 说明目录（实体实现已迁移至 msg）
 - protocols/: legacy 说明目录（实体实现已迁移至 protocols）
 - 模块内控制器/估计器：算法实现随其实际使用模块维护
 - platform/: 板级、驱动、存储适配
 - platform/legacy/: 平台历史资产归档分区（不参与当前主链路）
-- 应用根目录 include：对外稳定头路径（如 modules/*、channels/*、platform/*）
+- 应用根目录 include：对外稳定头路径（如 modules/*、msg/*、platform/*）
 - docs/: 架构、迁移、交接与规范文档
 - tools/: 自动化脚本（如 smoke 回归）
 

@@ -29,6 +29,7 @@
 #include <protocols/remote_input/vt03_protocol.h>
 #include <protocols/remote_input/wfly_sbus_protocol.h>
 #include <scheduling/thread_priorities.h>
+#include <remote_input_params_generated.h>
 
 LOG_MODULE_REGISTER(remote_input_module, LOG_LEVEL_INF);
 
@@ -46,17 +47,21 @@ K_THREAD_STACK_DEFINE(g_remote_input_module_stack, 1024);
 
 constexpr size_t kUartRxBufferSize = 128U;
 constexpr uint8_t kUartRxBufferCount = 2U;
-constexpr int32_t kRxIdleTimeoutUs = 1000;
+constexpr int32_t kRxIdleTimeoutUs =
+	modules::remote_input_params::kRemoteInputRxIdleTimeoutUs;
 /** @brief 将 UART DMA 缓冲区对齐到一级缓存行边界。 */
 #define UART_DMA_ALIGN __attribute__((aligned(HPM_L1C_CACHELINE_SIZE)))
 
 uint8_t g_remote_input_rx_buffers[kUartRxBufferCount][kUartRxBufferSize] UART_DMA_ALIGN;
 
-constexpr float kWflySbusMid = 1024.0f;
-constexpr float kWflySbusScale = 670.0f;
-constexpr uint16_t kWflySwitchLowMidThreshold = 689U;
-constexpr uint16_t kWflySwitchMidHighThreshold = 1359U;
-constexpr uint32_t kWflyFrameLostTimeoutMs = 1000U;
+constexpr float kWflySbusMid = modules::remote_input_params::kRemoteInputWflySbusMid;
+constexpr float kWflySbusScale = modules::remote_input_params::kRemoteInputWflySbusScale;
+constexpr uint16_t kWflySwitchLowMidThreshold =
+	modules::remote_input_params::kRemoteInputWflySwitchLowMidThreshold;
+constexpr uint16_t kWflySwitchMidHighThreshold =
+	modules::remote_input_params::kRemoteInputWflySwitchMidHighThreshold;
+constexpr uint32_t kWflyFrameLostTimeoutMs =
+	modules::remote_input_params::kRemoteInputWflyFrameLostTimeoutMs;
 
 enum class WflySwitchPosition : uint8_t {
 	kLow = 1,
@@ -117,7 +122,7 @@ WflySwitchPosition DecodeWflySwitch(uint16_t raw)
 	return WflySwitchPosition::kHigh;
 }
 
-void SetCommonActiveDefaults(channels::RemoteInputState *input)
+void SetCommonActiveDefaults(msg::RemoteInputState *input)
 {
 	input->run = true;
 	input->robot_enable = true;
@@ -128,7 +133,7 @@ void SetCommonActiveDefaults(channels::RemoteInputState *input)
 	input->fast_spin = false;
 }
 
-void SetDisabled(channels::RemoteInputState *input)
+void SetDisabled(msg::RemoteInputState *input)
 {
 	input->chassis_x = 0.0f;
 	input->chassis_rotate = 0.0f;
@@ -224,11 +229,10 @@ void RemoteInputModule::HandleUartEvent(const struct device *dev, const struct u
 		const uint8_t *data = evt->data.rx.buf + evt->data.rx.offset;
 		InvalidateDmaRxCache(data, evt->data.rx.len);
 		const uint32_t written =
-			ring_buf_put(&channels::remote_input_ring_buf, data, evt->data.rx.len);
+			msg::remote_input_stream.Write(data, evt->data.rx.len);
 		if (written != evt->data.rx.len) {
 			++rx_drop_count_;
 		}
-		k_sem_give(&channels::remote_input_sem);
 		break;
 	}
 	case UART_RX_BUF_REQUEST: {
@@ -252,7 +256,7 @@ void RemoteInputModule::HandleUartEvent(const struct device *dev, const struct u
 	}
 }
 
-int RemoteInputModule::ParseLine(const char *line, channels::RemoteInputState *out)
+int RemoteInputModule::ParseLine(const char *line, msg::RemoteInputState *out)
 {
 	if ((line == nullptr) || (out == nullptr)) {
 		return -EINVAL;
@@ -270,21 +274,21 @@ int RemoteInputModule::ParseLine(const char *line, channels::RemoteInputState *o
 	}
 
 	if (strcmp(type, "dr16") == 0) {
-		out->source = channels::kRemoteInputDr16;
+		out->source = msg::kRemoteInputDr16;
 		SetCommonActiveDefaults(out);
 		out->chassis_x = chassis_x;
 		out->chassis_rotate = chassis_rotate;
 		out->yaw_angle = yaw_angle;
 		out->pitch_angle = pitch_angle;
 	} else if (strcmp(type, "vt03") == 0) {
-		out->source = channels::kRemoteInputVt03;
+		out->source = msg::kRemoteInputVt03;
 		SetCommonActiveDefaults(out);
 		out->chassis_x = chassis_x;
 		out->chassis_rotate = chassis_rotate;
 		out->yaw_angle = yaw_angle;
 		out->pitch_angle = pitch_angle;
 	} else if (strcmp(type, "wfly") == 0) {
-		out->source = channels::kRemoteInputWfly;
+		out->source = msg::kRemoteInputWfly;
 		SetCommonActiveDefaults(out);
 		out->chassis_x = chassis_x;
 		out->chassis_rotate = chassis_rotate;
@@ -315,7 +319,7 @@ void RemoteInputModule::ConsumeBinary(size_t bytes)
 void RemoteInputModule::TryDecodeBinaryFrames()
 {
 	while (binary_len_ > 0U) {
-		channels::RemoteInputState input = {};
+		msg::RemoteInputState input = {};
 
 		if (binary_buf_[0] == protocols::kWflySbusStartByte) {
 			if (binary_len_ < protocols::kWflySbusFrameLength) {
@@ -336,22 +340,22 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 					continue;
 				}
 
-				input.source = channels::kRemoteInputWfly;
+				input.source = msg::kRemoteInputWfly;
 				SetDisabled(&input);
 
 				if (!wfly_frame.failsafe) {
 					const float right_x =
-						NormalizeWflyChannel(wfly_frame.channels[0]);
+						NormalizeWflyChannel(wfly_frame.msg[0]);
 					const float right_y =
-						NormalizeWflyChannel(wfly_frame.channels[1]);
+						NormalizeWflyChannel(wfly_frame.msg[1]);
 					const float left_y =
-						NormalizeWflyChannel(wfly_frame.channels[2]);
+						NormalizeWflyChannel(wfly_frame.msg[2]);
 					const float left_x =
-						NormalizeWflyChannel(wfly_frame.channels[3]);
+						NormalizeWflyChannel(wfly_frame.msg[3]);
 					const WflySwitchPosition ch4 =
-						DecodeWflySwitch(wfly_frame.channels[4]);
+						DecodeWflySwitch(wfly_frame.msg[4]);
 					const WflySwitchPosition ch5 =
-						DecodeWflySwitch(wfly_frame.channels[5]);
+						DecodeWflySwitch(wfly_frame.msg[5]);
 
 					if (ch4 == WflySwitchPosition::kLow) {
 						if (ch5 == WflySwitchPosition::kMid) {
@@ -390,7 +394,7 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 			protocols::Vt03Frame vt03_frame = {};
 			if (protocols::DecodeVt03RemoteFrame(binary_buf_, binary_len_,
 							     &vt03_frame)) {
-				input.source = channels::kRemoteInputVt03;
+				input.source = msg::kRemoteInputVt03;
 				SetCommonActiveDefaults(&input);
 				input.chassis_x = vt03_frame.left_y;
 				input.chassis_rotate = vt03_frame.left_x;
@@ -408,7 +412,7 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 		    (binary_buf_[0] == 0xa5U)) {
 			protocols::Vt03CustomFrame custom = {};
 			if (protocols::DecodeVt03CustomFrame(binary_buf_, binary_len_, &custom)) {
-				input.source = channels::kRemoteInputVt03;
+				input.source = msg::kRemoteInputVt03;
 				SetCommonActiveDefaults(&input);
 				input.yaw_angle = custom.joystick_x;
 				input.pitch_angle = custom.joystick_y;
@@ -421,7 +425,7 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 		if (binary_len_ >= protocols::kDr16FrameLength) {
 			protocols::Dr16Frame dr16_frame = {};
 			if (protocols::DecodeDr16Frame(binary_buf_, binary_len_, &dr16_frame)) {
-				input.source = channels::kRemoteInputDr16;
+				input.source = msg::kRemoteInputDr16;
 				SetCommonActiveDefaults(&input);
 				input.chassis_x = dr16_frame.left_stick_y;
 				input.chassis_rotate = dr16_frame.left_stick_x;
@@ -445,15 +449,15 @@ void RemoteInputModule::DecodeUartBytesFromRing()
 {
 	while (true) {
 		uint8_t data[64] = {};
-		uint32_t read_len = ring_buf_get(&channels::remote_input_ring_buf, data,
-						 static_cast<uint32_t>(sizeof(data)));
+		uint32_t read_len = msg::remote_input_stream.Read(
+			data, static_cast<uint32_t>(sizeof(data)));
 		if (read_len == 0U) {
-			if (k_sem_take(&channels::remote_input_sem, K_MSEC(20)) != 0) {
+			if (msg::remote_input_stream.Wait(K_MSEC(20)) != 0) {
 				break;
 			}
 
-			read_len = ring_buf_get(&channels::remote_input_ring_buf, data,
-						static_cast<uint32_t>(sizeof(data)));
+			read_len = msg::remote_input_stream.Read(
+				data, static_cast<uint32_t>(sizeof(data)));
 		}
 
 		const size_t len = static_cast<size_t>(read_len);
@@ -480,7 +484,7 @@ void RemoteInputModule::DecodeUartBytesFromRing()
 			if (byte == '\n') {
 				line_buf_[line_pos_] = '\0';
 				if (line_pos_ > 0U) {
-					channels::RemoteInputState input = {};
+					msg::RemoteInputState input = {};
 					if (ParseLine(line_buf_, &input) == 0) {
 						PublishRemoteState(&input);
 					}
@@ -515,14 +519,14 @@ void RemoteInputModule::CheckWflyFrameLostTimeout()
 		return;
 	}
 
-	channels::RemoteInputState input = {};
-	input.source = channels::kRemoteInputWfly;
+	msg::RemoteInputState input = {};
+	input.source = msg::kRemoteInputWfly;
 	SetDisabled(&input);
 	wfly_frame_lost_disabled_published_ = true;
 	PublishRemoteState(&input, false);
 }
 
-void RemoteInputModule::PublishRemoteState(channels::RemoteInputState *input,
+void RemoteInputModule::PublishRemoteState(msg::RemoteInputState *input,
 					   bool clear_wfly_frame_lost)
 {
 	if (input == nullptr) {
@@ -535,7 +539,7 @@ void RemoteInputModule::PublishRemoteState(channels::RemoteInputState *input,
 	}
 
 	input->sequence = ++publish_sequence_;
-	latest_remote_state.write(*input);
+	msg::latest_remote_state.write(*input);
 }
 
 } // namespace modules

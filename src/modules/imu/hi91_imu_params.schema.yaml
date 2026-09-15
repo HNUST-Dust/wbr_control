@@ -1,0 +1,24 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  hi91_imu.startup_delay_ms:
+    cpp_name: kHi91StartupDelayMs
+    cpp_type: uint32_t
+    min: 0
+  hi91_imu.rx_ring_poll_period_ms:
+    cpp_name: kHi91RxRingPollPeriodMs
+    cpp_type: uint32_t
+    min: 1
+  hi91_imu.freshness_deadline_us:
+    cpp_name: kHi91FreshnessDeadlineUs
+    cpp_type: uint32_t
+    min: 1
+  hi91_imu.maximum_valid_pitch_deg:
+    cpp_name: kHi91MaximumValidPitchDeg
+    cpp_type: float
+    min: 0
+    max: 180

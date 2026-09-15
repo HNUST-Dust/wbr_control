@@ -16,13 +16,13 @@
 
 namespace protocols {
 
-int EncodeVofaJustFloat(const float *channels,
+int EncodeVofaJustFloat(const float *msg,
 		    size_t channel_count,
 		    uint8_t *out,
 		    size_t out_capacity,
 		    size_t *out_size)
 {
-	if ((channels == nullptr) || (out == nullptr) || (out_size == nullptr)) {
+	if ((msg == nullptr) || (out == nullptr) || (out_size == nullptr)) {
 		return -EINVAL;
 	}
 
@@ -34,7 +34,7 @@ int EncodeVofaJustFloat(const float *channels,
 	size_t offset = 0U;
 	for (size_t i = 0U; i < channel_count; ++i) {
 		static_assert(sizeof(float) == 4U);
-		std::memcpy(&out[offset], &channels[i], sizeof(float));
+		std::memcpy(&out[offset], &msg[i], sizeof(float));
 		offset += sizeof(float);
 	}
 

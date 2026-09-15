@@ -34,41 +34,41 @@ bool DecodeWflySbusFrame(const uint8_t *data, size_t len, WflySbusFrame *out) {
 
   const uint8_t *payload = &data[1];
 
-  out->channels[0] = (U16(payload[0]) | (U16(payload[1]) << 8)) & kChannelMask;
-  out->channels[1] =
+  out->msg[0] = (U16(payload[0]) | (U16(payload[1]) << 8)) & kChannelMask;
+  out->msg[1] =
       ((U16(payload[1]) >> 3) | (U16(payload[2]) << 5)) & kChannelMask;
-  out->channels[2] = ((U16(payload[2]) >> 6) | (U16(payload[3]) << 2) |
+  out->msg[2] = ((U16(payload[2]) >> 6) | (U16(payload[3]) << 2) |
                       (U16(payload[4]) << 10)) &
                      kChannelMask;
-  out->channels[3] =
+  out->msg[3] =
       ((U16(payload[4]) >> 1) | (U16(payload[5]) << 7)) & kChannelMask;
-  out->channels[4] =
+  out->msg[4] =
       ((U16(payload[5]) >> 4) | (U16(payload[6]) << 4)) & kChannelMask;
-  out->channels[5] = ((U16(payload[6]) >> 7) | (U16(payload[7]) << 1) |
+  out->msg[5] = ((U16(payload[6]) >> 7) | (U16(payload[7]) << 1) |
                       (U16(payload[8]) << 9)) &
                      kChannelMask;
-  out->channels[6] =
+  out->msg[6] =
       ((U16(payload[8]) >> 2) | (U16(payload[9]) << 6)) & kChannelMask;
-  out->channels[7] =
+  out->msg[7] =
       ((U16(payload[9]) >> 5) | (U16(payload[10]) << 3)) & kChannelMask;
 
-  out->channels[8] =
+  out->msg[8] =
       (U16(payload[11]) | (U16(payload[12]) << 8)) & kChannelMask;
-  out->channels[9] =
+  out->msg[9] =
       ((U16(payload[12]) >> 3) | (U16(payload[13]) << 5)) & kChannelMask;
-  out->channels[10] = ((U16(payload[13]) >> 6) | (U16(payload[14]) << 2) |
+  out->msg[10] = ((U16(payload[13]) >> 6) | (U16(payload[14]) << 2) |
                        (U16(payload[15]) << 10)) &
                       kChannelMask;
-  out->channels[11] =
+  out->msg[11] =
       ((U16(payload[15]) >> 1) | (U16(payload[16]) << 7)) & kChannelMask;
-  out->channels[12] =
+  out->msg[12] =
       ((U16(payload[16]) >> 4) | (U16(payload[17]) << 4)) & kChannelMask;
-  out->channels[13] = ((U16(payload[17]) >> 7) | (U16(payload[18]) << 1) |
+  out->msg[13] = ((U16(payload[17]) >> 7) | (U16(payload[18]) << 1) |
                        (U16(payload[19]) << 9)) &
                       kChannelMask;
-  out->channels[14] =
+  out->msg[14] =
       ((U16(payload[19]) >> 2) | (U16(payload[20]) << 6)) & kChannelMask;
-  out->channels[15] =
+  out->msg[15] =
       ((U16(payload[20]) >> 5) | (U16(payload[21]) << 3)) & kChannelMask;
 
   const uint8_t flags = data[23];

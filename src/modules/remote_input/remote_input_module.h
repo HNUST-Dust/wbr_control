@@ -6,7 +6,7 @@
 * @file src/modules/remote_input/remote_input_module.h
  * @ingroup wbr_modules
  * @brief 实现多种遥控协议的解析与统一输入发布。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once
@@ -16,8 +16,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 
-#include <channels/remote_input_state.hpp>
-#include <channels/uart_raw_frame_queue.h>
+#include <msg/remote_input_state.hpp>
+#include <msg/uart_raw_frame_queue.hpp>
 #include "../module_base.h"
 
 struct device;
@@ -73,7 +73,7 @@ private:
 	 * @param[out] out 接收结果的输出对象；不得为空。
 	 * @return 成功返回 0，参数无效或底层操作失败时返回负 errno 错误码。
 	 */
-	int ParseLine(const char *line, channels::RemoteInputState *out);
+	int ParseLine(const char *line, msg::RemoteInputState *out);
 	/**
 	 * @brief 从累计缓冲区提取并解析二进制遥控帧。
 	 */
@@ -92,7 +92,7 @@ private:
 	 * @param[in,out] input 本周期使用的只读输入快照。
 	 * @param clear_wfly_frame_lost 为 `true` 时清除天地飞协议的丢帧锁存状态。
 	 */
-	void PublishRemoteState(channels::RemoteInputState *input,
+	void PublishRemoteState(msg::RemoteInputState *input,
 				bool clear_wfly_frame_lost = true);
 
 	const struct device *uart_dev_ = nullptr;

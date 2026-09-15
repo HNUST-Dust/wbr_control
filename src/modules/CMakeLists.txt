@@ -31,6 +31,63 @@ wbr_add_module_sources(CONFIG_WBR_CONTROL_MODULE_SDLOG sdlog)
 
 zephyr_library_named(wbr_modules)
 zephyr_library_sources(${WBR_CONTROL_MODULES_SOURCES})
+
+if(CONFIG_WBR_CONTROL_MODULE_CHASSIS)
+  wbr_generate_params(
+    wbr_modules chassis
+    ${CMAKE_CURRENT_SOURCE_DIR}/chassis/chassis_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/chassis/chassis_params.schema.yaml
+    modules::chassis_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_AHRS)
+  wbr_generate_params(
+    wbr_modules ahrs
+    ${CMAKE_CURRENT_SOURCE_DIR}/ahrs/ahrs_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/ahrs/ahrs_params.schema.yaml
+    modules::ahrs_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_HI91_IMU)
+  wbr_generate_params(
+    wbr_modules hi91_imu
+    ${CMAKE_CURRENT_SOURCE_DIR}/imu/hi91_imu_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/imu/hi91_imu_params.schema.yaml
+    modules::hi91_imu_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT)
+  wbr_generate_params(
+    wbr_modules remote_input
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_input/remote_input_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_input/remote_input_params.schema.yaml
+    modules::remote_input_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_OSCILLOSCOPE)
+  wbr_generate_params(
+    wbr_modules oscilloscope
+    ${CMAKE_CURRENT_SOURCE_DIR}/oscilloscope/oscilloscope_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/oscilloscope/oscilloscope_params.schema.yaml
+    modules::oscilloscope_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_SYS_STATE)
+  wbr_generate_params(
+    wbr_modules sys_state
+    ${CMAKE_CURRENT_SOURCE_DIR}/sys_state/sys_state_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/sys_state/sys_state_params.schema.yaml
+    modules::sys_state_params)
+endif()
+
+if(CONFIG_WBR_CONTROL_MODULE_SDLOG)
+  wbr_generate_params(
+    wbr_modules sdlog
+    ${CMAKE_CURRENT_SOURCE_DIR}/sdlog/sdlog_params.yaml
+    ${CMAKE_CURRENT_SOURCE_DIR}/sdlog/sdlog_params.schema.yaml
+    modules::sdlog_params)
+endif()
+
 target_include_directories(wbr_modules
   PRIVATE
     ${PROJECT_SOURCE_DIR}
@@ -47,7 +104,7 @@ target_compile_definitions(wbr_modules PRIVATE
   EIGEN_DONT_VECTORIZE
 )
 target_link_libraries(wbr_modules PRIVATE
-  wbr_channels
+  wbr_msg
   wbr_platform
   wbr_protocols
   wbr_scheduling

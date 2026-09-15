@@ -6,7 +6,7 @@
 * @file src/modules/chassis/leg_vmc.h
  * @ingroup wbr_modules
  * @brief 实现腿部虚拟模型控制的力矩映射。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once

@@ -18,12 +18,13 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <channels/oscilloscope_sample.hpp>
+#include <msg/oscilloscope_sample.hpp>
 #include <protocols/telemetry/vofa_protocol.h>
 #include <scheduling/periodic_schedule.h>
 #include <scheduling/thread_priorities.h>
 
 #include <hpm_l1c_drv.h>
+#include <oscilloscope_params_generated.h>
 
 LOG_MODULE_REGISTER(oscilloscope_module, LOG_LEVEL_INF);
 
@@ -44,8 +45,10 @@ K_THREAD_STACK_DEFINE(g_oscilloscope_module_stack, 1536);
 
 constexpr uint32_t kOutputPeriodMs = CONFIG_WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS;
 constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE;
-constexpr uint32_t kIdleProbePeriodMs = 1000U;
-constexpr uint32_t kTxTimeoutMs = 5U;
+constexpr uint32_t kIdleProbePeriodMs =
+	modules::oscilloscope_params::kOscilloscopeIdleProbePeriodMs;
+constexpr uint32_t kTxTimeoutMs =
+	modules::oscilloscope_params::kOscilloscopeTxTimeoutMs;
 constexpr size_t kProbeChannelCount = 3U;
 
 const struct device *FindOutputUart()
@@ -134,7 +137,7 @@ void OscilloscopeModule::UartCallback(const struct device *dev, struct uart_even
 
 int OscilloscopeModule::SendBootProbe()
 {
-	float probe[channels::kOscilloscopeMaxChannels] = {};
+	float probe[msg::kOscilloscopeMaxChannels] = {};
 	probe[0] = 6750.0F;
 	probe[1] = static_cast<float>(kUartBaudrate);
 	probe[2] = static_cast<float>(kOutputPeriodMs);
@@ -187,8 +190,8 @@ int OscilloscopeModule::TransmitFrame(const float *values, size_t channel_count)
 
 int OscilloscopeModule::SendLatestSample()
 {
-	channels::OscilloscopeSample sample = {};
-	if (!channels::latest_oscilloscope_sample.read(sample)) {
+	msg::OscilloscopeSample sample = {};
+	if (!msg::latest_oscilloscope_sample.read(sample)) {
 		return -EAGAIN;
 	}
 	if ((sample.sequence == 0U) || (sample.sequence == last_sequence_)) {
@@ -201,7 +204,7 @@ int OscilloscopeModule::SendLatestSample()
 	}
 
 	const size_t channel_count =
-		MIN(static_cast<size_t>(sample.channel_count), channels::kOscilloscopeMaxChannels);
+		MIN(static_cast<size_t>(sample.channel_count), msg::kOscilloscopeMaxChannels);
 	const int tx_rc = TransmitFrame(sample.value, channel_count);
 	if (tx_rc != 0) {
 		return tx_rc;

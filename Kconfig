@@ -65,7 +65,7 @@ config WBR_CONTROL_MODULE_HI91_IMU
 	depends on SERIAL && UART_ASYNC_API
 	help
 	  Enable the HI91 external IMU module on UART2. The module parses HI91
-	  binary frames and publishes the latest IMU sample to channels.
+	  binary frames and publishes the latest IMU message.
 
 config WBR_CONTROL_MODULE_AHRS
 	bool "Enable onboard AHRS module"
@@ -185,7 +185,7 @@ config WBR_CONTROL_PC_LINK
 	help
 	  Enable the pc_link session worker inside usb_session. The worker
 	  assembles the auto-aim telemetry packet from the gimbal/booster/imu/
-	  remote_input channels at a fixed rate and parses auto-aim commands
+	  remote_input messages at a fixed rate and parses auto-aim commands
 	  received from the PC over USB Vendor Interrupt endpoints.
 
 config WBR_CONTROL_PC_LINK_PERIOD_MS

@@ -10,7 +10,7 @@
 | protocols | `src/protocols/` | `<protocols/...>` |
 | modules | `src/modules/` | `<modules/...>` 或模块内引号包含 |
 | scheduling | `src/scheduling/` | `<scheduling/...>` |
-| channels | `channels/` | `<channels/...>` |
+| msg | `msg/` | `<msg/...>` |
 | platform | `platform/` 对应实现目录 | `<platform/...>` |
 
 同目录实现优先使用引号，例如：
@@ -22,7 +22,7 @@
 跨所有者依赖保留目录前缀，例如：
 
 ```cpp
-#include <channels/remote_input_state.hpp>
+#include <msg/remote_input_state.hpp>
 #include <protocols/motors/dji_motor_protocol.h>
 #include <platform/drivers/communication/can_dispatch.h>
 ```
@@ -32,16 +32,16 @@
 ```text
 main
   └─ modules
-       ├─ channels
+       ├─ msg
        ├─ protocols
        ├─ scheduling
        └─ platform
-            └─ channels
+            └─ msg
 
-debug ──> channels
+debug ──> msg
 ```
 
-- channels 和 protocols 不依赖业务模块。
+- msg 和 protocols 不依赖业务模块。
 - platform 可以使用 channel，但不能依赖 modules。
 - 模块之间通过 channel 交换运行数据，不直接包含彼此的内部头。
 - 控制器和估计器由其业务模块拥有，不建立跨项目复用的通用 algorithms 层。
@@ -53,7 +53,7 @@ debug ──> channels
 
 PX4 风格需要两个内部 include 根：
 
-- `${PROJECT_SOURCE_DIR}`：解析 `channels/...` 和 `platform/...`。
+- `${PROJECT_SOURCE_DIR}`：解析 `msg/...` 和 `platform/...`。
 - `${PROJECT_SOURCE_DIR}/src`：解析 `protocols/...`、
   `modules/...` 和 `scheduling/...`。
 

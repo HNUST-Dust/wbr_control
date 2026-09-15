@@ -1,0 +1,4 @@
+schema_version: 1
+sdlog:
+  maximum_log_files: 100
+  period_ms: 20

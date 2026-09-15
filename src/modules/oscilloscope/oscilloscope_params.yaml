@@ -1,0 +1,4 @@
+schema_version: 1
+oscilloscope:
+  idle_probe_period_ms: 1000
+  tx_timeout_ms: 5

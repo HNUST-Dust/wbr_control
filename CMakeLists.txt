@@ -20,6 +20,29 @@ list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wbr_control)
 
+# Generate validated constexpr parameter headers from value/schema YAML pairs.
+# Targets throughout the repository use this one helper and one Python tool.
+function(wbr_generate_params target name values schema cpp_namespace)
+  set(generated_dir ${CMAKE_BINARY_DIR}/generated/params)
+  set(generated_header ${generated_dir}/${name}_params_generated.h)
+  set(generator ${PROJECT_SOURCE_DIR}/tools/generate_params.py)
+
+  add_custom_command(
+    OUTPUT ${generated_header}
+    COMMAND ${PYTHON_EXECUTABLE} ${generator}
+      --input ${values}
+      --schema ${schema}
+      --namespace ${cpp_namespace}
+      --output ${generated_header}
+    DEPENDS ${values} ${schema} ${generator}
+    COMMENT "Generating validated ${name} parameters"
+    VERBATIM
+  )
+  add_custom_target(wbr_${name}_params DEPENDS ${generated_header})
+  add_dependencies(${target} wbr_${name}_params)
+  target_include_directories(${target} PRIVATE ${generated_dir})
+endfunction()
+
 # Validate the resolved configuration after Kconfig so UART0 remains reserved
 # for the binary oscilloscope stream.
 if(NOT CONFIG_UART_ASYNC_API)
@@ -52,7 +75,7 @@ target_compile_options(app PRIVATE
   -fno-threadsafe-statics
 )
 
-add_subdirectory(channels)
+add_subdirectory(msg)
 add_subdirectory(src/protocols)
 add_subdirectory(src/scheduling)
 add_subdirectory(src/modules)
@@ -61,7 +84,7 @@ add_subdirectory(debug)
 
 # 应用入口只直接依赖模块、通道和平台；协议由模块目标自行声明。
 target_link_libraries(app PRIVATE
-  wbr_channels
+  wbr_msg
   wbr_modules
   wbr_platform
 )

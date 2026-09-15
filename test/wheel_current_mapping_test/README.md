@@ -16,9 +16,9 @@ current command and the raw current feedback.
 
 After a completed run, disable and re-enable the remote switch to repeat it.
 
-## VOFA+ JustFloat channels
+## VOFA+ JustFloat msg
 
-Only six channels are emitted:
+Only six msg are emitted:
 
 1. `command_raw`
 2. `feedback_current_raw`

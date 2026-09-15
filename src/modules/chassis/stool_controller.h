@@ -6,7 +6,7 @@
 * @file src/modules/chassis/stool_controller.h
  * @ingroup wbr_modules
  * @brief 实现凳式姿态下的底盘稳定控制。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once
@@ -41,8 +41,6 @@ struct StoolControllerOutput {
 class StoolController
 {
 public:
-	static constexpr double kTargetLegLength = 0.150; ///< `kTargetLegLength` 几何长度参数，单位为米。
-
 	/**
 	 * @brief 清空内部状态并恢复到初始条件。
 	 */

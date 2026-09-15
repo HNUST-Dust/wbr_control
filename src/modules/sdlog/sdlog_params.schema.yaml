@@ -1,0 +1,16 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  sdlog.maximum_log_files:
+    cpp_name: kSdlogMaximumLogFiles
+    cpp_type: uint32_t
+    min: 1
+    max: 100
+  sdlog.period_ms:
+    cpp_name: kSdlogPeriodMs
+    cpp_type: uint32_t
+    min: 1

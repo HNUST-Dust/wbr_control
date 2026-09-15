@@ -16,11 +16,12 @@
 #define FS_FATFS_WINDOW_ALIGNMENT CONFIG_FS_FATFS_WINDOW_ALIGNMENT
 #endif
 #include <ff.h>
-#include <channels/chassis_realtime_status.hpp>
-#include <channels/hi91_imu_sample.hpp>
-#include <channels/onboard_imu_sample.hpp>
-#include <channels/oscilloscope_sample.hpp>
+#include <msg/chassis_realtime_status.hpp>
+#include <msg/hi91_imu_sample.hpp>
+#include <msg/onboard_imu_sample.hpp>
+#include <msg/oscilloscope_sample.hpp>
 #include <scheduling/thread_priorities.h>
+#include <sdlog_params_generated.h>
 
 LOG_MODULE_REGISTER(sdlog_module, LOG_LEVEL_INF);
 
@@ -30,8 +31,8 @@ K_THREAD_STACK_DEFINE(g_sdlog_stack, 4096);
 constexpr char kDiskName[] = CONFIG_SDMMC_VOLUME_NAME;
 constexpr char kMountPoint[] = "/SD:";
 constexpr char kLogPathFormat[] = "/SD:/PX4LOG%02u.BIN";
-constexpr uint32_t kMaximumLogFiles = 100U;
-constexpr uint32_t kPeriodMs = 20U;
+constexpr uint32_t kMaximumLogFiles = modules::sdlog_params::kSdlogMaximumLogFiles;
+constexpr uint32_t kPeriodMs = modules::sdlog_params::kSdlogPeriodMs;
 constexpr size_t kBatchCapacity = 8U * 1024U;
 
 struct SdLogRecord {
@@ -40,9 +41,9 @@ struct SdLogRecord {
 	uint16_t size;
 	uint64_t timestamp_us;
 	uint32_t sequence;
-	channels::OnboardImuSample onboard_imu;
-	channels::Hi91ImuSample hi91_imu;
-	channels::ChassisRealtimeStatus chassis;
+	msg::OnboardImuSample onboard_imu;
+	msg::Hi91ImuSample hi91_imu;
+	msg::ChassisRealtimeStatus chassis;
 };
 
 static_assert(sizeof(SdLogRecord) < kBatchCapacity, "log record must fit batch");
@@ -125,17 +126,17 @@ void SdLogModule::RunLoop()
 		k_sleep(K_MSEC(kPeriodMs));
 
 		SdLogRecord record = {};
-		channels::OnboardImuSample onboard_imu = {};
-		channels::Hi91ImuSample hi91_imu = {};
-		channels::ChassisRealtimeStatus chassis = {};
+		msg::OnboardImuSample onboard_imu = {};
+		msg::Hi91ImuSample hi91_imu = {};
+		msg::ChassisRealtimeStatus chassis = {};
 		record.magic = 0x5742524CUL; /* WBRL */
 		record.version = 1U;
 		record.size = sizeof(record);
 		record.timestamp_us = k_cyc_to_us_floor64(k_cycle_get_64());
 		record.sequence = ++sequence;
-		(void)channels::latest_onboard_imu_sample.read(onboard_imu);
-		(void)channels::latest_hi91_imu_sample.read(hi91_imu);
-		(void)channels::latest_chassis_realtime_status.read(chassis);
+		(void)msg::latest_onboard_imu_sample.read(onboard_imu);
+		(void)msg::latest_hi91_imu_sample.read(hi91_imu);
+		(void)msg::latest_chassis_realtime_status.read(chassis);
 		record.onboard_imu = onboard_imu;
 		record.hi91_imu = hi91_imu;
 		record.chassis = chassis;

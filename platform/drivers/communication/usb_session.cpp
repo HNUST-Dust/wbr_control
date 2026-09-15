@@ -17,12 +17,12 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <channels/booster_state.hpp>
-#include <channels/gimbal_state.hpp>
-#include <channels/hi91_imu_sample.hpp>
-#include <channels/pc_auto_aim_command.hpp>
-#include <channels/remote_input_state.hpp>
-#include <channels/usb_raw_frame_queue.h>
+#include <msg/booster_state.hpp>
+#include <msg/gimbal_state.hpp>
+#include <msg/hi91_imu_sample.hpp>
+#include <msg/pc_auto_aim_command.hpp>
+#include <msg/remote_input_state.hpp>
+#include <msg/usb_raw_frame_queue.hpp>
 #include <platform/drivers/communication/usb_session.h>
 #include <protocols/pc_link/pc_link.h>
 #include <scheduling/periodic_schedule.h>
@@ -265,15 +265,15 @@ void UsbEventHandler(uint8_t busid, uint8_t event)
 
 void EnqueueUsbRx(const uint8_t *data, size_t len)
 {
-	const size_t copy_len = MIN(len, channels::kUsbRawChunkSize);
+	const size_t copy_len = MIN(len, msg::kUsbRawChunkSize);
 	if ((data == nullptr) || (copy_len == 0U)) {
 		return;
 	}
 
-	channels::UsbRawFrameMessage frame = {};
+	msg::UsbRawFrameMessage frame = {};
 	frame.len = static_cast<uint16_t>(copy_len);
 	memcpy(frame.data, data, copy_len);
-	(void)channels::EnqueueUsbRawFrame(&frame);
+	(void)msg::usb_raw_frames.TryPush(frame);
 }
 
 void UsbInterruptOutCallback(uint8_t busid, uint8_t ep, uint32_t nbytes)
@@ -330,15 +330,15 @@ k_thread g_pc_link_tx_thread;
 
 void PublishIdlePcCommand()
 {
-	channels::PcAutoAimCommand command = {};
+	msg::PcAutoAimCommand command = {};
 	command.sequence = ++g_pc_command_sequence;
-	channels::latest_pc_auto_aim_command.write(command);
+	msg::latest_pc_auto_aim_command.write(command);
 	g_has_valid_pc_command = false;
 }
 
 void PublishAutoAimCommand(const protocols::PCRecvAutoAimData *recv)
 {
-	channels::PcAutoAimCommand command = {};
+	msg::PcAutoAimCommand command = {};
 	command.sequence = ++g_pc_command_sequence;
 	command.mode = recv->mode;
 	command.yaw_angle = recv->yaw.yaw_ang;
@@ -347,7 +347,7 @@ void PublishAutoAimCommand(const protocols::PCRecvAutoAimData *recv)
 	command.pitch_angle = recv->pitch.pitch_ang;
 	command.pitch_velocity = recv->pitch.pitch_vel;
 	command.pitch_acceleration = recv->pitch.pitch_acc;
-	channels::latest_pc_auto_aim_command.write(command);
+	msg::latest_pc_auto_aim_command.write(command);
 	g_last_valid_pc_command_ms = k_uptime_get_32();
 	g_has_valid_pc_command = true;
 }
@@ -368,8 +368,8 @@ void EnforcePcCommandSafety()
 
 void DrainPcRx()
 {
-	channels::UsbRawFrameMessage chunk = {};
-	while (channels::DequeueUsbRawFrame(&chunk, 0) == 0) {
+	msg::UsbRawFrameMessage chunk = {};
+	while (msg::usb_raw_frames.Pop(chunk, K_NO_WAIT) == 0) {
 		if (chunk.len != protocols::kPcCommRecvPacketSize) {
 			continue;
 		}
@@ -389,26 +389,26 @@ int SendPcLinkFrame()
 {
 	protocols::PCSendAutoAimData data = {};
 
-	channels::RemoteInputState input = {};
-	if (::latest_remote_state.read(input)) {
+	msg::RemoteInputState input = {};
+	if (msg::latest_remote_state.read(input)) {
 		data.mode = input.auto_aim ? 1U : 0U;
 	}
 
-	channels::Hi91ImuSample imu = {};
-	if (channels::latest_hi91_imu_sample.read(imu)) {
+	msg::Hi91ImuSample imu = {};
+	if (msg::latest_hi91_imu_sample.read(imu)) {
 		memcpy(data.q, imu.quat, sizeof(data.q));
 	}
 
-	channels::GimbalState gimbal = {};
-	if (channels::latest_gimbal_state.read(gimbal)) {
+	msg::GimbalState gimbal = {};
+	if (msg::latest_gimbal_state.read(gimbal)) {
 		data.yaw.yaw_ang = gimbal.yaw_angle;
 		data.yaw.yaw_vel = gimbal.yaw_velocity;
 		data.pitch.pitch_ang = gimbal.pitch_angle;
 		data.pitch.pitch_vel = gimbal.pitch_velocity;
 	}
 
-	channels::BoosterState booster = {};
-	if (channels::latest_booster_state.read(booster)) {
+	msg::BoosterState booster = {};
+	if (msg::latest_booster_state.read(booster)) {
 		data.bullet.bullet_speed = booster.bullet_speed;
 		data.bullet.bullet_count = booster.bullet_count;
 	}
@@ -589,8 +589,10 @@ int ReceiveUsb(uint8_t *out, size_t capacity, size_t *out_len, int32_t timeout_m
 
 #if defined(CONFIG_CHERRYUSB) && CONFIG_CHERRYUSB && defined(CONFIG_CHERRYUSB_DEVICE) && \
 	CONFIG_CHERRYUSB_DEVICE
-	channels::UsbRawFrameMessage chunk = {};
-	const int rc = channels::DequeueUsbRawFrame(&chunk, timeout_ms);
+	msg::UsbRawFrameMessage chunk = {};
+	const k_timeout_t timeout = timeout_ms < 0 ? K_FOREVER :
+		(timeout_ms > 0 ? K_MSEC(timeout_ms) : K_NO_WAIT);
+	const int rc = msg::usb_raw_frames.Pop(chunk, timeout);
 	if (rc != 0) {
 		return rc;
 	}

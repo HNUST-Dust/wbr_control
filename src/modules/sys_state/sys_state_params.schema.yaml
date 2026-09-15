@@ -1,0 +1,33 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  system_state.pwm_levels:
+    cpp_name: kSystemStatePwmLevels
+    cpp_type: uint8_t
+    min: 2
+    max: 255
+  system_state.led_frame_ms:
+    cpp_name: kSystemStateLedFrameMs
+    cpp_type: uint32_t
+    min: 1
+  system_state.breath_steps:
+    cpp_name: kSystemStateBreathSteps
+    cpp_type: uint16_t
+    min: 2
+  system_state.buzzer_period_us:
+    cpp_name: kSystemStateBuzzerPeriodUs
+    cpp_type: uint32_t
+    min: 1
+  system_state.buzzer_tick_percent:
+    cpp_name: kSystemStateBuzzerTickPercent
+    cpp_type: uint8_t
+    min: 0
+    max: 100
+  system_state.buzzer_tick_steps:
+    cpp_name: kSystemStateBuzzerTickSteps
+    cpp_type: uint16_t
+    min: 1

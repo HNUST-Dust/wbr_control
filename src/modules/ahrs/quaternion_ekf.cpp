@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <ahrs_params_generated.h>
 
 namespace {
 /**
@@ -36,9 +37,11 @@ constexpr float kInitialCovarianceData[36] = {
 	0, 0, 0, 0, 0, 100.0f,
 };
 
-constexpr float kGravityMps2 = 9.80665f;
-constexpr float kStableAccelToleranceMps2 = 0.5f;
-constexpr float kStableGyroLimitRadS = 0.3f;
+constexpr float kGravityMps2 = modules::ahrs_params::kAhrsGravityMps2;
+constexpr float kStableAccelToleranceMps2 =
+	modules::ahrs_params::kAhrsEkfStableAccelToleranceMps2;
+constexpr float kStableGyroLimitRadS =
+	modules::ahrs_params::kAhrsEkfStableGyroLimitRadS;
 
 // 将行优先存储的初始协方差常量复制为 Eigen 列优先矩阵。
 /**

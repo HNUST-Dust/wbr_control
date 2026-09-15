@@ -15,18 +15,12 @@
 
 #include <algorithm>
 
+#include "chassis_config.h"
+
 namespace
 {
 
-constexpr double kLegLengthKp = 600.0;
-constexpr double kLegLengthKi = 100.0;
-constexpr double kLegLengthKd = 120.0;
-constexpr double kRetractFeedforward = 10.0;
-constexpr double kRetractFeedforwardDeadband = 0.003;
-constexpr double kExtendVelocityFeedforward = 60.0;
-constexpr double kVelocityFeedforwardDeadband = 0.005;
-constexpr double kIntegralForceLimit = 60.0;
-constexpr double kForceLimit = 150.0;
+using namespace modules::chassis_config;
 
 } // namespace
 

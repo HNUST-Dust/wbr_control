@@ -24,7 +24,7 @@
 #include "modules/remote_input/remote_input_module.h"
 #include "modules/sys_state/sys_state_module.h"
 #include "modules/sdlog/sdlog_module.h"
-#include <channels/system_status_channel.h>
+#include <msg/system_status_message.hpp>
 #include <platform/board/board_identity.h>
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
@@ -40,13 +40,13 @@ LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 namespace
 {
 
-void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
+void PublishSystemStatus(msg::BootPhase state, uint32_t module_count)
 {
-	const channels::SystemStatusMessage status = {
+	const msg::SystemStatusMessage status = {
 		state,
 		module_count,
 	};
-	(void)zbus_chan_pub(&wbr_control_system_status_chan, &status, K_NO_WAIT);
+	(void)msg::system_status.Publish(status);
 }
 
 } // namespace
@@ -61,7 +61,7 @@ int main(void)
 		printk("[printk] wbr_control RTT diagnostics ready\n");
 	}
 	LOG_INF("wbr_control started on %s", board_identity_name());
-	PublishSystemStatus(channels::kBooting, 0U);
+	PublishSystemStatus(msg::kBooting, 0U);
 
 	int rc = 0;
 
@@ -181,7 +181,7 @@ int main(void)
 		}
 	}
 #endif
-	PublishSystemStatus(channels::kRunning, module_count);
+	PublishSystemStatus(msg::kRunning, module_count);
 
 	/* 初始化结束后主线程不再承担周期任务，各模块由自己的线程运行。 */
 	k_sleep(K_FOREVER);
