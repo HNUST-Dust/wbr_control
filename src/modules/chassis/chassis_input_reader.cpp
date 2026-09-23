@@ -65,8 +65,8 @@ void ChassisInputReader::Read(ChassisCycleInput &input, uint32_t now_ms, double 
 	input.remote_age_ms = last_remote_sequence_ != 0U
 				      ? now_ms - last_remote_update_ms_
 				      : UINT32_MAX;
-	const bool remote_fresh = input.remote_age_ms <= kRemoteTimeoutMs;
-	input.requested_enable = remote_fresh && input.remote.robot_enable;
+	input.remote_fresh = input.remote_age_ms <= kRemoteTimeoutMs;
+	input.requested_enable = input.remote_fresh && input.remote.robot_enable;
 
 	ChassisImuSample new_imu = {};
 	(void)ReadChassisImuSample(new_imu);
@@ -113,7 +113,8 @@ void ChassisInputReader::Read(ChassisCycleInput &input, uint32_t now_ms, double 
 		if (!decoded.b || !decoded.d) {
 			return;
 		}
-		valid = ComputeLegKinematics(protocols::DmFeedbackPosition(feedback.d, kDmRange),
+		valid = ComputeLegKinematics(
+						 protocols::DmFeedbackPosition(feedback.d, kDmRange),
 					     protocols::DmFeedbackPosition(feedback.b, kDmRange),
 					     protocols::DmFeedbackVelocity(feedback.d, kDmRange),
 					     protocols::DmFeedbackVelocity(feedback.b, kDmRange),
@@ -140,6 +141,12 @@ void ChassisInputReader::Read(ChassisCycleInput &input, uint32_t now_ms, double 
 	input.pitch_rate = input.imu_fresh
 				   ? static_cast<double>(input.imu.pitch_rate_rad_s)
 				   : 0.0;
+	input.roll = input.imu_fresh
+			     ? static_cast<double>(input.imu.roll_deg) * kDegToRad
+			     : 0.0;
+	input.roll_rate = input.imu_fresh
+			  ? static_cast<double>(input.imu.roll_rate_rad_s)
+			  : 0.0;
 	input.theta = {};
 	input.theta_rate = {};
 	input.common_theta = 0.0;
@@ -173,6 +180,14 @@ void ChassisInputReader::Read(ChassisCycleInput &input, uint32_t now_ms, double 
 		protocols::DmFeedbackVelocity(joint_feedback_.right.b, kDmRange);
 	input.joint_velocity.right.d =
 		protocols::DmFeedbackVelocity(joint_feedback_.right.d, kDmRange);
+	input.joint_torque_feedback.left.b =
+		protocols::DmFeedbackTorque(joint_feedback_.left.b, kDmRange);
+	input.joint_torque_feedback.left.d =
+		protocols::DmFeedbackTorque(joint_feedback_.left.d, kDmRange);
+	input.joint_torque_feedback.right.b =
+		protocols::DmFeedbackTorque(joint_feedback_.right.b, kDmRange);
+	input.joint_torque_feedback.right.d =
+		protocols::DmFeedbackTorque(joint_feedback_.right.d, kDmRange);
 }
 
 } // namespace modules

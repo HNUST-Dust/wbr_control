@@ -26,6 +26,7 @@ bool ChassisActuator::Apply(ChassisControlState state, uint32_t loop_ticks,
 	switch (state) {
 	case ChassisControlState::kDisabled:
 	case ChassisControlState::kSafetyStop:
+	case ChassisControlState::kActionFault:
 	case ChassisControlState::kTiltFault:
 		if ((loop_ticks % 100U) == 0U) {
 			SendDmControl(protocols::DmControlCommand::kExit);
@@ -52,11 +53,14 @@ bool ChassisActuator::Apply(ChassisControlState state, uint32_t loop_ticks,
 		SendZeroOutput();
 		return true;
 
-	case ChassisControlState::kStool:
+	case ChassisControlState::kRecovery:
+	case ChassisControlState::kClimbStairs:
 		SendJointOnly(output.joint_torque);
 		return false;
 
 	case ChassisControlState::kBalance:
+	case ChassisControlState::kFlight:
+	case ChassisControlState::kJump:
 		SendFullOutput(output);
 		return false;
 	}

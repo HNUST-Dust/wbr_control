@@ -77,6 +77,7 @@ void BalanceController::ResetForEnable()
 	target_leg_length_ = kStoolTargetLegLength;
 	balance_theta_reference_ = kThetaBalanceBias;
 	balance_pitch_reference_ = 0.0;
+	balance_roll_reference_ = 0.0;
 	Reset();
 }
 
@@ -85,6 +86,7 @@ void BalanceController::SynchronizeReferences(const ChassisCycleInput &input)
 	target_leg_length_ = 0.5 * (input.leg.left.length + input.leg.right.length);
 	balance_theta_reference_ = input.common_theta;
 	balance_pitch_reference_ = input.pitch;
+	balance_roll_reference_ = input.roll;
 	Reset();
 }
 
@@ -97,6 +99,14 @@ void BalanceController::Update(const ChassisCycleInput &input,
 		kBalanceThetaReferenceRate * input.dt);
 	balance_pitch_reference_ = MoveToward(
 		balance_pitch_reference_, 0.0, kBalancePitchReferenceRate * input.dt);
+	balance_roll_reference_ = MoveToward(
+		balance_roll_reference_, 0.0,
+		kRollReferenceRateDegPerSec * kDegToRad * input.dt);
+	output.roll_reference = balance_roll_reference_;
+	const double roll_error = balance_roll_reference_ - input.roll;
+	output.roll_compensation_force = std::clamp(
+		kRollCompensationSign * kRollCompensationKp * roll_error,
+		-kRollCompensationForceLimit, kRollCompensationForceLimit);
 
 	// 平衡控制第一步：结合轮速和腿部运动补偿估计机体前向速度。
 	const SidePair<double> sin_theta = {
@@ -145,6 +155,16 @@ void BalanceController::Update(const ChassisCycleInput &input,
 		motion_command_enabled ? ApplyRemoteDeadband(input.remote.chassis_x) : 0.0;
 	const double turn_command =
 		motion_command_enabled ? ApplyRemoteDeadband(input.remote.chassis_rotate) : 0.0;
+	const double leg_length_command =
+		motion_command_enabled ? ApplyRemoteDeadband(input.remote.leg_length_delta) : 0.0;
+	const double previous_target_leg_length = target_leg_length_;
+	target_leg_length_ = std::clamp(
+		target_leg_length_ + leg_length_command * kLegLengthCommandRate * input.dt,
+		kMinCommandedLegLength, kMaxCommandedLegLength);
+	const double target_leg_length_rate = input.dt > 0.0
+					      ? (target_leg_length_ - previous_target_leg_length) /
+							input.dt
+					      : 0.0;
 	target_body_speed_ = MoveToward(target_body_speed_, body_command * kMaxBodySpeed,
 				       kBodyAccelerationLimit * input.dt);
 	/*
@@ -253,14 +273,19 @@ void BalanceController::Update(const ChassisCycleInput &input,
 		const double length_error = target_leg_length_ - leg.length;
 		state.leg_length_integral_force = UpdateLegLengthIntegral(
 			state.leg_length_integral_force, length_error, input.dt);
-		const double support_force =
-			0.25 * kRobotMass * kGravity / std::max(cos_theta.Get(side), 0.5);
+		const double nominal_support_force =
+			0.5 * kRobotMass * kGravity / std::max(cos_theta.Get(side), 0.5);
+		const double roll_force = side == Side::kLeft
+					  ? output.roll_compensation_force
+					  : -output.roll_compensation_force;
+		const double support_force = nominal_support_force + roll_force;
 		// 安装映射负责把“机体对腿”力矩转换成各侧 VMC 输入方向。
 		const double vmc_angle_torque =
 			hardware.vmc_torque_sign * output.body_on_leg_torque.Get(side);
 		const LegVmcOutput vmc = ComputeLegVmc(leg, target_leg_length_, support_force,
 						       state.leg_length_integral_force,
-						       vmc_angle_torque, leg.length_rate, 0.0);
+						       vmc_angle_torque, leg.length_rate,
+						       target_leg_length_rate);
 		output.leg_axial_force.Get(side) = vmc.axial_force;
 		JointPair<double> &joint_torque = output.joint_torque.Get(side);
 		joint_torque.b =

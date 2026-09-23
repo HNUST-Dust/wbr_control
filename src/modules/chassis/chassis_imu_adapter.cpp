@@ -57,10 +57,16 @@ bool TransformOnboardImuToChassis(const msg::OnboardImuSample &imu,
 
 	const float pitch_sine = std::clamp(-chassis_attitude(2, 0), -1.0F, 1.0F);
 	sample.pitch_deg = std::asin(pitch_sine) * kRadToDeg;
+	sample.roll_deg = std::atan2(chassis_attitude(2, 1), chassis_attitude(2, 2)) * kRadToDeg;
 	sample.yaw_deg = std::atan2(chassis_attitude(1, 0), chassis_attitude(0, 0)) * kRadToDeg;
 	sample.pitch_rate_rad_s = chassis_gyro.y();
+	sample.roll_rate_rad_s = chassis_gyro.x();
 	sample.yaw_rate_rad_s = chassis_gyro.z();
-	return std::isfinite(sample.pitch_deg) && std::isfinite(sample.yaw_deg) &&
+	// The onboard channel does not publish raw acceleration yet. Recovery will
+	// fail closed instead of guessing the upright side when this source is used.
+	sample.vertical_accel_g = 0.0F;
+	return std::isfinite(sample.pitch_deg) && std::isfinite(sample.roll_deg) &&
+	       std::isfinite(sample.yaw_deg) &&
 	       std::isfinite(sample.pitch_rate_rad_s) &&
 	       std::isfinite(sample.yaw_rate_rad_s);
 }
@@ -109,11 +115,20 @@ bool ReadChassisImuSample(ChassisImuSample &sample)
 		imu.rx_buf_rsp_error_count;
 	sample.valid = imu.valid;
 	sample.pitch_deg = imu.pitch_deg;
+	sample.roll_deg = imu.roll_deg;
 	sample.yaw_deg = imu.yaw_deg;
 	sample.pitch_rate_rad_s = static_cast<float>(
 		static_cast<double>(imu.gyro_dps[0]) * chassis_config::kDpsToRadPerSec);
+	sample.roll_rate_rad_s = static_cast<float>(
+		static_cast<double>(imu.gyro_dps[1]) * chassis_config::kDpsToRadPerSec);
 	sample.yaw_rate_rad_s = static_cast<float>(
 		static_cast<double>(imu.gyro_dps[2]) * chassis_config::kDpsToRadPerSec);
+	for (size_t axis = 0U; axis < 3U; ++axis) {
+		sample.accel_g[axis] = imu.accel_g[axis];
+	}
+	// HI91 Z acceleration is used as the chassis vertical direction. Its sign
+	// must be confirmed by a face-up/face-down bench test before recovery use.
+	sample.vertical_accel_g = imu.accel_g[2];
 	return true;
 #else
 #error "The chassis module requires one configured IMU source"

@@ -61,7 +61,6 @@ inline constexpr double kTwoPi = 6.28318530717958647692;
 inline constexpr double kDegToRad = 0.01745329251994329577;
 inline constexpr double kDpsToRadPerSec = kDegToRad;
 inline constexpr double kRpmToRadPerSec = 0.10471975511965977;
-inline constexpr size_t kTelemetryChannelCount = 37U;
 inline constexpr double kMaxYawRate = kMaxTurnWheelSpeed / kHalfWheelTrack;
 inline constexpr double kYawAccelerationLimit = kTurnAccelerationLimit / kHalfWheelTrack;
 inline constexpr double kYawTrackingErrorLimit = kYawTrackingErrorLimitDeg * kDegToRad;

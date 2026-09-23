@@ -47,8 +47,12 @@ enum class ChassisControlState : uint8_t {
 	kSafetyStop,
 	kDmArming,
 	kWaitingFeedback,
-	kStool,
+	kRecovery,
 	kBalance,
+	kFlight,
+	kJump,
+	kClimbStairs,
+	kActionFault,
 	kTiltFault,
 };
 
@@ -70,9 +74,13 @@ struct ChassisImuSample {
 	uint32_t transport_error_count = 0U;
 	bool valid = false;
 	float pitch_deg = 0.0F;
+	float roll_deg = 0.0F;
 	float yaw_deg = 0.0F;
 	float pitch_rate_rad_s = 0.0F;
+	float roll_rate_rad_s = 0.0F;
 	float yaw_rate_rad_s = 0.0F;
+	float accel_g[3] = {};
+	float vertical_accel_g = 0.0F;
 };
 
 /** Frozen input for one control cycle. */
@@ -85,9 +93,12 @@ struct ChassisCycleInput {
 	SidePair<double> wheel_motor_speed_rpm;
 	SidePair<JointPair<double>> joint_position;
 	SidePair<JointPair<double>> joint_velocity;
+	SidePair<JointPair<double>> joint_torque_feedback;
 	double dt = 0.001;
 	double pitch = 0.0;
 	double pitch_rate = 0.0;
+	double roll = 0.0;
+	double roll_rate = 0.0;
 	SidePair<double> theta;
 	SidePair<double> theta_rate;
 	double common_theta = 0.0;
@@ -95,6 +106,7 @@ struct ChassisCycleInput {
 	bool imu_fresh = false;
 	uint64_t imu_age_us = UINT64_MAX;
 	uint32_t remote_age_ms = UINT32_MAX;
+	bool remote_fresh = false;
 	bool feedback_valid = false;
 	bool requested_enable = false;
 	bool dm_ready = false;
@@ -116,6 +128,18 @@ struct ChassisControlOutput {
 	double requested_turn_torque = 0.0;
 	double allocated_turn_torque = 0.0;
 	double differential_leg_torque = 0.0;
+	double roll_reference = 0.0;
+	double roll_compensation_force = 0.0;
+};
+
+struct ChassisSupportForceEstimate {
+	SidePair<double> raw_force_n;
+	SidePair<double> filtered_force_n;
+	SidePair<double> leg_vertical_force_n;
+	SidePair<double> wheel_vertical_accel_mps2;
+	double body_vertical_accel_mps2 = 0.0;
+	double world_vertical_specific_force_g = 0.0;
+	bool valid = false;
 };
 
 } // namespace modules

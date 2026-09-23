@@ -17,6 +17,8 @@ float32 plucker
 bool run
 bool robot_enable
 bool fast_spin
+bool climb_stairs
+bool jump
 bool supercap
 bool auto_aim
 bool friction_wheel

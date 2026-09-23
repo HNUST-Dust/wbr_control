@@ -16,11 +16,15 @@
 #include <zephyr/kernel.h>
 
 #include "balance_controller.h"
+#include "climb_stairs_controller.h"
 #include "chassis_actuator.h"
 #include "chassis_input_reader.h"
 #include "chassis_state_machine.h"
 #include "chassis_types.h"
-#include "stool_controller.h"
+#include "recovery_controller.h"
+#include "support_force_estimator.h"
+#include "flight_controller.h"
+#include "jump_controller.h"
 #include "../module_base.h"
 
 namespace modules
@@ -61,7 +65,8 @@ private:
 	 */
 	void ApplyControlOutput(ChassisControlOutput &output);
 	void PublishTelemetry(const ChassisCycleInput &input,
-			      const ChassisControlOutput &output);
+			      const ChassisControlOutput &output,
+			      const ChassisSupportForceEstimate &support_force);
 	/**
 	 * @brief 发布本控制周期的状态和诊断遥测。
 	 * @param[in] input 本周期使用的只读输入快照。
@@ -82,9 +87,13 @@ private:
 	uint32_t loop_period_us_ = 0U;
 	uint32_t min_loop_period_us_ = UINT32_MAX;
 	uint32_t max_loop_period_us_ = 0U;
-	StoolController stool_controller_;
+	RecoveryController recovery_controller_;
+	ClimbStairsController climb_stairs_controller_;
 	BalanceController balance_controller_;
 	ChassisInputReader input_reader_;
+	SupportForceEstimator support_force_estimator_;
+	FlightController flight_controller_;
+	JumpController jump_controller_;
 	ChassisStateMachine state_machine_;
 	ChassisActuator actuator_;
 };

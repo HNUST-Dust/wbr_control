@@ -61,6 +61,18 @@ parameters:
     cpp_type: double
     min: 0.0
     max: 0.99
+  balance.leg_length_command_rate_mps:
+    cpp_name: kLegLengthCommandRate
+    cpp_type: double
+    min: 0.0
+  balance.min_leg_length_m:
+    cpp_name: kMinCommandedLegLength
+    cpp_type: double
+    min: 0.0
+  balance.max_leg_length_m:
+    cpp_name: kMaxCommandedLegLength
+    cpp_type: double
+    min: 0.0
   balance.max_body_speed_mps:
     cpp_name: kMaxBodySpeed
     cpp_type: double
@@ -97,6 +109,24 @@ parameters:
   balance.hold_lqr_translation_error_at_zero:
     cpp_name: kHoldLqrTranslationErrorAtZero
     cpp_type: bool
+  balance.roll_reference_rate_deg_s:
+    cpp_name: kRollReferenceRateDegPerSec
+    cpp_type: double
+    min: 0.0
+  balance.roll_compensation_kp_n_per_rad:
+    cpp_name: kRollCompensationKp
+    cpp_type: double
+    min: 0.0
+  balance.roll_compensation_force_limit_n:
+    cpp_name: kRollCompensationForceLimit
+    cpp_type: double
+    min: 0.0
+  balance.roll_compensation_sign:
+    cpp_name: kRollCompensationSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
   actuator.dji_current_per_nm:
     cpp_name: kDjiCurrentPerNm
     cpp_type: double
@@ -217,6 +247,292 @@ parameters:
     cpp_name: kJointTorqueMax
     cpp_type: double
     min: 0.0
+  climb_stairs.intermediate_leg_length_m:
+    cpp_name: kClimbIntermediateLegLength
+    cpp_type: double
+    min: 0.0
+  climb_stairs.retracted_leg_length_m:
+    cpp_name: kClimbRetractedLegLength
+    cpp_type: double
+    min: 0.0
+  climb_stairs.leg_length_rate_mps:
+    cpp_name: kClimbLegLengthRate
+    cpp_type: double
+    min: 0.0
+  climb_stairs.swing_theta_rad:
+    cpp_name: kClimbSwingTheta
+    cpp_type: double
+  climb_stairs.motion1_angle_rate_deg_s:
+    cpp_name: kClimbMotion1AngleRateDeg
+    cpp_type: double
+    min: 0.0
+  climb_stairs.motion2_angle_rate_deg_s:
+    cpp_name: kClimbMotion2AngleRateDeg
+    cpp_type: double
+    min: 0.0
+  climb_stairs.length_tolerance_m:
+    cpp_name: kClimbLengthTolerance
+    cpp_type: double
+    min: 0.0
+  climb_stairs.motion1_angle_tolerance_deg:
+    cpp_name: kClimbMotion1AngleToleranceDeg
+    cpp_type: double
+    min: 0.0
+  climb_stairs.motion2_angle_tolerance_deg:
+    cpp_name: kClimbMotion2AngleToleranceDeg
+    cpp_type: double
+    min: 0.0
+  climb_stairs.ready_hold_ms:
+    cpp_name: kClimbReadyHoldMs
+    cpp_type: uint32_t
+    min: 1
+  climb_stairs.motion1_timeout_ms:
+    cpp_name: kClimbMotion1TimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  climb_stairs.motion2_timeout_ms:
+    cpp_name: kClimbMotion2TimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.upright_accel_sign:
+    cpp_name: kRecoveryUprightAccelSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  recovery.upright_accel_threshold_g:
+    cpp_name: kRecoveryUprightAccelThresholdG
+    cpp_type: double
+  recovery.maximum_leg_length_m:
+    cpp_name: kRecoveryMaximumLegLength
+    cpp_type: double
+    min: 0.0
+  recovery.minimum_leg_length_m:
+    cpp_name: kRecoveryMinimumLegLength
+    cpp_type: double
+    min: 0.0
+  recovery.swing_theta_rad:
+    cpp_name: kRecoverySwingTheta
+    cpp_type: double
+  recovery.turnover_sweep_rate_deg_s:
+    cpp_name: kRecoveryTurnoverSweepRateDeg
+    cpp_type: double
+    min: 0.0
+  recovery.swing_angle_rate_deg_s:
+    cpp_name: kRecoverySwingAngleRateDeg
+    cpp_type: double
+    min: 0.0
+  recovery.drawback_angle_rate_deg_s:
+    cpp_name: kRecoveryDrawbackAngleRateDeg
+    cpp_type: double
+    min: 0.0
+  recovery.extend_leg_rate_mps:
+    cpp_name: kRecoveryExtendLegRate
+    cpp_type: double
+    min: 0.0
+  recovery.escape_leg_rate_mps:
+    cpp_name: kRecoveryEscapeLegRate
+    cpp_type: double
+    min: 0.0
+  recovery.drawback_leg_rate_mps:
+    cpp_name: kRecoveryDrawbackLegRate
+    cpp_type: double
+    min: 0.0
+  recovery.turnover_stuck_speed_deg_s:
+    cpp_name: kRecoveryTurnoverStuckSpeedDeg
+    cpp_type: double
+    min: 0.0
+  recovery.swing_stuck_speed_deg_s:
+    cpp_name: kRecoverySwingStuckSpeedDeg
+    cpp_type: double
+    min: 0.0
+  recovery.stuck_timeout_ms:
+    cpp_name: kRecoveryStuckTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.upright_hold_ms:
+    cpp_name: kRecoveryUprightHoldMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.ready_hold_ms:
+    cpp_name: kRecoveryReadyHoldMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.turnover_timeout_ms:
+    cpp_name: kRecoveryTurnoverTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.swing_timeout_ms:
+    cpp_name: kRecoverySwingTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.drawback_timeout_ms:
+    cpp_name: kRecoveryDrawbackTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  recovery.maximum_turnover_reversals:
+    cpp_name: kRecoveryMaximumTurnoverReversals
+    cpp_type: uint32_t
+    min: 1
+  support_force_estimator.wheel_mass_kg:
+    cpp_name: kSupportWheelMass
+    cpp_type: double
+    min: 0.0
+  support_force_estimator.world_vertical_specific_force_sign:
+    cpp_name: kSupportWorldVerticalSpecificForceSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  support_force_estimator.left_joint_torque_sign:
+    cpp_name: kSupportLeftJointTorqueSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  support_force_estimator.right_joint_torque_sign:
+    cpp_name: kSupportRightJointTorqueSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  support_force_estimator.derivative_filter_cutoff_hz:
+    cpp_name: kSupportDerivativeFilterCutoffHz
+    cpp_type: double
+    min: 0.1
+  support_force_estimator.force_filter_cutoff_hz:
+    cpp_name: kSupportForceFilterCutoffHz
+    cpp_type: double
+    min: 0.1
+  support_force_estimator.jacobian_damping:
+    cpp_name: kSupportJacobianDamping
+    cpp_type: double
+    min: 0.0
+  support_force_estimator.maximum_abs_force_n:
+    cpp_name: kSupportMaximumAbsForce
+    cpp_type: double
+    min: 1.0
+  flight.liftoff_force_ratio:
+    cpp_name: kFlightLiftoffForceRatio
+    cpp_type: double
+    min: 0.0
+    max: 1.0
+  flight.liftoff_hold_ms:
+    cpp_name: kFlightLiftoffHoldMs
+    cpp_type: uint32_t
+    min: 1
+  flight.minimum_detection_leg_length_m:
+    cpp_name: kFlightMinimumDetectionLegLength
+    cpp_type: double
+    min: 0.0
+  flight.airborne_push_force_n:
+    cpp_name: kFlightAirbornePushForce
+    cpp_type: double
+    min: 0.0
+  flight.maximum_leg_length_m:
+    cpp_name: kFlightMaximumLegLength
+    cpp_type: double
+    min: 0.0
+  flight.maximum_length_margin_m:
+    cpp_name: kFlightMaximumLengthMargin
+    cpp_type: double
+    min: 0.0
+  flight.touchdown_retract_speed_mps:
+    cpp_name: kFlightTouchdownRetractSpeed
+    cpp_type: double
+    max: 0.0
+  flight.touchdown_peak_min_mps:
+    cpp_name: kFlightTouchdownPeakMin
+    cpp_type: double
+    min: 0.0
+  flight.touchdown_peak_drop_mps:
+    cpp_name: kFlightTouchdownPeakDrop
+    cpp_type: double
+    min: 0.0
+  flight.touchdown_length_margin_m:
+    cpp_name: kFlightTouchdownLengthMargin
+    cpp_type: double
+    min: 0.0
+  flight.touchdown_hold_ms:
+    cpp_name: kFlightTouchdownHoldMs
+    cpp_type: uint32_t
+    min: 1
+  flight.timeout_ms:
+    cpp_name: kFlightTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  jump.precompress_leg_length_m:
+    cpp_name: kJumpPrecompressLegLength
+    cpp_type: double
+    min: 0.0
+  jump.precompress_length_tolerance_m:
+    cpp_name: kJumpPrecompressLengthTolerance
+    cpp_type: double
+    min: 0.0
+  jump.precompress_speed_tolerance_mps:
+    cpp_name: kJumpPrecompressSpeedTolerance
+    cpp_type: double
+    min: 0.0
+  jump.precompress_timeout_ms:
+    cpp_name: kJumpPrecompressTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  jump.thrust_torque_nm:
+    cpp_name: kJumpThrustTorque
+    cpp_type: double
+    min: 0.0
+  jump.joint_b_thrust_sign:
+    cpp_name: kJumpJointBThrustSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  jump.joint_d_thrust_sign:
+    cpp_name: kJumpJointDThrustSign
+    cpp_type: double
+    allowed:
+    - -1
+    - 1
+  jump.thrust_exit_leg_length_m:
+    cpp_name: kJumpThrustExitLegLength
+    cpp_type: double
+    min: 0.0
+  jump.thrust_timeout_ms:
+    cpp_name: kJumpThrustTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  jump.air_retract_leg_length_m:
+    cpp_name: kJumpAirRetractLegLength
+    cpp_type: double
+    min: 0.0
+  jump.air_retract_rate_mps:
+    cpp_name: kJumpAirRetractRate
+    cpp_type: double
+    min: 0.0
+  jump.air_retract_gravity_feedforward_n:
+    cpp_name: kJumpAirRetractGravityFeedforward
+    cpp_type: double
+    max: 0.0
+  jump.air_retract_length_tolerance_m:
+    cpp_name: kJumpAirRetractLengthTolerance
+    cpp_type: double
+    min: 0.0
+  jump.air_retract_hold_ms:
+    cpp_name: kJumpAirRetractHoldMs
+    cpp_type: uint32_t
+    min: 1
+  jump.air_retract_timeout_ms:
+    cpp_name: kJumpAirRetractTimeoutMs
+    cpp_type: uint32_t
+    min: 1
+  jump.cooldown_ms:
+    cpp_name: kJumpCooldownMs
+    cpp_type: uint32_t
+    min: 1
+  jump.total_timeout_ms:
+    cpp_name: kJumpTotalTimeoutMs
+    cpp_type: uint32_t
+    min: 1
   vmc.leg_length_kp:
     cpp_name: kLegLengthKp
     cpp_type: double
@@ -422,6 +738,9 @@ parameters:
     - -1
     - 1
 constraints:
+- kind: less_than
+  left: balance.min_leg_length_m
+  right: balance.max_leg_length_m
 - kind: less_than
   left: safety.dm_clear_ticks
   right: safety.dm_arm_ticks

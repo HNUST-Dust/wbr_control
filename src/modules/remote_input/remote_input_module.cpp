@@ -104,11 +104,6 @@ float NormalizeWflyChannel(uint16_t raw)
 	return ClampNormalized((static_cast<float>(raw) - kWflySbusMid) / kWflySbusScale);
 }
 
-float PositiveOnly(float value)
-{
-	return (value > 0.0f) ? value : 0.0f;
-}
-
 WflySwitchPosition DecodeWflySwitch(uint16_t raw)
 {
 	if (raw < kWflySwitchLowMidThreshold) {
@@ -131,6 +126,8 @@ void SetCommonActiveDefaults(msg::RemoteInputState *input)
 	input->friction_speed = 0.0f;
 	input->plucker = 0.0f;
 	input->fast_spin = false;
+	input->climb_stairs = false;
+	input->jump = false;
 }
 
 void SetDisabled(msg::RemoteInputState *input)
@@ -146,6 +143,8 @@ void SetDisabled(msg::RemoteInputState *input)
 	input->run = false;
 	input->robot_enable = false;
 	input->fast_spin = false;
+	input->climb_stairs = false;
+	input->jump = false;
 }
 
 } // namespace
@@ -358,18 +357,14 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 						DecodeWflySwitch(wfly_frame.msg[5]);
 
 					if (ch4 == WflySwitchPosition::kLow) {
-						if (ch5 == WflySwitchPosition::kMid) {
+						// Preserve CH4-low/CH5-low as the explicit disabled pose.
+						if (ch5 != WflySwitchPosition::kLow) {
 							input.run = true;
 							input.robot_enable = true;
 							input.chassis_x = left_y;
 							input.chassis_rotate = left_x;
 							input.yaw_angle = right_x;
 							input.pitch_angle = right_y;
-						} else if (ch5 == WflySwitchPosition::kHigh) {
-							input.run = true;
-							input.robot_enable = true;
-							input.friction_speed = PositiveOnly(left_y);
-							input.plucker = right_y;
 						}
 					} else if (ch4 == WflySwitchPosition::kMid) {
 						input.run = true;
@@ -378,7 +373,14 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 						input.chassis_rotate = left_x;
 						input.leg_length_delta = right_y;
 						input.leg_length = input.leg_length_delta;
+					} else if (ch4 == WflySwitchPosition::kHigh) {
+						input.run = true;
+						input.robot_enable = true;
+						input.climb_stairs = true;
 					}
+					// CH5 is an independent momentary action request. The chassis
+					// consumes its rising edge and applies the jump cooldown policy.
+					input.jump = ch5 == WflySwitchPosition::kHigh;
 				}
 				PublishRemoteState(&input);
 				ConsumeBinary(protocols::kWflySbusFrameLength);
@@ -400,6 +402,7 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 				input.chassis_rotate = vt03_frame.left_x;
 				input.yaw_angle = vt03_frame.right_x;
 				input.pitch_angle = vt03_frame.right_y;
+				input.climb_stairs = vt03_frame.wheel > 0.8f;
 				PublishRemoteState(&input);
 				ConsumeBinary(protocols::kVt03RemoteFrameLength);
 				continue;
@@ -431,6 +434,7 @@ void RemoteInputModule::TryDecodeBinaryFrames()
 				input.chassis_rotate = dr16_frame.left_stick_x;
 				input.yaw_angle = dr16_frame.right_stick_x;
 				input.pitch_angle = dr16_frame.right_stick_y;
+				input.climb_stairs = dr16_frame.wheel > 0.8f;
 				PublishRemoteState(&input);
 				ConsumeBinary(protocols::kDr16FrameLength);
 				continue;

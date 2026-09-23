@@ -4,7 +4,6 @@
 
 #include "body_motion_estimator.h"
 #include "chassis_types.h"
-#include "stool_controller.h"
 
 namespace modules
 {
@@ -34,6 +33,7 @@ private:
 	double target_leg_length_ = 0.0;
 	double balance_theta_reference_ = 0.0;
 	double balance_pitch_reference_ = 0.0;
+	double balance_roll_reference_ = 0.0;
 	double target_body_speed_ = 0.0;
 	double target_body_position_ = 0.0;
 	double target_yaw_rate_ = 0.0;
