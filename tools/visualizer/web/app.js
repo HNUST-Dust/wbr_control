@@ -1,0 +1,43 @@
+const $=s=>document.querySelector(s); let DATA;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function svgEl(name,attrs={}){const e=document.createElementNS('http://www.w3.org/2000/svg',name);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e}
+function node(svg,x,y,w,label,type,id){const g=svgEl('g',{class:`node ${type}`,'data-id':id,transform:`translate(${x},${y})`});g.append(svgEl('rect',{width:w,height:40}));const t=svgEl('text',{x:w/2,y:25});t.textContent=label;g.append(t);svg.append(g);return g}
+function line(svg,a,b,id,label=''){const p=svgEl('path',{d:`M${a.x},${a.y} C${(a.x+b.x)/2},${a.y} ${(a.x+b.x)/2},${b.y} ${b.x},${b.y}`,class:'edge','data-id':id});svg.prepend(p);const hit=p.cloneNode();hit.setAttribute('class','edge-hit');svg.append(hit);if(label){const t=svgEl('text',{x:(a.x+b.x)/2,y:(a.y+b.y)/2-4,class:'label'});t.textContent=label;svg.append(t)}return hit}
+function stateEdge(svg,a,b,id,label,lane,route='direct'){
+  const dx=b.x-a.x,dy=b.y-a.y,horizontal=Math.abs(dx)>=Math.abs(dy);
+  const start={x:a.x+(horizontal?Math.sign(dx)*a.w/2:0),y:a.y+(horizontal?0:Math.sign(dy)*a.h/2)};
+  const end={x:b.x-(horizontal?Math.sign(dx)*b.w/2:0),y:b.y-(horizontal?0:Math.sign(dy)*b.h/2)};
+  const bend=lane*18;
+  let d=horizontal?`M${start.x},${start.y} C${(start.x+end.x)/2},${start.y+bend} ${(start.x+end.x)/2},${end.y+bend} ${end.x},${end.y}`:`M${start.x},${start.y} C${start.x+bend},${(start.y+end.y)/2} ${end.x+bend},${(start.y+end.y)/2} ${end.x},${end.y}`;
+  const group=svgEl('g',{class:'state-edge','data-id':id});
+  const path=svgEl('path',{d,class:'edge','marker-end':'url(#state-arrow)'}),hit=svgEl('path',{d,class:'edge-hit'}),labelGroup=svgEl('g',{class:'state-edge-label'});
+  let lx=(start.x+end.x)/2+(horizontal?0:bend),ly=(start.y+end.y)/2+(horizontal?bend:0);
+  if(route==='top'){const corridor=35;d=`M${start.x},${start.y} C${start.x-80},${corridor} ${end.x+80},${corridor} ${end.x},${end.y}`;lx=(start.x+end.x)/2;ly=corridor+4}
+  if(route==='bottom'){const corridor=680;d=`M${start.x},${start.y} C${start.x-70},${corridor} ${end.x+70},${corridor} ${end.x},${end.y}`;lx=(start.x+end.x)/2;ly=corridor-8}
+  const width=Math.max(64,label.length*7+14);
+  const text=svgEl('text',{x:lx,y:ly+4,class:'label'});text.textContent=label;
+  labelGroup.append(svgEl('rect',{x:lx-width/2,y:ly-11,width,height:22,rx:5}),text);group.append(path,hit,labelGroup);svg.prepend(group);return {group,hit};
+}
+function showUsage(u){$('#detail').innerHTML=`<h2>${esc(u.storage)}</h2><p><b>${u.direction}</b> · ${esc(u.method)}</p><p><code>${esc(u.file)}:${u.line}</code></p>`}
+function drawMessages(){const svg=$('#graph');svg.innerHTML='';const mods=DATA.modules.map(x=>x.name), messages=DATA.messages.filter(m=>m.transports.length);const used=new Set(DATA.usages.map(u=>u.message));const shown=messages.filter(m=>used.has(m.name));const H=Math.max(560,Math.max(mods.length,shown.length)*66+70);svg.setAttribute('viewBox',`0 0 1000 ${H}`);const pos={};mods.forEach((m,i)=>{pos['m:'+m]={x:185,y:55+i*66};node(svg,25,35+i*66,160,m,'module','m:'+m)});shown.forEach((m,i)=>{pos['t:'+m.name]={x:650,y:55+i*66};node(svg,650,35+i*66,250,m.name,'message','t:'+m.name)});DATA.usages.forEach((u,i)=>{const a=pos['m:'+u.module],b=pos['t:'+u.message];if(!a||!b)return;const start=u.direction==='publish'?a:b,end=u.direction==='publish'?b:a;const hit=line(svg,start,end,'u:'+i);hit.onclick=()=>showUsage(u)});svg.querySelectorAll('.node').forEach(g=>g.onclick=()=>selectMessageNode(g.dataset.id));$('#summary').textContent=`${mods.length} 个模块 · ${shown.length} 个已使用消息 · ${DATA.usages.length} 个读写关系`}
+function selectMessageNode(id){const [kind,name]=id.split(':');const related=new Set([id]);DATA.usages.forEach(u=>{if((kind==='m'&&u.module===name)||(kind==='t'&&u.message===name)){related.add('m:'+u.module);related.add('t:'+u.message)}});document.querySelectorAll('#graph .node').forEach(n=>{n.classList.toggle('dim',!related.has(n.dataset.id));n.classList.toggle('selected',n.dataset.id===id)});if(kind==='m'){const uses=DATA.usages.filter(u=>u.module===name);$('#detail').innerHTML=`<h2>${esc(name)}</h2><h3>消息关系</h3><ul>${uses.map(u=>`<li>${u.direction==='publish'?'发布':'订阅'} <code>${esc(u.storage)}</code></li>`).join('')}</ul>`}else{const m=DATA.messages.find(x=>x.name===name),uses=DATA.usages.filter(u=>u.message===name);$('#detail').innerHTML=`<h2>${esc(name)}</h2><p><code>${esc(m.file)}</code></p><h3>存储</h3><ul>${m.transports.map(t=>`<li>${esc(t.kind)} · <code>${esc(t.name)}</code></li>`).join('')}</ul><h3>字段</h3><ul>${m.fields.map(f=>`<li><code>${esc(f.type)}${f.array?'['+esc(f.array)+']':''} ${esc(f.name)}</code></li>`).join('')}</ul><h3>使用方</h3><ul>${uses.map(u=>`<li>${esc(u.module)} · ${u.direction}</li>`).join('')}</ul>`}}
+function drawStates(){
+  const svg=$('#state-graph'),sm=DATA.chassisStateMachine;svg.innerHTML='';svg.setAttribute('viewBox','0 0 1300 720');
+  const defs=svgEl('defs'),marker=svgEl('marker',{id:'state-arrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});marker.append(svgEl('path',{d:'M 0 0 L 10 5 L 0 10 z',class:'arrow'}));defs.append(marker);svg.append(defs);
+  const layout={Disabled:[55,80],SafetyStop:[55,250],DmArming:[300,80],WaitingFeedback:[300,250],Recovery:[545,80],Balance:[545,300],Flight:[800,80],Jump:[800,300],ClimbStairs:[800,520],ActionFault:[1050,190],TiltFault:[1050,410]},pos={};
+  sm.states.forEach(s=>{const [x,y]=layout[s]||[40,40];pos[s]={x:x+95,y:y+24,w:190,h:48};const g=node(svg,x,y,190,s,'state'+(s.includes('Fault')?' fault':''),'s:'+s);g.onclick=()=>selectState(s)});
+  const pairCounts=new Map();
+  sm.transitions.forEach((t,i)=>{if(!pos[t.from]||!pos[t.to]||t.from===t.to)return;const pair=[t.from,t.to].sort().join('|'),count=pairCounts.get(pair)||0;pairCounts.set(pair,count+1);const reverse=sm.transitions.some(x=>x.from===t.to&&x.to===t.from),lane=reverse?(t.from<t.to?-1:1):(count%2?1:-1)*(Math.floor(count/2)+1),fallbackSource=['Balance','Flight','Jump','ClimbStairs'].includes(t.from),route=fallbackSource&&t.to==='DmArming'?'top':fallbackSource&&t.to==='WaitingFeedback'?'bottom':'direct';const edge=stateEdge(svg,pos[t.from],pos[t.to],'st:'+i,t.reason,lane,route);edge.group.dataset.from=t.from;edge.group.dataset.to=t.to;edge.hit.onclick=()=>{document.querySelectorAll('#state-graph .state-edge').forEach(e=>e.classList.toggle('selected',e===edge.group));$('#state-detail').innerHTML=`<h2>${esc(t.from)} → ${esc(t.to)}</h2><p>原因：${esc(t.reason)}</p><p><code>${esc(sm.file)}:${t.line}</code></p>`}});
+  function selectState(s){
+    const incoming=sm.transitions.filter(t=>t.to===s),outgoing=sm.transitions.filter(t=>t.from===s),globalIncoming=(sm.globalTransitions||[]).filter(t=>t.to===s);
+    document.querySelectorAll('#state-graph .node').forEach(n=>{const id=n.dataset.id.slice(2),connected=id===s||incoming.some(t=>t.from===id)||outgoing.some(t=>t.to===id);n.classList.toggle('selected',id===s);n.classList.toggle('context-dim',!connected)});
+    document.querySelectorAll('#state-graph .state-edge').forEach(e=>{const related=e.dataset.from===s||e.dataset.to===s;e.classList.toggle('related',related);e.classList.toggle('context-dim',!related);e.classList.remove('selected')});
+    const inItems=[...incoming.map(t=>`<li><b>${esc(t.reason)}</b>：${esc(t.from)} → ${esc(s)}（L${t.line}）</li>`),...globalIncoming.map(t=>`<li><b>${esc(t.reason)}</b>：任意状态 → ${esc(s)}（全局优先规则）</li>`)].join('');
+    const outItems=outgoing.map(t=>`<li><b>${esc(t.reason)}</b>：${esc(s)} → ${esc(t.to)}（L${t.line}）</li>`).join('');
+    $('#state-detail').innerHTML=`<h2>${esc(s)}</h2><p><code>${esc(sm.file)}</code></p><h3>进入该状态</h3><ul>${inItems||'<li>没有普通入边；该状态是初始状态或仅由全局规则进入</li>'}</ul><h3>离开该状态</h3><ul>${outItems||'<li>无普通迁移，等待全局条件清除</li>'}</ul>`
+  }
+  selectState('Balance');
+}
+function filter(q){q=q.trim().toLowerCase();document.querySelectorAll('.node').forEach(n=>n.classList.toggle('dim',q&&!n.textContent.toLowerCase().includes(q)))}
+try{DATA=JSON.parse($('#architecture-data').textContent);drawMessages();drawStates()}catch(e){$('#detail').innerHTML=`<h2>无法加载数据</h2><p>${esc(e.message)}</p>`}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button,.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('#'+b.dataset.view).classList.add('active')});$('#search').oninput=e=>filter(e.target.value);$('#reset').onclick=()=>{document.querySelectorAll('#graph .node,.edge').forEach(n=>n.classList.remove('dim','selected'));$('#search').value=''};

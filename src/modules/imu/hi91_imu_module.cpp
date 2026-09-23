@@ -24,8 +24,9 @@
 
 #include <drivers/uart_hpmicro.h>
 
-#include <channels/hi91_imu_sample.hpp>
+#include <msg/hi91_imu_sample.hpp>
 #include <scheduling/thread_priorities.h>
+#include <hi91_imu_params_generated.h>
 
 LOG_MODULE_REGISTER(hi91_imu_module, LOG_LEVEL_INF);
 
@@ -40,11 +41,14 @@ constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE;
 constexpr uint32_t kUartBaudrate = 921600U;
 #endif
 constexpr bool kStrictCrc = IS_ENABLED(CONFIG_WBR_CONTROL_HI91_IMU_STRICT_CRC);
-constexpr uint32_t kStartupDelayMs = 2000U;
-constexpr uint32_t kRxRingPollPeriodMs = 1U;
-constexpr uint32_t kFreshnessDeadlineUs = 3000U;
+constexpr uint32_t kStartupDelayMs = modules::hi91_imu_params::kHi91StartupDelayMs;
+constexpr uint32_t kRxRingPollPeriodMs =
+	modules::hi91_imu_params::kHi91RxRingPollPeriodMs;
+constexpr uint32_t kFreshnessDeadlineUs =
+	modules::hi91_imu_params::kHi91FreshnessDeadlineUs;
 // HI91 输出物理欧拉俯仰角，超过该范围视为 UART 数据损坏。
-constexpr float kMaximumValidPitchDeg = 100.0F;
+constexpr float kMaximumValidPitchDeg =
+	modules::hi91_imu_params::kHi91MaximumValidPitchDeg;
 
 /*
  * UART RX ring 由 HDMA 持续写、HI91 线程持续读。放入 non-cacheable RAM 后
@@ -255,7 +259,7 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 		return;
 	}
 
-	channels::Hi91ImuSample channel_sample = {};
+	msg::Hi91ImuSample channel_sample = {};
 	const uint64_t publish_time_us = k_cyc_to_us_floor64(k_cycle_get_64());
 	if (last_sensor_time_ms_ != 0U) {
 		max_sensor_interval_ms_ =
@@ -299,7 +303,7 @@ void Hi91ImuModule::PublishSample(const protocols::Hi91Sample &sample)
 	memcpy(channel_sample.quat, sample.quat, sizeof(channel_sample.quat));
 	memcpy(channel_sample.gyro_dps, sample.gyro_dps, sizeof(channel_sample.gyro_dps));
 	memcpy(channel_sample.accel_g, sample.accel_g, sizeof(channel_sample.accel_g));
-	channels::latest_hi91_imu_sample.write(channel_sample);
+	msg::latest_hi91_imu_sample.write(channel_sample);
 
 }
 

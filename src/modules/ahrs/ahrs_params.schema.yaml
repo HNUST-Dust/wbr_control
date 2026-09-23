@@ -1,0 +1,109 @@
+schema_version: 1
+parameters:
+  schema_version:
+    cpp_name: kSchemaVersion
+    cpp_type: uint32_t
+    min: 1
+    max: 1
+  ahrs.gravity_mps2:
+    cpp_name: kAhrsGravityMps2
+    cpp_type: float
+    min: 0
+  ahrs.accel_lsb_per_g:
+    cpp_name: kAhrsAccelLsbPerG
+    cpp_type: float
+    min: 0
+  ahrs.gyro_lsb_per_dps:
+    cpp_name: kAhrsGyroLsbPerDps
+    cpp_type: float
+    min: 0
+  ahrs.sample_frequency_hz:
+    cpp_name: kAhrsSampleFrequencyHz
+    cpp_type: float
+    min: 0
+  ahrs.period_ms:
+    cpp_name: kAhrsPeriodMs
+    cpp_type: uint32_t
+    min: 1
+    max: 1000
+  ahrs.nominal_sample_interval_us:
+    cpp_name: kAhrsNominalSampleIntervalUs
+    cpp_type: uint32_t
+    min: 1
+  ahrs.minimum_sane_sample_interval_us:
+    cpp_name: kAhrsMinimumSaneSampleIntervalUs
+    cpp_type: uint32_t
+    min: 1
+  ahrs.maximum_sane_sample_interval_us:
+    cpp_name: kAhrsMaximumSaneSampleIntervalUs
+    cpp_type: uint32_t
+    min: 1
+  ahrs.calibration_accel_tolerance_mps2:
+    cpp_name: kAhrsCalibrationAccelToleranceMps2
+    cpp_type: float
+    min: 0
+  ahrs.calibration_gyro_limit_rad_s:
+    cpp_name: kAhrsCalibrationGyroLimitRadS
+    cpp_type: float
+    min: 0
+  ahrs.temperature.target_c:
+    cpp_name: kAhrsTemperatureTargetC
+    cpp_type: float
+    min: -100
+    max: 200
+  ahrs.temperature.calibration_window_c:
+    cpp_name: kAhrsTemperatureCalibrationWindowC
+    cpp_type: float
+    min: 0
+  ahrs.temperature.cutoff_c:
+    cpp_name: kAhrsTemperatureCutoffC
+    cpp_type: float
+    min: -100
+    max: 200
+  ahrs.temperature.minimum_c:
+    cpp_name: kAhrsTemperatureMinimumC
+    cpp_type: float
+    min: -100
+    max: 200
+  ahrs.temperature.maximum_c:
+    cpp_name: kAhrsTemperatureMaximumC
+    cpp_type: float
+    min: -100
+    max: 200
+  ahrs.temperature.max_duty_percent:
+    cpp_name: kAhrsTemperatureMaxDutyPercent
+    cpp_type: float
+    min: 0
+    max: 100
+  ahrs.temperature.kp:
+    cpp_name: kAhrsTemperatureKp
+    cpp_type: float
+    min: 0
+  ahrs.temperature.ki:
+    cpp_name: kAhrsTemperatureKi
+    cpp_type: float
+    min: 0
+  ahrs.ekf.stable_accel_tolerance_mps2:
+    cpp_name: kAhrsEkfStableAccelToleranceMps2
+    cpp_type: float
+    min: 0
+  ahrs.ekf.stable_gyro_limit_rad_s:
+    cpp_name: kAhrsEkfStableGyroLimitRadS
+    cpp_type: float
+    min: 0
+constraints:
+- kind: less_than
+  left: ahrs.minimum_sane_sample_interval_us
+  right: ahrs.nominal_sample_interval_us
+- kind: less_than
+  left: ahrs.nominal_sample_interval_us
+  right: ahrs.maximum_sane_sample_interval_us
+- kind: less_than
+  left: ahrs.temperature.minimum_c
+  right: ahrs.temperature.target_c
+- kind: less_than
+  left: ahrs.temperature.target_c
+  right: ahrs.temperature.cutoff_c
+- kind: less_than
+  left: ahrs.temperature.cutoff_c
+  right: ahrs.temperature.maximum_c

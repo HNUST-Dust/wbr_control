@@ -28,6 +28,7 @@ constexpr int kRemoteInput = 8; ///< 遥控器输入解析线程优先级。
 constexpr int kReferee = 9; ///< 裁判系统协议解析线程优先级。
 constexpr int kOscilloscope = 10; ///< 调试示波器数据输出线程优先级。
 constexpr int kSystemState = 11; ///< 系统状态灯和蜂鸣器线程优先级。
+constexpr int kSdLog = 13; ///< FAT32 SD logging thread; deliberately below control/telemetry.
 
 static_assert(kImu < kChassis);
 static_assert(kAhrs < kChassis);
@@ -38,5 +39,6 @@ static_assert(kPcLink < kRemoteInput);
 static_assert(kRemoteInput < kReferee);
 static_assert(kReferee < kOscilloscope);
 static_assert(kOscilloscope < kSystemState);
+static_assert(kSystemState < kSdLog);
 
 }  // namespace wbr_control::scheduling::thread_priority

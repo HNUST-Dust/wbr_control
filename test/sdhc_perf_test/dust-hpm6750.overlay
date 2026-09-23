@@ -13,6 +13,7 @@
 
 &sd0 {
 	status = "okay";
+	max-bus-freq = <25000000>;
 	pinctrl-0 = <&pinmux_sd>;
 	pinctrl-1 = <&pinmux_sd>;
 	pinctrl-2 = <&pinmux_sd>;

@@ -16,6 +16,7 @@
 
 #include <scheduling/periodic_schedule.h>
 #include <scheduling/thread_priorities.h>
+#include <sys_state_params_generated.h>
 
 LOG_MODULE_REGISTER(sys_state_module, LOG_LEVEL_INF);
 
@@ -46,12 +47,15 @@ const pwm_dt_spec kBuzzer = PWM_DT_SPEC_GET(WBR_CONTROL_BUZZER_NODE);
 
 K_THREAD_STACK_DEFINE(g_sys_state_module_stack, 1024);
 
-constexpr uint8_t kPwmLevels = 64U;
-constexpr uint32_t kLedFrameMs = 8U;
-constexpr uint16_t kBreathSteps = 200U;
-constexpr uint32_t kBuzzerPeriodUs = 2000U;
-constexpr uint8_t kBuzzerTickPercent = 20U;
-constexpr uint16_t kBuzzerTickSteps = 5U;
+constexpr uint8_t kPwmLevels = modules::sys_state_params::kSystemStatePwmLevels;
+constexpr uint32_t kLedFrameMs = modules::sys_state_params::kSystemStateLedFrameMs;
+constexpr uint16_t kBreathSteps = modules::sys_state_params::kSystemStateBreathSteps;
+constexpr uint32_t kBuzzerPeriodUs =
+	modules::sys_state_params::kSystemStateBuzzerPeriodUs;
+constexpr uint8_t kBuzzerTickPercent =
+	modules::sys_state_params::kSystemStateBuzzerTickPercent;
+constexpr uint16_t kBuzzerTickSteps =
+	modules::sys_state_params::kSystemStateBuzzerTickSteps;
 
 uint8_t TriangleBrightnessPercent(uint16_t step)
 {

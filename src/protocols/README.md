@@ -15,4 +15,4 @@
 #include <protocols/motors/dji_motor_protocol.h>
 ```
 
-protocols 不允许依赖业务 modules、channels 或具体 platform 适配。
+protocols 不允许依赖业务 modules、msg 或具体 platform 适配。

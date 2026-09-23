@@ -42,7 +42,7 @@ static void uart_callback(const struct device *dev, struct uart_event *event, vo
 
 static void prepare_frame(uint32_t sequence)
 {
-	/* Keep the 112-byte DMA load: 27 little-endian float channels + tail. */
+	/* Keep the 112-byte DMA load: 27 little-endian float msg + tail. */
 	float values[27] = {0};
 	values[0] = (float)sequence;
 	values[1] = (float)atomic_get(&g_done_count);

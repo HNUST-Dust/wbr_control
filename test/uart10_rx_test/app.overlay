@@ -1,0 +1,17 @@
+/* UART10 is the remote-control receiver port: 100000 baud, 8 data bits,
+ * even parity and 2 stop bits.  Keep its production HDMA assignment.
+ */
+&cherryusb_usb0 {
+	status = "disabled";
+};
+
+&uart10 {
+	status = "okay";
+	current-speed = <100000>;
+	parity = "even";
+	stop-bits = "2";
+	interrupts = <41 1>;
+	interrupt-names = "uart";
+	dmas = <&hdma 6 28>, <&hdma 7 29>;
+	dma-names = "rx", "tx";
+};

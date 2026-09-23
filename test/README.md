@@ -31,7 +31,7 @@ CCACHE_DISABLE=1 west build -p always -b qemu_riscv32 \
 CCACHE_DISABLE=1 west build -d /tmp/wbr-protocols-test -t run
 ```
 
-`unit/littlefs_service` demonstrates FFF against production code. It replaces
+The unit-test tree demonstrates FFF against production code. It replaces
 the filesystem and flash APIs, then verifies return sequences, arguments, call
 counts, call order, and idempotent initialization.
 
@@ -43,6 +43,7 @@ counts, call order, and idempotent initialization.
 - `sdhc_perf_test`: destructive/restore SDHC performance characterization.
 - `spi_test`: ICM42688P SPI/DMA integration.
 - `uart0_async_tx_test`: UART0 asynchronous DMA recovery.
+- `uart10_rx_test`: UART10 asynchronous DMA reception with raw RTT hex output.
 - `wheel_current_mapping_test`: guarded C620 current mapping calibration.
 
 ## Diagnostic output policy

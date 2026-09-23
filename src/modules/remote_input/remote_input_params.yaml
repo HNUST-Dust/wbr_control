@@ -1,0 +1,8 @@
+schema_version: 1
+remote_input:
+  rx_idle_timeout_us: 1000
+  wfly_sbus_mid: 1024.0
+  wfly_sbus_scale: 670.0
+  wfly_switch_low_mid_threshold: 689
+  wfly_switch_mid_high_threshold: 1359
+  wfly_frame_lost_timeout_ms: 1000

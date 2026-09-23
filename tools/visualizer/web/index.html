@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WBR Architecture Browser</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <header><div><h1>WBR Architecture Browser</h1><p>离线消息拓扑与 Chassis 状态机</p></div><input id="search" type="search" placeholder="搜索模块、消息或状态…"></header>
+  <nav><button class="active" data-view="messages">消息拓扑</button><button data-view="states">Chassis 状态机</button></nav>
+  <main>
+    <section id="messages" class="view active"><div class="toolbar"><button id="reset">显示全部</button><span id="summary"></span></div><div class="layout"><svg id="graph" aria-label="消息拓扑图"></svg><aside id="detail"><p>点击模块、消息或连线查看详情。</p></aside></div></section>
+    <section id="states" class="view"><div class="layout"><svg id="state-graph" aria-label="Chassis 状态机图"></svg><aside id="state-detail"><p>点击状态或迁移查看详情。</p></aside></div></section>
+  </main>
+  <script id="architecture-data" type="application/json">__ARCHITECTURE_JSON__</script>
+  <script src="app.js"></script>
+</body>
+</html>

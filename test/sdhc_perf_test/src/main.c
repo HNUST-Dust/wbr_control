@@ -11,7 +11,11 @@
 #include <zephyr/drivers/sdhc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/storage/disk_access.h>
+#include <zephyr/fs/fs.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
+
+#include <ff.h>
 
 #if defined(CONFIG_DISK_DRIVER_SDMMC)
 #define TEST_DISK_NAME CONFIG_SDMMC_VOLUME_NAME
@@ -26,7 +30,8 @@
 #define TEST_BYTES (TEST_SECTOR_SIZE * TEST_BLOCK_COUNT)
 #define TEST_ITERATIONS 8U
 #define RANDOM_ITERATIONS 128U
-#define WBR_SDHC_RAW_PROBE 1
+#define TEST_MOUNT_POINT "/SD:"
+#define TEST_LOG_PATH TEST_MOUNT_POINT "/SDHC_PROBE.BIN"
 
 static uint8_t test_buf[TEST_BYTES] __aligned(32);
 static uint8_t read_buf[TEST_BYTES] __aligned(32);
@@ -36,6 +41,12 @@ static uint32_t random_sectors[RANDOM_ITERATIONS];
 static uint32_t sector_count;
 static uint32_t sector_size;
 static uint32_t test_start_sector;
+static FATFS fat_fs;
+static struct fs_mount_t mount = {
+	.type = FS_FATFS,
+	.fs_data = &fat_fs,
+	.mnt_point = TEST_MOUNT_POINT,
+};
 
 static void print_sdhc_info(void)
 {
@@ -100,76 +111,6 @@ static void print_rate(const char *name, uint32_t bytes, uint64_t elapsed_us_val
 	       mib_x100 / 100ULL, mib_x100 % 100ULL);
 }
 
-static int raw_send_cmd(const struct device *sdhc, uint32_t opcode,
-			uint32_t arg, uint32_t response_type)
-{
-	struct sdhc_command cmd = {
-		.opcode = opcode,
-		.arg = arg,
-		.response_type = response_type,
-		.timeout_ms = 100,
-		.retries = 0,
-	};
-	int rc;
-
-	printk("[RAW] send CMD%u arg=0x%08x resp=0x%x\n", opcode, arg, response_type);
-	rc = sdhc_request(sdhc, &cmd, NULL);
-	printk("[RAW] CMD%u rc=%d r0=0x%08x\n", opcode, rc, cmd.response[0]);
-	return rc;
-}
-
-static int raw_sdhc_probe(void)
-{
-#if DT_NODE_HAS_STATUS(DT_ALIAS(sdhc0), okay)
-	const struct device *sdhc = DEVICE_DT_GET(DT_ALIAS(sdhc0));
-	struct sdhc_io io = {
-		.clock = 0,
-		.bus_width = SDHC_BUS_WIDTH1BIT,
-		.timing = SDHC_TIMING_LEGACY,
-		.signal_voltage = SD_VOL_3_3_V,
-		.power_mode = SDHC_POWER_OFF,
-		.bus_mode = SDHC_BUSMODE_PUSHPULL,
-	};
-	int rc;
-
-	printk("sdhc_raw_probe booted\n");
-	print_sdhc_info();
-
-	printk("[RAW] power off\n");
-	rc = sdhc_set_io(sdhc, &io);
-	printk("[RAW] set_io power off rc=%d\n", rc);
-	k_msleep(100);
-
-	printk("[RAW] power on\n");
-	io.power_mode = SDHC_POWER_ON;
-	rc = sdhc_set_io(sdhc, &io);
-	printk("[RAW] set_io power on rc=%d\n", rc);
-	k_msleep(100);
-
-	printk("[RAW] clock 400k\n");
-	io.clock = 400000;
-	rc = sdhc_set_io(sdhc, &io);
-	printk("[RAW] set_io clock rc=%d\n", rc);
-	k_msleep(500);
-
-	for (uint32_t i = 0; i < 10U; i++) {
-		printk("[RAW] scope window %u\n", i);
-		(void)raw_send_cmd(sdhc, SD_GO_IDLE_STATE, 0, SD_RSP_TYPE_NONE);
-		k_msleep(500);
-		(void)raw_send_cmd(sdhc, SD_SEND_IF_COND, 0x000001aa, SD_RSP_TYPE_R7);
-		k_msleep(500);
-		(void)raw_send_cmd(sdhc, SD_APP_CMD, 0, SD_RSP_TYPE_R1);
-		k_msleep(500);
-	}
-
-	printk("[RAW] done\n");
-	return 0;
-#else
-	printk("[RAW] no okay sdhc0 alias\n");
-	return -ENODEV;
-#endif
-}
-
 static int init_disk(void)
 {
 	int rc;
@@ -224,6 +165,119 @@ static int init_disk(void)
 	return 0;
 }
 
+static int filesystem_test(void)
+{
+	static const char log_text[] =
+		"PX4-style TF log test\n"
+		"hpm6750 sdc0 filesystem write/read verified\n";
+	char readback[sizeof(log_text)];
+	struct fs_file_t file;
+	ssize_t n;
+	int rc;
+
+	rc = fs_mount(&mount);
+	if (rc != 0) {
+		printk("[FAIL] FAT mount %s rc=%d\n", TEST_MOUNT_POINT, rc);
+		return rc;
+	}
+	printk("[PASS] FAT mounted at %s\n", TEST_MOUNT_POINT);
+
+	fs_file_t_init(&file);
+	rc = fs_open(&file, TEST_LOG_PATH, FS_O_CREATE | FS_O_RDWR);
+	if (rc != 0) {
+		printk("[FAIL] open %s rc=%d\n", TEST_LOG_PATH, rc);
+		goto out_unmount;
+	}
+
+	rc = fs_truncate(&file, 0);
+	if (rc == 0) {
+		n = fs_write(&file, log_text, sizeof(log_text));
+		if (n != (ssize_t)sizeof(log_text)) {
+			printk("[FAIL] log write bytes=%d expected=%u\n", (int)n,
+			       (unsigned int)sizeof(log_text));
+			rc = (n < 0) ? (int)n : -EIO;
+		}
+	}
+	if (rc == 0) {
+		rc = fs_sync(&file);
+		if (rc != 0) {
+			printk("[FAIL] log sync rc=%d\n", rc);
+		}
+	}
+	if (rc == 0) {
+		rc = fs_seek(&file, 0, FS_SEEK_SET);
+	}
+	if (rc == 0) {
+		n = fs_read(&file, readback, sizeof(readback));
+		if (n != (ssize_t)sizeof(log_text) ||
+		    memcmp(readback, log_text, sizeof(log_text)) != 0) {
+			printk("[FAIL] log readback mismatch bytes=%d\n", (int)n);
+			rc = -EIO;
+		}
+	}
+	fs_close(&file);
+	if (rc == 0) {
+		printk("[PASS] file write/read verified: %s\n", TEST_LOG_PATH);
+		(void)fs_unlink(TEST_LOG_PATH);
+		printk("[PASS] FAT remains mounted for RTT fs shell\n");
+		return 0;
+	}
+
+out_unmount:
+	if (fs_unmount(&mount) != 0 && rc == 0) {
+		rc = -EIO;
+	}
+	return rc;
+}
+
+static void dump_boot_sector(void)
+{
+	uint8_t *sector = read_buf;
+	uint32_t partition_lba;
+	int rc = disk_access_read(TEST_DISK_NAME, sector, 0, 1);
+
+	if (rc != 0) {
+		printk("[INFO] boot-sector read rc=%d\n", rc);
+		return;
+	}
+
+	printk("[INFO] sector0: jump=%02x %02x %02x oem=%c%c%c%c%c%c%c%c\n",
+	       sector[0], sector[1], sector[2], sector[3], sector[4], sector[5],
+	       sector[6], sector[7], sector[8], sector[9], sector[10]);
+	printk("[INFO] sector0: sig=%02x%02x part0=%02x type=%02x lba=%02x%02x%02x%02x count=%02x%02x%02x%02x\n",
+	       sector[511], sector[510], sector[446], sector[446 + 4],
+	       sector[446 + 8], sector[446 + 9], sector[446 + 10], sector[446 + 11],
+	       sector[446 + 12], sector[446 + 13], sector[446 + 14], sector[446 + 15]);
+
+	partition_lba = (uint32_t)sector[446 + 8] |
+		((uint32_t)sector[446 + 9] << 8) |
+		((uint32_t)sector[446 + 10] << 16) |
+		((uint32_t)sector[446 + 11] << 24);
+	if (partition_lba == 0U || partition_lba >= sector_count) {
+		return;
+	}
+
+	rc = disk_access_read(TEST_DISK_NAME, sector, partition_lba, 1);
+	if (rc != 0) {
+		printk("[INFO] partition boot-sector read lba=%u rc=%d\n",
+		       partition_lba, rc);
+		return;
+	}
+	printk("[INFO] partition boot lba=%u: jump=%02x %02x %02x oem=%c%c%c%c%c%c%c%c fs=%c%c%c%c%c%c%c%c\n",
+	       partition_lba, sector[0], sector[1], sector[2],
+	       sector[3], sector[4], sector[5], sector[6], sector[7],
+	       sector[8], sector[9], sector[10], sector[82], sector[83],
+	       sector[84], sector[85], sector[86], sector[87], sector[88], sector[89]);
+	printk("[INFO] FAT BPB: bytes=%u sec/clus=%u reserved=%u fats=%u fat_sz=%u root=%u sig=%02x%02x\n",
+	       (uint16_t)sector[11] | ((uint16_t)sector[12] << 8), sector[13],
+	       (uint16_t)sector[14] | ((uint16_t)sector[15] << 8), sector[16],
+	       (uint32_t)sector[36] | ((uint32_t)sector[37] << 8) |
+	       ((uint32_t)sector[38] << 16) | ((uint32_t)sector[39] << 24),
+	       (uint32_t)sector[44] | ((uint32_t)sector[45] << 8) |
+	       ((uint32_t)sector[46] << 16) | ((uint32_t)sector[47] << 24),
+	       sector[511], sector[510]);
+}
+
 static int sequential_read_test(void)
 {
 	uint64_t total_us = 0U;
@@ -244,9 +298,9 @@ static int sequential_read_test(void)
 	return 0;
 }
 
-static int sequential_write_test(void)
+static int write_size_sweep(void)
 {
-	uint64_t total_us = 0U;
+	static const uint32_t block_counts[] = {1U, 8U, 16U, 64U};
 	int rc;
 
 	rc = disk_access_read(TEST_DISK_NAME, backup_buf, test_start_sector, TEST_BLOCK_COUNT);
@@ -255,32 +309,35 @@ static int sequential_write_test(void)
 		return rc;
 	}
 
-	fill_pattern(0x6750U);
+	for (uint32_t size_index = 0; size_index < ARRAY_SIZE(block_counts); size_index++) {
+		const uint32_t blocks = block_counts[size_index];
+		const uint32_t bytes = blocks * TEST_SECTOR_SIZE;
+		int64_t start_us;
+		uint64_t write_us;
 
-	for (uint32_t i = 0; i < TEST_ITERATIONS; i++) {
-		int64_t start_us = k_uptime_get() * 1000LL;
-
-		rc = disk_access_write(TEST_DISK_NAME, test_buf, test_start_sector, TEST_BLOCK_COUNT);
-		total_us += elapsed_us(start_us);
+		fill_pattern(0x6750U + blocks);
+		start_us = k_uptime_get() * 1000LL;
+		rc = disk_access_write(TEST_DISK_NAME, test_buf, test_start_sector, blocks);
+		write_us = elapsed_us(start_us);
 		if (rc != 0) {
-			printk("[FAIL] sequential write rc=%d\n", rc);
+			printk("[FAIL] write-size bytes=%u blocks=%u rc=%d\n",
+			       bytes, blocks, rc);
 			goto restore;
 		}
+		rc = disk_access_read(TEST_DISK_NAME, read_buf, test_start_sector, blocks);
+		if (rc != 0 || memcmp(test_buf, read_buf, bytes) != 0) {
+			printk("[FAIL] write-size verify bytes=%u read_rc=%d\n", bytes, rc);
+			rc = -EIO;
+			goto restore;
+		}
+		print_rate("[PASS write-size]", bytes, write_us);
+		rc = disk_access_write(TEST_DISK_NAME, backup_buf, test_start_sector, blocks);
+		if (rc != 0) {
+			printk("[FAIL] restore bytes=%u rc=%d\n", bytes, rc);
+			return rc;
+		}
 	}
-
-	rc = disk_access_read(TEST_DISK_NAME, read_buf, test_start_sector, TEST_BLOCK_COUNT);
-	if (rc != 0) {
-		printk("[FAIL] verify read rc=%d\n", rc);
-		goto restore;
-	}
-
-	if (memcmp(test_buf, read_buf, sizeof(test_buf)) != 0) {
-		printk("[FAIL] write verify mismatch\n");
-		rc = -EIO;
-		goto restore;
-	}
-
-	print_rate("[WRITE seq avg]", TEST_BYTES, total_us / TEST_ITERATIONS);
+	return 0;
 
 restore:
 	(void)disk_access_write(TEST_DISK_NAME, backup_buf, test_start_sector, TEST_BLOCK_COUNT);
@@ -360,13 +417,16 @@ static int random_read_test(void)
 
 int main(void)
 {
-#if WBR_SDHC_RAW_PROBE
-	return raw_sdhc_probe();
-#endif
-
 	int rc = init_disk();
 
 	if (rc != 0) {
+		return rc;
+	}
+
+	rc = filesystem_test();
+	if (rc != 0) {
+		dump_boot_sector();
+		printk("sdhc filesystem test failed\n");
 		return rc;
 	}
 
@@ -374,7 +434,7 @@ int main(void)
 
 	rc = sequential_read_test();
 	if (rc == 0) {
-		rc = sequential_write_test();
+		rc = write_size_sweep();
 	}
 	if (rc == 0) {
 		rc = single_block_latency_test();

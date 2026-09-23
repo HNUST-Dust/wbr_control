@@ -1,6 +1,12 @@
 # LQR 增益重新计算与固件同步
 
-本文是当前轮腿机器人 LQR 增益的可复现说明。后续 agent 如需因质量、惯量、质心、腿部 CAD 数据或权重变化而重新计算增益，应以本文和 `tools/derive_physical_lqr_schedule.py` 为准，不要直接使用 `controller.m` 第 3 节的示例零数组。
+> 当前固件自 2026-09 起只运行完整的 10 状态、4 输入控制器。正式入口为
+> `tools/derive_lqr_schedule.py --mode unified`、`unified_lqr_coefficients.inc` 和
+> `EvaluateUnifiedLqrGain()`。本文后续的 6 状态流程仅用于共模子模型的物理推导、
+> 参数来源和回归验证，不再对应独立的固件控制路径，也不应生成或恢复旧的
+> `lqr_schedule.cc/.h`。
+
+本文是当前轮腿机器人 LQR 增益的可复现说明。后续 agent 如需因质量、惯量、质心、腿部 CAD 数据或权重变化而重新计算增益，应以本文和 `tools/derive_lqr_schedule.py` 的 `common` 模式为准，不要直接使用 `controller.m` 第 3 节的示例零数组。
 
 ## 1. 当前计算链
 
@@ -8,7 +14,7 @@
 腿部 CAD 数据 CSV + 机器人固定物理参数
                   |
                   v
-derive_physical_lqr_schedule.py
+derive_lqr_schedule.py --mode common
   按陈阳论文式(3)~(9)求解经典力学方程
   -> 从轮轴位置 x 转换到机体/髋部位置 xb
   -> 每个腿长建立连续时间 A(L0), B(L0)
@@ -31,7 +37,7 @@ physical_lqr_samples.csv + physical_lqr_cubic.csv
 
 相关文件：
 
-- 计算程序：`tools/derive_physical_lqr_schedule.py`
+- 计算程序：`tools/derive_lqr_schedule.py --mode common`
 - 腿部 CAD 输入：`tools/data/leg_mass_properties.csv`
 - 每个腿长的 A、B、K 和闭环检查结果：`tools/generated/physical_lqr_samples.csv`
 - 三次拟合系数：`tools/generated/physical_lqr_cubic.csv`
@@ -269,7 +275,7 @@ L_0\in[0.15105,0.30273]\text{ m}
 从 `wbr_control` 目录运行。Python 环境必须安装 NumPy：
 
 ```bash
-python3 tools/derive_physical_lqr_schedule.py \
+python3 tools/derive_lqr_schedule.py --mode common \
   --input tools/data/leg_mass_properties.csv \
   --output tools/generated/physical_lqr_samples.csv \
   --coeff-output tools/generated/physical_lqr_cubic.csv
@@ -278,7 +284,7 @@ python3 tools/derive_physical_lqr_schedule.py \
 如需调整 LQR 权重，可以显式传入：
 
 ```bash
-python3 tools/derive_physical_lqr_schedule.py \
+python3 tools/derive_lqr_schedule.py --mode common \
   --input tools/data/leg_mass_properties.csv \
   --q 1500,100,500,300,24000,800 \
   --r 90,1 \
@@ -311,7 +317,7 @@ python3 tools/derive_physical_lqr_schedule.py \
 建议使用临时文件重算，并与已提交结果比较：
 
 ```bash
-python3 tools/derive_physical_lqr_schedule.py \
+python3 tools/derive_lqr_schedule.py --mode common \
   --output /tmp/physical_lqr_samples.check.csv \
   --coeff-output /tmp/physical_lqr_cubic.check.csv
 

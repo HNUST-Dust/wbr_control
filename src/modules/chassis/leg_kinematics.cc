@@ -13,15 +13,12 @@
 #include <algorithm>
 #include <cmath>
 
+#include "chassis_config.h"
+
 namespace
 {
 
-constexpr double kLengthAB = 0.0945;
-constexpr double kLengthBC = 0.1125;
-constexpr double kLengthCD = 0.116;
-constexpr double kLengthAD = 0.090;
-constexpr double kLengthAG = 0.210;
-constexpr double kLengthGH = 0.250;
+using namespace modules::chassis_config;
 constexpr double kJacobianStep = 1.0e-6;
 constexpr double kMinLegLength = 1.0e-4;
 

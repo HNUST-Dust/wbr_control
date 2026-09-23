@@ -11,6 +11,7 @@ set(HPM_ENV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk_env)
 set(EIGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../eigen)
 # Sophus：纯头文件李群库，作为 west project 位于 workspace 根（../sophus）。
 set(SOPHUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sophus)
+set(FATFS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../fatfs)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -18,6 +19,29 @@ list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wbr_control)
+
+# Generate validated constexpr parameter headers from value/schema YAML pairs.
+# Targets throughout the repository use this one helper and one Python tool.
+function(wbr_generate_params target name values schema cpp_namespace)
+  set(generated_dir ${CMAKE_BINARY_DIR}/generated/params)
+  set(generated_header ${generated_dir}/${name}_params_generated.h)
+  set(generator ${PROJECT_SOURCE_DIR}/tools/generate_params.py)
+
+  add_custom_command(
+    OUTPUT ${generated_header}
+    COMMAND ${PYTHON_EXECUTABLE} ${generator}
+      --input ${values}
+      --schema ${schema}
+      --namespace ${cpp_namespace}
+      --output ${generated_header}
+    DEPENDS ${values} ${schema} ${generator}
+    COMMENT "Generating validated ${name} parameters"
+    VERBATIM
+  )
+  add_custom_target(wbr_${name}_params DEPENDS ${generated_header})
+  add_dependencies(${target} wbr_${name}_params)
+  target_include_directories(${target} PRIVATE ${generated_dir})
+endfunction()
 
 # Validate the resolved configuration after Kconfig so UART0 remains reserved
 # for the binary oscilloscope stream.
@@ -31,6 +55,7 @@ target_include_directories(app PRIVATE
   ${PROJECT_SOURCE_DIR}/src
 )
 target_include_directories(app SYSTEM PRIVATE ${EIGEN_DIR})
+target_include_directories(app SYSTEM PRIVATE ${FATFS_DIR}/include)
 if(EXISTS ${SOPHUS_DIR}/sophus/so3.hpp)
   target_include_directories(app SYSTEM PRIVATE ${SOPHUS_DIR})
 endif()
@@ -50,7 +75,7 @@ target_compile_options(app PRIVATE
   -fno-threadsafe-statics
 )
 
-add_subdirectory(channels)
+add_subdirectory(msg)
 add_subdirectory(src/protocols)
 add_subdirectory(src/scheduling)
 add_subdirectory(src/modules)
@@ -59,7 +84,7 @@ add_subdirectory(debug)
 
 # 应用入口只直接依赖模块、通道和平台；协议由模块目标自行声明。
 target_link_libraries(app PRIVATE
-  wbr_channels
+  wbr_msg
   wbr_modules
   wbr_platform
 )

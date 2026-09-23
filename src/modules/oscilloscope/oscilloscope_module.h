@@ -6,7 +6,7 @@
 * @file src/modules/oscilloscope/oscilloscope_module.h
  * @ingroup wbr_modules
  * @brief 实现控制变量采样与示波器遥测模块。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once
@@ -20,7 +20,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include "../module_base.h"
-#include <channels/oscilloscope_sample.hpp>
+#include <msg/oscilloscope_sample.hpp>
 #include <protocols/telemetry/vofa_protocol.h>
 
 namespace modules
@@ -75,7 +75,7 @@ private:
 	uint32_t tx_timeout_count_ = 0U;
 	uint32_t missed_release_count_ = 0U;
 	atomic_t tx_busy_ = ATOMIC_INIT(0);
-	uint8_t tx_frame_[protocols::VofaJustFloatFrameSize(channels::kOscilloscopeMaxChannels)] =
+	uint8_t tx_frame_[protocols::VofaJustFloatFrameSize(msg::kOscilloscopeMaxChannels)] =
 		{};
 };
 

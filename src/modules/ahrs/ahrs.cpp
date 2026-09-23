@@ -15,33 +15,58 @@
 #include <string.h>
 
 #include <zephyr/timing/timing.h>
+#include <zephyr/devicetree.h>
 
-#include <channels/onboard_imu_sample.hpp>
-#include <channels/oscilloscope_sample.hpp>
+#include <msg/onboard_imu_sample.hpp>
+#include <msg/oscilloscope_sample.hpp>
 #include <scheduling/periodic_schedule.h>
 #include <scheduling/thread_priorities.h>
+#include <ahrs_params_generated.h>
 
 #if defined(CONFIG_WBR_CONTROL_MODULE_AHRS)
+
+#define ONBOARD_IMU_HEATER_NODE DT_ALIAS(onboard_imu_heater)
+
+#if !DT_NODE_EXISTS(ONBOARD_IMU_HEATER_NODE)
+#error "Define devicetree alias onboard-imu-heater for the IMU heater MOSFET"
+#endif
 
 namespace {
 constexpr size_t kAxisCount = 3U;
 constexpr uint32_t kCalibrationSampleCount =
 	CONFIG_WBR_CONTROL_ONBOARD_IMU_CALIBRATION_SAMPLES;
-constexpr float kGravityMps2 = 9.80665F;
-constexpr float kAccelLsbPerG = 4096.0F;
-constexpr float kGyroLsbPerDps = 16.384F;
+constexpr float kGravityMps2 = modules::ahrs_params::kAhrsGravityMps2;
+constexpr float kAccelLsbPerG = modules::ahrs_params::kAhrsAccelLsbPerG;
+constexpr float kGyroLsbPerDps = modules::ahrs_params::kAhrsGyroLsbPerDps;
 constexpr float kDegToRad = 0.01745329251994329577F;
-constexpr float kSampleFrequencyHz = 1000.0F;
-constexpr uint32_t kAhrsPeriodMs = 1U;
-constexpr uint32_t kNominalSampleIntervalUs = 1000U;
-constexpr uint32_t kMinimumSaneSampleIntervalUs = 400U;
-constexpr uint32_t kMaximumSaneSampleIntervalUs = 5000U;
+constexpr float kSampleFrequencyHz = modules::ahrs_params::kAhrsSampleFrequencyHz;
+constexpr uint32_t kAhrsPeriodMs = modules::ahrs_params::kAhrsPeriodMs;
+constexpr uint32_t kNominalSampleIntervalUs =
+	modules::ahrs_params::kAhrsNominalSampleIntervalUs;
+constexpr uint32_t kMinimumSaneSampleIntervalUs =
+	modules::ahrs_params::kAhrsMinimumSaneSampleIntervalUs;
+constexpr uint32_t kMaximumSaneSampleIntervalUs =
+	modules::ahrs_params::kAhrsMaximumSaneSampleIntervalUs;
 /* The HXY part can carry a sizeable board-level acceleration scale/offset
  * error. Accept a stationary 1 g vector here, then estimate one scalar gain
  * from the complete calibration window before feeding acceleration to EKF.
  */
-constexpr float kCalibrationAccelToleranceMps2 = 2.0F;
-constexpr float kCalibrationGyroLimitRadS = 0.1F;
+constexpr float kCalibrationAccelToleranceMps2 =
+	modules::ahrs_params::kAhrsCalibrationAccelToleranceMps2;
+constexpr float kCalibrationGyroLimitRadS =
+	modules::ahrs_params::kAhrsCalibrationGyroLimitRadS;
+constexpr float kTemperatureTargetC = modules::ahrs_params::kAhrsTemperatureTargetC;
+constexpr float kTemperatureCalibrationWindowC =
+	modules::ahrs_params::kAhrsTemperatureCalibrationWindowC;
+constexpr float kTemperatureCutoffC = modules::ahrs_params::kAhrsTemperatureCutoffC;
+constexpr float kTemperatureMinimumC = modules::ahrs_params::kAhrsTemperatureMinimumC;
+constexpr float kTemperatureMaximumC = modules::ahrs_params::kAhrsTemperatureMaximumC;
+constexpr float kTemperatureMaxDutyPercent =
+	modules::ahrs_params::kAhrsTemperatureMaxDutyPercent;
+/* The measured plant reaches about 88 degC at continuous full power;
+ * the independent 80 degC cutoff remains the safety limit. */
+constexpr float kTemperatureKp = modules::ahrs_params::kAhrsTemperatureKp;
+constexpr float kTemperatureKi = modules::ahrs_params::kAhrsTemperatureKi;
 K_THREAD_STACK_DEFINE(g_ahrs_stack, 4096);
 
 int16_t DecodeBigEndian(const uint8_t *bytes)
@@ -59,10 +84,19 @@ int Ahrs::Start()
 		return 0;
 	}
 
-	int rc = imu_.Init();
+	imu_heater_pwm_ = PWM_DT_SPEC_GET(ONBOARD_IMU_HEATER_NODE);
+	/* Disable heat before sensor initialization, including failure paths. */
+	int rc = SetImuHeaterDutyPercent(0U);
 	if (rc != 0) {
 		return rc;
 	}
+
+	rc = imu_.Init();
+	if (rc != 0) {
+		return rc;
+	}
+	temperature_integral_ = 0.0F;
+	temperature_control_ready_ = false;
 
 	/* Proven 1 kHz tuning from the previous BMI088 implementation.  The
 	 * surrounding port keeps the newer finite-value, covariance and timing
@@ -83,36 +117,102 @@ int Ahrs::Start()
 			    "ahrs");
 }
 
+int Ahrs::SetImuHeaterDutyPercent(uint8_t duty_percent)
+{
+	if (imu_heater_pwm_.dev == nullptr || !device_is_ready(imu_heater_pwm_.dev)) {
+		return -ENODEV;
+	}
+	if (duty_percent > 100U) {
+		return -EINVAL;
+	}
+	const int rc = pwm_set_dt(&imu_heater_pwm_, imu_heater_pwm_.period,
+				  imu_heater_pwm_.period * duty_percent / 100U);
+	if (rc == 0) {
+		imu_heater_duty_percent_ = static_cast<float>(duty_percent);
+	}
+	return rc;
+}
+
 void Ahrs::RunLoop()
 {
 	wbr_control::scheduling::AbsolutePeriodicSchedule release(kAhrsPeriodMs, 0U);
+	uint32_t missing_sample_ms = 0U;
 	for (;;) {
 		(void)release.WaitForNextRelease();
 		OnboardImu::Burst burst = {};
 		const bool sample_ready = imu_.TryTakeCompleted(burst);
 		(void)imu_.TryStartAsync();
 		if (sample_ready) {
+			missing_sample_ms = 0U;
 			ProcessBurst(burst);
+			UpdateImuTemperatureControl(kNominalSampleIntervalUs * 1.0e-6F);
+			//PublishTelemetry();
+		} else if (++missing_sample_ms >= 10U) {
+			/* No fresh temperature feedback: fail safe to heater off. */
+			temperature_integral_ = 0.0F;
+			temperature_control_ready_ = false;
+			(void)SetImuHeaterDutyPercent(0U);
 		}
 	}
+}
+
+void Ahrs::UpdateImuTemperatureControl(float dt_seconds)
+{
+	if (!std::isfinite(imu_temperature_c_) ||
+	    imu_temperature_c_ < kTemperatureMinimumC ||
+	    imu_temperature_c_ > kTemperatureMaximumC ||
+	    imu_temperature_c_ >= kTemperatureCutoffC) {
+		temperature_integral_ = 0.0F;
+		temperature_control_ready_ = false;
+		(void)SetImuHeaterDutyPercent(0U);
+		return;
+	}
+
+	if (!temperature_control_ready_) {
+		previous_temperature_c_ = imu_temperature_c_;
+		temperature_control_ready_ = true;
+	}
+
+	const float error = kTemperatureTargetC - imu_temperature_c_;
+	const float candidate_integral = temperature_integral_ + error * dt_seconds;
+	const float proportional = kTemperatureKp * error;
+	const float unclamped = proportional + kTemperatureKi * candidate_integral;
+	const float duty = fminf(kTemperatureMaxDutyPercent, fmaxf(0.0F, unclamped));
+
+	/* Integrate only while it cannot drive further into the active clamp. */
+	if ((unclamped >= 0.0F && unclamped <= kTemperatureMaxDutyPercent) ||
+	    (unclamped < 0.0F && error > 0.0F) ||
+	    (unclamped > kTemperatureMaxDutyPercent && error < 0.0F)) {
+		temperature_integral_ = candidate_integral;
+	}
+
+	if (SetImuHeaterDutyPercent(static_cast<uint8_t>(duty + 0.5F)) != 0) {
+		temperature_integral_ = 0.0F;
+		temperature_control_ready_ = false;
+		(void)SetImuHeaterDutyPercent(0U);
+	}
+	previous_temperature_c_ = imu_temperature_c_;
 }
 void Ahrs::PublishTelemetry()
 {
 	static uint32_t sequence = 0U;
-	channels::OscilloscopeSample sample = {};
+	msg::OscilloscopeSample sample = {};
 	sample.sequence = ++ sequence;
 	sample.uptime_ms = k_uptime_get_32();
-	sample.channel_count = 3;
+	sample.channel_count = 5;
 
 	sample.value[0] = ekf_.PitchDeg();
 	sample.value[1] = ekf_.YawDeg();
 	sample.value[2] = ekf_.RollDeg();
-	channels::latest_oscilloscope_sample.write(sample);
+	sample.value[3] = imu_temperature_c_;
+	sample.value[4] = imu_heater_duty_percent_;
+	msg::latest_oscilloscope_sample.write(sample);
 }
 
 void Ahrs::ProcessBurst(const OnboardImu::Burst &burst)
 {
 	const uint8_t *const rx_data = burst.rx;
+	imu_temperature_c_ = burst.temperature_c;
 	const uint32_t data_ready_cycle = burst.data_ready_cycle;
 	int16_t sensor_accel_raw[kAxisCount];
 	int16_t sensor_gyro_raw[kAxisCount];
@@ -151,6 +251,13 @@ void Ahrs::ProcessBurst(const OnboardImu::Burst &burst)
 	const float dt_seconds = UpdateSampleInterval(data_ready_cycle);
 
 	if (!calibrated_) {
+		/* Accumulate only samples captured inside the target-temperature
+		 * window. Samples outside it are skipped without losing progress. */
+		if (fabsf(imu_temperature_c_ - kTemperatureTargetC) >
+		    kTemperatureCalibrationWindowC) {
+			PublishSample(data_ready_cycle);
+			return;
+		}
 		const float accel_norm = sqrtf(accel_mps2[0] * accel_mps2[0] +
 					       accel_mps2[1] * accel_mps2[1] +
 					       accel_mps2[2] * accel_mps2[2]);
@@ -219,7 +326,6 @@ void Ahrs::ProcessBurst(const OnboardImu::Burst &burst)
 		}
 	}
 	PublishSample(data_ready_cycle);
-	PublishTelemetry();
 }
 
 float Ahrs::UpdateSampleInterval(uint32_t data_ready_cycle)
@@ -254,7 +360,7 @@ void Ahrs::UpdateEstimator(const float gyro_rad_s[3], const float accel_mps2[3],
 
 void Ahrs::PublishSample(uint32_t data_ready_cycle)
 {
-	channels::OnboardImuSample sample = {};
+	msg::OnboardImuSample sample = {};
 	const uint64_t publish_cycle = k_cycle_get_64();
 	const uint32_t acquisition_cycles =
 		static_cast<uint32_t>(publish_cycle) - data_ready_cycle;
@@ -266,7 +372,7 @@ void Ahrs::PublishSample(uint32_t data_ready_cycle)
 	sample.euler_deg[2] = ekf_.YawDeg();
 	sample.valid = calibrated_ && timing_valid_ && attitude_initialized_ &&
 		       sensor_data_valid_ && ekf_.Healthy();
-	channels::latest_onboard_imu_sample.write(sample);
+	msg::latest_onboard_imu_sample.write(sample);
 }
 }  // namespace modules
 

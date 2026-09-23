@@ -15,11 +15,13 @@ namespace modules {
 /** Board-mounted IMU transport and non-blocking sample acquisition. */
 class OnboardImu final {
 public:
-	static constexpr size_t kBurstTransferSize = 13U;
+	/* 0x0C..0x23 inclusive: accel/gyro plus the temperature registers. */
+	static constexpr size_t kBurstTransferSize = 25U;
 
 	struct Burst {
 		uint8_t rx[kBurstTransferSize];
 		uint32_t data_ready_cycle;
+		float temperature_c;
 	};
 
 	/** Initialize the sensor, SPI transport, and data-ready interrupt. */

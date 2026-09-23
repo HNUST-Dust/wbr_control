@@ -9,7 +9,7 @@
       "executable": "${workspaceFolder}/build/zephyr/zephyr.elf",
       "preLaunchTask": "wbr_control: build",
       "servertype": "openocd",
-      "serverpath": "${workspaceFolder}/../../usr/local/bin/openocd",
+      "serverpath": "${workspaceFolder}/../../openocd-hpm-rtt-v0.1.0/local-rtt/bin/openocd",
       "gdbPath": "${workspaceFolder}/../../zephyr-sdk-0.16.5/riscv64-zephyr-elf/bin/riscv64-zephyr-elf-gdb",
       "configFiles": [
         "${workspaceFolder}/../../sdk_env/hpm_sdk/boards/openocd/probes/cmsis_dap.cfg",
@@ -18,7 +18,7 @@
       ],
       "searchDir": [
         "${workspaceFolder}/../../sdk_env/hpm_sdk/boards/openocd",
-        "${workspaceFolder}/../../usr/local/share/openocd/scripts"
+        "${workspaceFolder}/../../openocd-hpm-rtt-v0.1.0/local-rtt/share/openocd/scripts"
       ],
       "openOCDLaunchCommands": [
         "adapter speed 4000"

@@ -23,7 +23,7 @@ constexpr size_t kWflySbusChannelCount = 16; ///< SBUS 模拟通道数量。
 
 /** @brief 天地飞 SBUS 帧的归一化解码结果。 */
 struct WflySbusFrame {
-  std::array<uint16_t, kWflySbusChannelCount> channels; ///< 遥测或遥控通道数组。
+  std::array<uint16_t, kWflySbusChannelCount> msg; ///< 遥测或遥控通道数组。
   bool channel17; ///< SBUS 数字通道 17 的开关状态。
   bool channel18; ///< SBUS 数字通道 18 的开关状态。
   bool frame_lost; ///< 接收机报告的遥控帧丢失标志。

@@ -17,7 +17,7 @@
 2. 在 wbr_control 当前分层架构下完成能力落地：
 - modules
 - services
-- channels
+- msg
 - protocols
 3. 形成可持续验证闭环（构建 + smoke + 回放/实机）。
 
@@ -34,7 +34,7 @@
 ### 3.2 目录与分层已完成收敛
 
 - core -> modules 已完成并删除兼容层。
-- channels/services/modules/protocols 实体已收敛到 app 顶层同名目录。
+- msg/services/modules/protocols 实体已收敛到 app 顶层同名目录。
 - staged 模块已集中到 modules/staging。
 - 平台 legacy 分区已建立：platform/legacy。
 

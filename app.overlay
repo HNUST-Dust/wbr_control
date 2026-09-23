@@ -1,3 +1,42 @@
 &cherryusb_usb0 {
 	status = "okay";
 };
+
+/* Conservative bring-up rate for reliable multi-block SD writes. */
+&sd0 {
+	max-bus-freq = <25000000>;
+};
+
+/* Onboard IMU heater MOSFET: PWM1-P0 on PB02. */
+/ {
+	aliases {
+		onboard-imu-heater = &onboard_imu_heater;
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		onboard_imu_heater: onboard_imu_heater {
+			pwms = <&pwm1 0 PWM_KHZ(20) PWM_POLARITY_NORMAL>;
+			label = "Onboard IMU heater MOSFET";
+		};
+	};
+};
+
+&pwm1 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_pwm1_imu_heater>;
+	pinctrl-names = "default";
+	period-init = <100>;
+	dead-zone-in-half-cycle = <0>;
+};
+
+&pinctrl {
+	pinmux_pwm1_imu_heater: pinmux_pwm1_imu_heater {
+		group0 {
+			/* PWM1-P0 alternate function on PB02. */
+			pinmux = <HPMICRO_PINMUX(HPMICRO_PIN(HPMICRO_PORTB, 2),
+							 IOC_TYPE_IOC, 0, 16)>;
+		};
+	};
+};

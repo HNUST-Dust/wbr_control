@@ -23,17 +23,14 @@
 #include "modules/referee/referee_module.h"
 #include "modules/remote_input/remote_input_module.h"
 #include "modules/sys_state/sys_state_module.h"
-#include <channels/system_status_channel.h>
+#include "modules/sdlog/sdlog_module.h"
+#include <msg/system_status_message.hpp>
 #include <platform/board/board_identity.h>
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 
 #if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN) && CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN
 #include <platform/drivers/communication/can_dispatch.h>
-#endif
-
-#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS) && CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS
-#include <platform/storage/filesystem/littlefs_service.h>
 #endif
 
 #if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_USB) && CONFIG_WBR_CONTROL_RUNTIME_INIT_USB
@@ -43,13 +40,13 @@ LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 namespace
 {
 
-void PublishSystemStatus(channels::BootPhase state, uint32_t module_count)
+void PublishSystemStatus(msg::BootPhase state, uint32_t module_count)
 {
-	const channels::SystemStatusMessage status = {
+	const msg::SystemStatusMessage status = {
 		state,
 		module_count,
 	};
-	(void)zbus_chan_pub(&wbr_control_system_status_chan, &status, K_NO_WAIT);
+	(void)msg::system_status.Publish(status);
 }
 
 } // namespace
@@ -64,7 +61,7 @@ int main(void)
 		printk("[printk] wbr_control RTT diagnostics ready\n");
 	}
 	LOG_INF("wbr_control started on %s", board_identity_name());
-	PublishSystemStatus(channels::kBooting, 0U);
+	PublishSystemStatus(msg::kBooting, 0U);
 
 	int rc = 0;
 
@@ -92,15 +89,6 @@ int main(void)
 				LOG_ERR("usb_session init failed: %d", rc);
 				return rc;
 			}
-		}
-	}
-#endif
-
-#if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS) && CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS
-	if (IS_ENABLED(CONFIG_WBR_CONTROL_RUNTIME_INIT_LITTLEFS)) {
-		rc = platform::InitializeLittlefs();
-		if (rc != 0) {
-			LOG_WRN("littlefs init skipped: %d", rc);
 		}
 	}
 #endif
@@ -182,7 +170,18 @@ int main(void)
 		++module_count;
 	}
 #endif
-	PublishSystemStatus(channels::kRunning, module_count);
+#if defined(CONFIG_WBR_CONTROL_MODULE_SDLOG) && CONFIG_WBR_CONTROL_MODULE_SDLOG
+	{
+		static modules::SdLogModule sdlog_module;
+		rc = sdlog_module.Start();
+		if (rc != 0) {
+			LOG_WRN("module start skipped: sdlog (%d)", rc);
+		} else {
+			++module_count;
+		}
+	}
+#endif
+	PublishSystemStatus(msg::kRunning, module_count);
 
 	/* 初始化结束后主线程不再承担周期任务，各模块由自己的线程运行。 */
 	k_sleep(K_FOREVER);

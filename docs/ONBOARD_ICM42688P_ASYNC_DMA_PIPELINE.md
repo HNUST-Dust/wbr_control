@@ -180,7 +180,7 @@ Quaternion EKF 接收已校准输入：gyro 为 rad/s，accel 为 m/s²。其六
 
 ## 9. 发布 channel
 
-`channels::latest_onboard_imu_sample` 包含：
+`msg::latest_onboard_imu_sample` 包含：
 
 - DRDY 物理采样时间戳 `timestamp_us`；
 - 底盘 IMU 原始坐标系下的 EKF roll/pitch/yaw，单位为度；

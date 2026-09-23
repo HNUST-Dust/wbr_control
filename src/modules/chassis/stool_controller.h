@@ -6,7 +6,7 @@
 * @file src/modules/chassis/stool_controller.h
  * @ingroup wbr_modules
  * @brief 实现凳式姿态下的底盘稳定控制。
- * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 channels 层交换。
+ * @details 模块遵循 `ModuleBase` 生命周期：`Start()` 只负责一次性资源初始化和线程创建，`RunLoop()` 持有周期状态。跨线程数据通过 msg 层交换。
  */
 
 #pragma once
@@ -31,7 +31,9 @@ struct StoolControllerInput {
 /** @brief 凳式姿态控制器计算的执行器输出。 */
 struct StoolControllerOutput {
 	std::array<double, 4> joint_torque{}; ///< 同一关节顺序的目标力矩，单位为牛·米。
+	double leg_length_reference = 0.0; ///< 左右腿平均长度参考，单位为米。
 	bool target_initialized = false; ///< 平滑控制目标已经由当前状态对齐的标志。
+	bool swing_active = false; ///< 腿长进入预备范围并已开始摆腿。
 	bool ready = false; ///< 模块已完成初始化并可提供有效数据的标志。
 };
 
@@ -39,8 +41,6 @@ struct StoolControllerOutput {
 class StoolController
 {
 public:
-	static constexpr double kTargetLegLength = 0.150; ///< `kTargetLegLength` 几何长度参数，单位为米。
-
 	/**
 	 * @brief 清空内部状态并恢复到初始条件。
 	 */
@@ -90,7 +90,11 @@ private:
 				  double dt);
 
 	std::array<bool, 2> target_initialized_{};
+	bool pose_reference_initialized_ = false;
+	bool swing_active_ = false;
 	bool velocity_initialized_ = false;
+	std::array<double, 2> leg_length_reference_{};
+	std::array<double, 2> leg_angle_reference_{};
 	std::array<double, 4> joint_target_{};
 	std::array<double, 4> filtered_joint_velocity_{};
 	std::array<JointPidState, 4> joint_pid_{};

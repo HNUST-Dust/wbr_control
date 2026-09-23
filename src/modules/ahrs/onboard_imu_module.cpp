@@ -52,7 +52,7 @@ constexpr uint8_t kAccelHighPerformance1600Hz = 0xACU;
 constexpr uint8_t kAccelRange8G = 0x02U;
 constexpr uint8_t kGyroHighPerformance1600Hz = 0xACU;
 constexpr uint8_t kGyroRange2000Dps = 0x00U;
-constexpr size_t kBurstPayloadSize = 12U;
+constexpr size_t kBurstPayloadSize = 24U;
 constexpr size_t kBurstTransferSize = kBurstPayloadSize + 1U;
 constexpr uint32_t kTransferTimeoutUs = 1500U;
 
@@ -60,6 +60,12 @@ uint8_t __nocache __aligned(64) g_onboard_imu_tx[kBurstTransferSize];
 uint8_t __nocache __aligned(64) g_onboard_imu_rx[kBurstTransferSize];
 uint8_t __nocache __aligned(64) g_onboard_imu_control_tx[2];
 uint8_t __nocache __aligned(64) g_onboard_imu_control_rx[2];
+
+int16_t DecodeBigEndian(const uint8_t *bytes)
+{
+	return static_cast<int16_t>((static_cast<uint16_t>(bytes[0]) << 8U) |
+				    static_cast<uint16_t>(bytes[1]));
+}
 
 struct spi_buf g_onboard_imu_tx_buf = {
 	.buf = g_onboard_imu_tx,
@@ -289,6 +295,10 @@ bool OnboardImu::TryTakeCompleted(Burst &burst)
 	}
 	memcpy(burst.rx, g_onboard_imu_rx, sizeof(burst.rx));
 	burst.data_ready_cycle = active_data_ready_cycle_;
+	/* TEMP_H/TEMP_L are at 0x22/0x23; the burst starts at 0x0C. */
+	const int16_t temperature_raw = DecodeBigEndian(&burst.rx[23U]);
+	/* HXY manual: T = signed16(raw) / 512 + 23 degC. */
+	burst.temperature_c = 23.0F + static_cast<float>(temperature_raw) / 512.0F;
 	atomic_clear(&transfer_in_flight_);
 	atomic_clear(&timeout_recovery_started_);
 	return true;

@@ -1,0 +1,6 @@
+schema_version: 1
+hi91_imu:
+  startup_delay_ms: 2000
+  rx_ring_poll_period_ms: 1
+  freshness_deadline_us: 3000
+  maximum_valid_pitch_deg: 100.0

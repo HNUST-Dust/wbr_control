@@ -14,24 +14,15 @@
 #include <algorithm>
 #include <cmath>
 
+#include "chassis_config.h"
+
 namespace
 {
 
-constexpr double kTwoPi = 6.28318530717958647692;
-constexpr double kDegToRad = 0.01745329251994329577;
-constexpr double kJointVelocityFilterCutoffHz = 35.0;
-constexpr double kReadyThetaTolerance = 5.0 * kDegToRad;
-
-constexpr double kJointPositionKp = 20.0;
-constexpr double kJointPositionKi = 0.0;
-constexpr double kJointPositionMaxSpeed = 44.0;
-constexpr double kJointSpeedKp = 4.0;
-constexpr double kJointSpeedKi = 0.0;
-constexpr double kJointIntegralTorqueLimit = 20.0;
-constexpr double kJointTorqueMax = 54.0;
-
-constexpr int kBranch[2] = {1, -1};
-constexpr double kLegAngleOffset[2] = {-0.036063, -3.121010};
+using namespace modules::chassis_config;
+constexpr double kReadyThetaTolerance = kReadyThetaToleranceDeg * kDegToRad;
+constexpr int kBranch[2] = {kLeftKinematicBranch, kRightKinematicBranch};
+constexpr double kLegAngleOffset[2] = {kLeftLegAngleOffset, kRightLegAngleOffset};
 
 } // namespace
 
@@ -41,7 +32,11 @@ namespace modules
 void StoolController::Reset()
 {
 	target_initialized_.fill(false);
+	pose_reference_initialized_ = false;
+	swing_active_ = false;
 	velocity_initialized_ = false;
+	leg_length_reference_.fill(0.0);
+	leg_angle_reference_.fill(0.0);
 	joint_target_.fill(0.0);
 	filtered_joint_velocity_.fill(0.0);
 	joint_pid_.fill({});
@@ -53,6 +48,9 @@ StoolControllerOutput StoolController::Update(const StoolControllerInput &input)
 	UpdatePoseTarget(input);
 
 	StoolControllerOutput output = {};
+	output.leg_length_reference =
+		0.5 * (leg_length_reference_[0] + leg_length_reference_[1]);
+	output.swing_active = swing_active_;
 	output.target_initialized =
 		std::all_of(target_initialized_.begin(), target_initialized_.end(),
 			    [](bool value) { return value; });
@@ -65,7 +63,7 @@ StoolControllerOutput StoolController::Update(const StoolControllerInput &input)
 			ComputeJointTorque(joint, joint_target_[joint], input.joint_position[joint],
 					   filtered_joint_velocity_[joint], input.dt);
 	}
-	output.ready = std::all_of(
+	output.ready = swing_active_ && std::all_of(
 		input.leg.begin(), input.leg.end(), [pitch = input.pitch](const LegKinematics &leg) {
 			const double theta = std::remainder(leg.angle - pitch, kTwoPi);
 			return std::abs(theta) <= kReadyThetaTolerance;
@@ -90,15 +88,40 @@ void StoolController::UpdateJointVelocity(const std::array<double, 4> &velocity,
 
 void StoolController::UpdatePoseTarget(const StoolControllerInput &input)
 {
+	if (!pose_reference_initialized_) {
+		for (size_t side = 0U; side < input.leg.size(); ++side) {
+			leg_length_reference_[side] = input.leg[side].length;
+			leg_angle_reference_[side] = input.leg[side].angle;
+		}
+		pose_reference_initialized_ = true;
+	}
+
+	const double bounded_dt = std::clamp(input.dt, 0.0005, 0.01);
+	const double maximum_length_step = kLegLengthReferenceRate * bounded_dt;
+	for (size_t side = 0U; side < input.leg.size(); ++side) {
+		leg_length_reference_[side] += std::clamp(
+			kStoolTargetLegLength - leg_length_reference_[side],
+			-maximum_length_step, maximum_length_step);
+	}
+	if (!swing_active_) {
+		swing_active_ = std::all_of(
+			input.leg.begin(), input.leg.end(), [](const LegKinematics &leg) {
+				return std::abs(leg.length - kStoolTargetLegLength) <=
+				       kSwingStartLengthTolerance;
+			});
+	}
+
 	for (uint8_t side = 0U; side < input.leg.size(); ++side) {
 		const size_t base = 2U * side;
 		/*
-		 * LQR 使用 theta = alpha - pitch。撑起阶段直接令 theta_target = 0，
-		 * 因而腿相对机体的实时目标为 alpha_target = pitch。
+		 * 收腿阶段保持使能时的腿角不动。两腿都接近短腿目标后开始摆腿；
+		 * LQR 使用 theta = alpha - pitch，因此摆腿目标 alpha_target = pitch。
 		 */
-		const double raw_angle = RawKinematicAngle(side, input.pitch);
-		const double target_hx = kTargetLegLength * std::sin(raw_angle);
-		const double target_hz = -kTargetLegLength * std::cos(raw_angle);
+		const double normalized_angle =
+			swing_active_ ? input.pitch : leg_angle_reference_[side];
+		const double raw_angle = RawKinematicAngle(side, normalized_angle);
+		const double target_hx = leg_length_reference_[side] * std::sin(raw_angle);
+		const double target_hz = -leg_length_reference_[side] * std::cos(raw_angle);
 		const double seed_phi1 = target_initialized_[side]
 						 ? joint_target_[base + 1U]
 						 : input.joint_position[base + 1U];

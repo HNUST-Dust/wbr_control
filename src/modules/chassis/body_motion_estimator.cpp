@@ -13,6 +13,8 @@
 
 #include <Eigen/Core>
 
+#include "chassis_config.h"
+
 namespace
 {
 
@@ -20,10 +22,7 @@ using StateVector = Eigen::Matrix<double, 2, 1>;
 using StateMatrix = Eigen::Matrix<double, 2, 2>;
 using ObservationVector = Eigen::Matrix<double, 1, 2>;
 
-constexpr double kProcessNoise = 0.1;
-constexpr double kSpeedMeasurementNoise = 100.0;
-// SPR 几乎不信任加速度测量，因此估计主要由轮腿运动学速度决定。
-constexpr double kAccelerationMeasurementNoise = 1.0e12;
+using namespace modules::chassis_config;
 
 } // namespace
 

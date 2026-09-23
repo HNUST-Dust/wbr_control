@@ -31,6 +31,8 @@ manifest:
       url-base: https://gitlab.com
     - name: sophus
       url-base: https://github.com/strasdat
+    - name: tinympc
+      url-base: https://github.com/NoneOfEver
 
   defaults:
     remote: github
@@ -44,11 +46,12 @@ manifest:
       revision: zsg_v0.7.0
       west-commands: scripts/west-commands.yml
 
-    - name: littlefs
+    # ELM FatFs implementation required by Zephyr's FAT filesystem layer.
+    - name: fatfs
       remote: upstream
-      repo-path: littlefs
-      path: littlefs
-      revision: 408c16a909dd6cf128874a76f21c793798c9e423
+      repo-path: fatfs
+      path: fatfs
+      revision: 427159bf95ea49b7680facffaa29ad506b42709b
 
     # HPMicro SDK (manifest repo with boards, drivers, soc, dts)
     - name: hpm_support
@@ -94,6 +97,14 @@ manifest:
       repo-path: Sophus
       path: sophus
       revision: d0b7315a0d90fc6143defa54596a3a95d9fa10ec
+
+    # TinyMPC：面向资源受限 MCU 的 MPC 求解器。目前只供独立 host test
+    # 使用，尚未链接到正式 Zephyr 固件目标。
+    - name: TinyMPC
+      remote: tinympc
+      repo-path: TinyMPC
+      path: TinyMPC
+      revision: 023f36bd5b27267e1a96ed47a774d120b5707f13
 
   self:
     path: wbr_control

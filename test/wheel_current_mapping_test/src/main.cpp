@@ -20,8 +20,8 @@
 #include <zephyr/drivers/can.h>
 #include <zephyr/kernel.h>
 
-#include <channels/oscilloscope_sample.hpp>
-#include <channels/remote_input_state.hpp>
+#include <msg/oscilloscope_sample.hpp>
+#include <msg/remote_input_state.hpp>
 #include <protocols/motors/dji_motor_protocol.h>
 #include <modules/oscilloscope/oscilloscope_module.h>
 #include <modules/remote_input/remote_input_module.h>
@@ -199,7 +199,7 @@ int ConfigureCan()
 	return 0;
 }
 
-bool ReadFreshRemote(uint32_t now_ms, channels::RemoteInputState &state)
+bool ReadFreshRemote(uint32_t now_ms, msg::RemoteInputState &state)
 {
 	if (!latest_remote_state.read(state)) {
 		return false;
@@ -290,7 +290,7 @@ float StageValue()
 
 void PublishOscilloscope(const FeedbackSnapshot &feedback, double acceleration_rad_s2)
 {
-	channels::OscilloscopeSample sample = {};
+	msg::OscilloscopeSample sample = {};
 	sample.sequence = ++g_oscilloscope_sequence;
 	sample.uptime_ms = k_uptime_get_32();
 	sample.channel_count = 6U;
@@ -301,7 +301,7 @@ void PublishOscilloscope(const FeedbackSnapshot &feedback, double acceleration_r
 		static_cast<float>(static_cast<double>(feedback.value.omega) / kReductionRatio);
 	sample.value[4] = static_cast<float>(acceleration_rad_s2);
 	sample.value[5] = StageValue();
-	channels::latest_oscilloscope_sample.write(sample);
+	msg::latest_oscilloscope_sample.write(sample);
 }
 
 double UpdateAcceleration(const FeedbackSnapshot &feedback)
@@ -332,7 +332,7 @@ double UpdateAcceleration(const FeedbackSnapshot &feedback)
 void RunControlIteration()
 {
 	const uint32_t now_ms = k_uptime_get_32();
-	channels::RemoteInputState remote = {};
+	msg::RemoteInputState remote = {};
 	const bool remote_fresh = ReadFreshRemote(now_ms, remote);
 	const bool enabled = remote_fresh && remote.robot_enable;
 

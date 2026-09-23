@@ -65,7 +65,7 @@ config WBR_CONTROL_MODULE_HI91_IMU
 	depends on SERIAL && UART_ASYNC_API
 	help
 	  Enable the HI91 external IMU module on UART2. The module parses HI91
-	  binary frames and publishes the latest IMU sample to channels.
+	  binary frames and publishes the latest IMU message.
 
 config WBR_CONTROL_MODULE_AHRS
 	bool "Enable onboard AHRS module"
@@ -146,6 +146,16 @@ config WBR_CONTROL_MODULE_SYS_STATE
 	  Enable registering and starting the system status indicator module.
 	  The module supports RGB breathing LED and optional PWM buzzer output.
 
+config WBR_CONTROL_MODULE_SDLOG
+	bool "Enable FAT32 TF-card logging module"
+	default n
+	depends on FILE_SYSTEM && DISK_ACCESS && DISK_DRIVER_SDMMC && FAT_FILESYSTEM_ELM
+	select FS_FATFS_EXFAT
+	help
+	  Enable the low-priority SD logger. The logger mounts an existing FAT32
+	  volume at /SD:, records binary snapshots, and never blocks boot or the
+	  control/sensor threads when the card is absent or fails.
+
 config WBR_CONTROL_SHELL_MAVLINK_CONTROL
 	bool "Enable MAVLink shell control command"
 	default n
@@ -175,7 +185,7 @@ config WBR_CONTROL_PC_LINK
 	help
 	  Enable the pc_link session worker inside usb_session. The worker
 	  assembles the auto-aim telemetry packet from the gimbal/booster/imu/
-	  remote_input channels at a fixed rate and parses auto-aim commands
+	  remote_input messages at a fixed rate and parses auto-aim commands
 	  received from the PC over USB Vendor Interrupt endpoints.
 
 config WBR_CONTROL_PC_LINK_PERIOD_MS
@@ -193,12 +203,5 @@ config WBR_CONTROL_PC_LINK_COMMAND_TIMEOUT_MS
 	help
 	  Publish an idle command when no valid PC control frame has been received
 	  within this interval. USB reset and disconnect also request an idle command.
-
-config WBR_CONTROL_RUNTIME_INIT_LITTLEFS
-	bool "Initialize LittleFS in bootstrap"
-	default n
-	depends on FILE_SYSTEM_LITTLEFS
-	help
-	  Enable LittleFS initialization during runtime bootstrap.
 
 endmenu

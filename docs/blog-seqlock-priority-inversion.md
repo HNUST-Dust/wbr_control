@@ -50,7 +50,7 @@ IMU 接收最开始通过一个独立测试程序验证：
 
 ## 真正的根因
 
-项目里多个模块之间通过 `SeqlockValue<T>` 传递最新状态。它的设计很简单：
+项目里多个模块之间通过 `LatestValue<T>` 传递最新状态。它的设计很简单：
 
 ```cpp
 void write(const T& value)

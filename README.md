@@ -26,7 +26,7 @@
 | `src/modules/` | 业务模块及其专用控制器/估计器（remote_input、chassis、imu 等） |
 | `src/protocols/` | 电机、遥控和遥测协议实现 |
 | 各组件所属目录中的头文件 | 仓库内部接口，头文件跟随模块或库 |
-| `channels/` | zbus 消息主题定义 |
+| `msg/` | zbus 消息主题定义 |
 | `platform/` | 板级、驱动、存储适配 |
 | `debug/shell/` | Shell 调试命令 |
 

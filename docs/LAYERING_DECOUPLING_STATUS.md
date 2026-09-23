@@ -13,7 +13,7 @@
 - 业务层：remote_input / chassis
 - 服务层：actuator / chassis_tuning
 - 协议层：protocols/motors
-- 消息层：zbus channels
+- 消息层：zbus msg
 - 平台层：platform/drivers + platform/storage
 
 综合评估：
@@ -134,7 +134,7 @@
 
 5. include 边界收敛
 - 状态：已完成。
-- 实现：上层 include 使用领域前缀（如 `modules/...`、`channels/...`）；独立 algorithms include 根已移除，控制器和估计器头文件归对应模块所有。
+- 实现：上层 include 使用领域前缀（如 `modules/...`、`msg/...`）；独立 algorithms include 根已移除，控制器和估计器头文件归对应模块所有。
 
 6. 测试与回放资产补齐
 - 状态：已完成第一步（2026-04-05）。
