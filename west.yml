@@ -58,7 +58,10 @@ manifest:
       remote: dust-hpm
       repo-path: hpm_support
       path: hpm_support
-      revision: main
+      # Pin the revision that contains the dust-hpm6750 board definition.
+      # The remote main branch still exposes the legacy hpm6750evk2 board,
+      # which makes CI reject `-b dust-hpm6750` before compilation starts.
+      revision: 8a9e83d5d47d0d5f5133eaef6d0ab70f366bed3f
       west-commands: scripts/west-commands.yml
 
     # SEGGER RTT transport used by the non-UART shell/logging diagnostics.
