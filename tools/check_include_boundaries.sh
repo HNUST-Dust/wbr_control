@@ -80,7 +80,7 @@ fi
 
 # platform 位于 modules 下层，允许使用 channel，但不能反向依赖业务模块。
 if rg -n \
-  '#include [<"]modules/|modules::' \
+  '#include [<"]chassis_controller/|modules::' \
   "${ROOT_DIR}/platform" \
   "${SOURCE_GLOBS[@]}"; then
   echo "platform must not depend on modules." >&2
@@ -89,21 +89,21 @@ fi
 
 # main 只组合模块入口，不穿透模块内部控制器。
 if rg -n \
-  '#include [<"]modules/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
-  "${ROOT_DIR}/src/main.cpp"; then
+  '#include [<"]chassis_controller/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
+  "${ROOT_DIR}/src/chassis_controller/main.cpp"; then
   echo "main may include module entry headers only." >&2
   exit 1
 fi
 
 # chassis 内部控制器只允许所属目录和显式白盒测试访问。
 if rg -n \
-  '#include [<"]modules/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
+  '#include [<"]chassis_controller/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
   "${ROOT_DIR}" \
   "${EXCLUDES[@]}" \
   -g '!test/**' \
-  -g '!src/modules/chassis/**' \
+  -g '!src/chassis_controller/chassis/**' \
   "${SOURCE_GLOBS[@]}"; then
-  echo "Chassis implementation headers are private to src/modules/chassis." >&2
+  echo "Chassis implementation headers are private to src/chassis_controller/chassis." >&2
   exit 1
 fi
 

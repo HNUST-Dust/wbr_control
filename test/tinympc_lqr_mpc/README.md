@@ -6,7 +6,7 @@ production Zephyr CMake files.
 The library snapshot is fetched from `NoneOfEver/TinyMPC` at the unchanged
 upstream-compatible commit `023f36bd5b27267e1a96ed47a774d120b5707f13`.
 It is managed by the manifest repository's `west.yml` and checked out as
-`TinyMPC` at the workspace root.
+`tiny_mpc` at the workspace root.
 
 It uses the existing 6-state, 2-input physical LQR model at the generated leg
 length closest to 0.25 m, discretizes it at the production 1 kHz rate, and
@@ -49,7 +49,7 @@ scheduling noise and is not a target WCET measurement.
 The checked-out convenience API and its generated source both retain
 `Matrix<Dynamic, Dynamic>` and heap allocation, so upstream code generation by
 itself does not make this revision MCU-safe. The application therefore maintains
-`src/modules/chassis/mpc/static_tinympc_solver.hpp`, a compile-time-sized,
+`src/chassis_controller/chassis/mpc/static_tinympc_solver.hpp`, a compile-time-sized,
 input-box-only online kernel. The host equivalence regression uses `6 x 2 x 81`
 with `double`; the production shadow benchmark uses `6 x 2 x 21` with `float`.
 Its Riccati cache is generated offline into

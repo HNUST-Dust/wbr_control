@@ -2,13 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "wbr_control: build",
+      "label": "chassis_controller: build",
       "type": "shell",
-      "command": "CCACHE_DISABLE=1 ninja -C build",
+      "command": "CCACHE_DISABLE=1 ninja -C build/chassis_controller",
       "group": {
         "kind": "build",
         "isDefault": true
       },
+      "problemMatcher": []
+    },
+    {
+      "label": "gimbal_controller: build",
+      "type": "shell",
+      "command": "CCACHE_DISABLE=1 ninja -C build/gimbal_controller",
+      "group": "build",
       "problemMatcher": []
     },
     {

@@ -86,7 +86,7 @@ CONFIG_SERIAL=y
 
 ### 2.3 `prj.conf`：应用的常驻请求
 
-默认情况下，`wbr_control/prj.conf` 是应用主配置 fragment。它适合放所有构建共有的配置，而不是临时诊断模式。
+默认情况下，`wbr_control/src/chassis_controller/prj.conf` 是应用主配置 fragment。它适合放所有构建共有的配置，而不是临时诊断模式。
 
 当前文件同时包含：
 
@@ -103,7 +103,7 @@ CONFIG_SERIAL=y
 命令：
 
 ```sh
-west build -p always -b dust-hpm6750 -d build -- \
+west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_controller -- \
   -DEXTRA_CONF_FILE=config/printk_log.conf
 ```
 
@@ -167,7 +167,7 @@ board *_defconfig
                     │
           ┌─────────┴──────────┐
           ▼                    ▼
-build/zephyr/.config   build/zephyr/include/generated/zephyr/autoconf.h
+build/chassis_controller/zephyr/.config   build/chassis_controller/zephyr/include/generated/zephyr/autoconf.h
           │                    │
           │                    └── C/C++ 中的 CONFIG_* 宏
           └── 人类排查最终值的第一依据
@@ -263,7 +263,7 @@ Zephyr 会在 `.config` 仍被认为是最新时复用它。不同场景反复�
 可靠做法：
 
 ```sh
-west build -p always -b dust-hpm6750 -d build-log -- \
+west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_controller-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
 grep -E 'CONFIG_(LOG|PRINTK|UART_CONSOLE|WBR_CONTROL_UART0)' \
@@ -695,7 +695,7 @@ Deferred logging 降低调用现场开销，但 buffer 分配、参数打包仍�
 
 ### P2：现有 `build/` 曾与当前配置不一致
 
-检查中发现仓库现有 `build/zephyr/.config` 与当前文本配置存在不一致迹象。共享 build directory 和未 pristine rebuild 会继续放大误解。
+检查中发现仓库现有 `build/chassis_controller/zephyr/.config` 与当前文本配置存在不一致迹象。共享 build directory 和未 pristine rebuild 会继续放大误解。
 
 ## 12. 推荐的配置架构
 
@@ -778,7 +778,7 @@ grep -E '^(BOARD|CONF_FILE|EXTRA_CONF_FILE|DTC_OVERLAY_FILE):' \
 
 ```sh
 grep -E 'CONFIG_(WBR_CONTROL_UART0|LOG|PRINTK|CONSOLE|UART_CONSOLE|BOOT_BANNER)' \
-  build/zephyr/.config
+  build/chassis_controller/zephyr/.config
 ```
 
 重点同时检查：
@@ -797,7 +797,7 @@ CONFIG_UART_CONSOLE
 ### 13.3 用 menuconfig 追反向依赖
 
 ```sh
-west build -d build -t menuconfig
+west build -d build/chassis_controller -t menuconfig
 ```
 
 按 `/` 搜索符号，查看：
@@ -812,8 +812,8 @@ west build -d build -t menuconfig
 ### 13.4 看最终 Devicetree
 
 ```sh
-grep -n -A8 -B3 'chosen' build/zephyr/zephyr.dts
-grep -n -A16 'uart0: serial@' build/zephyr/zephyr.dts
+grep -n -A8 -B3 'chosen' build/chassis_controller/zephyr/zephyr.dts
+grep -n -A16 'uart0: serial@' build/chassis_controller/zephyr/zephyr.dts
 ```
 
 确认 `zephyr,console`、`zephyr,shell-uart`、可选的 `zephyr,log-uart` 和 UART status/baudrate。
@@ -821,7 +821,7 @@ grep -n -A16 'uart0: serial@' build/zephyr/zephyr.dts
 ### 13.5 确认 backend 真的编译进入镜像
 
 ```sh
-grep CONFIG_LOG_BACKEND_UART build/zephyr/.config
+grep CONFIG_LOG_BACKEND_UART build/chassis_controller/zephyr/.config
 ninja -C build -t commands | grep log_backend_uart.c
 ```
 
@@ -830,13 +830,13 @@ ninja -C build -t commands | grep log_backend_uart.c
 ### 13.6 场景使用独立目录
 
 ```sh
-west build -p always -b dust-hpm6750 -d build-printk -- \
+west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_controller-printk -- \
   -DEXTRA_CONF_FILE=config/printk.conf
 
-west build -p always -b dust-hpm6750 -d build-log -- \
+west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_controller-log -- \
   -DEXTRA_CONF_FILE=config/log.conf
 
-west build -p always -b dust-hpm6750 -d build-vofa -- \
+west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_controller-vofa -- \
   -DEXTRA_CONF_FILE=config/oscilloscope.conf
 ```
 
@@ -862,12 +862,12 @@ west build -p always -b dust-hpm6750 -d build-vofa -- \
 
 ### 项目配置
 
-- `wbr_control/Kconfig`
-- `wbr_control/prj.conf`
+- `wbr_control/src/chassis_controller/Kconfig`
+- `wbr_control/src/chassis_controller/prj.conf`
 - `wbr_control/config/*.conf`
-- `wbr_control/app.overlay`
-- `wbr_control/src/main.cpp`
-- `wbr_control/src/modules/oscilloscope/oscilloscope_module.cpp`
+- `wbr_control/src/chassis_controller/app.overlay`
+- `wbr_control/src/chassis_controller/main.cpp`
+- `wbr_control/src/chassis_controller/oscilloscope/oscilloscope_module.cpp`
 
 ### 板级与 HPM driver
 

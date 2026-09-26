@@ -8,7 +8,7 @@
 | 所有者 | 头文件与实现位置 | 包含形式 |
 |---|---|---|
 | protocols | `src/protocols/` | `<protocols/...>` |
-| modules | `src/modules/` | `<modules/...>` 或模块内引号包含 |
+| modules | `src/chassis_controller/` | `<chassis_controller/...>` 或模块内引号包含 |
 | scheduling | `src/scheduling/` | `<scheduling/...>` |
 | msg | `msg/` | `<msg/...>` |
 | platform | `platform/` 对应实现目录 | `<platform/...>` |
@@ -53,9 +53,9 @@ debug ──> msg
 
 PX4 风格需要两个内部 include 根：
 
-- `${PROJECT_SOURCE_DIR}`：解析 `msg/...` 和 `platform/...`。
-- `${PROJECT_SOURCE_DIR}/src`：解析 `protocols/...`、
-  `modules/...` 和 `scheduling/...`。
+- `${WBR_CONTROL_ROOT}`：解析 `msg/...` 和 `platform/...`。
+- `${WBR_CONTROL_ROOT}/src`：解析 `protocols/...`、
+  `chassis_controller/...` 和 `scheduling/...`。
 
 这些路径只表示仓库内部所有权，不表示对仓库外发布 SDK。每个 CMake 目标仍需
 通过 `target_link_libraries()` 声明实际依赖，边界脚本负责阻止反向包含。

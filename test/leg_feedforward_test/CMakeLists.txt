@@ -15,7 +15,7 @@ target_include_directories(app PRIVATE
 target_sources(app PRIVATE
   src/main.cpp
   ../../src/protocols/motors/dm_motor_protocol.cpp
-  ../../src/modules/chassis/leg_kinematics.cc
+  ../../src/chassis_controller/chassis/leg_kinematics.cc
 )
 
 target_include_directories(app SYSTEM PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../../eigen)

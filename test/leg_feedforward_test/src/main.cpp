@@ -20,7 +20,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-#include <modules/chassis/leg_kinematics.h>
+#include <chassis_controller/chassis/leg_kinematics.h>
 #include <protocols/motors/dm_motor_protocol.h>
 
 namespace {

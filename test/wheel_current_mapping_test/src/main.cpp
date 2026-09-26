@@ -23,8 +23,8 @@
 #include <msg/oscilloscope_sample.hpp>
 #include <msg/remote_input_state.hpp>
 #include <protocols/motors/dji_motor_protocol.h>
-#include <modules/oscilloscope/oscilloscope_module.h>
-#include <modules/remote_input/remote_input_module.h>
+#include <chassis_controller/oscilloscope/oscilloscope_module.h>
+#include <chassis_controller/remote_input/remote_input_module.h>
 
 namespace
 {

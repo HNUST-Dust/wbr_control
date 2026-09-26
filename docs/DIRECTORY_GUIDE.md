@@ -5,11 +5,11 @@
 ## 1. 从哪里开始看
 
 1. 程序入口
-- src/main.cpp
+- src/chassis_controller/main.cpp
 
 2. 当前运行主链路（active）
-- 输入模块：modules/remote_input
-- 控制模块：modules/chassis
+- 输入模块：chassis_controller/remote_input
+- 控制模块：chassis_controller/chassis
 - 执行服务：services/actuator
 - 调参服务：services/chassis
 - 协议层：protocols/motors
@@ -23,16 +23,16 @@
 ## 2. 目录分层速览
 
 - src/: Zephyr 主入口
-- modules/: 模块生命周期管理
-- 应用根目录：领域语义聚合入口（含 msg/modules/services/protocols）
-- modules/: legacy 说明目录（实体实现已迁移至 modules）
+- chassis_controller/: 模块生命周期管理
+- 应用根目录：领域语义聚合入口（含 msg/chassis_controller/services/protocols）
+- chassis_controller/: legacy 说明目录（实体实现已迁移至 modules）
 - services/: legacy 说明目录（实体实现已迁移至 services）
 - msg/: legacy 说明目录（实体实现已迁移至 msg）
 - protocols/: legacy 说明目录（实体实现已迁移至 protocols）
 - 模块内控制器/估计器：算法实现随其实际使用模块维护
 - platform/: 板级、驱动、存储适配
 - platform/legacy/: 平台历史资产归档分区（不参与当前主链路）
-- 应用根目录 include：对外稳定头路径（如 modules/*、msg/*、platform/*）
+- 应用根目录 include：对外稳定头路径（如 chassis_controller/*、msg/*、platform/*）
 - docs/: 架构、迁移、交接与规范文档
 - tools/: 自动化脚本（如 smoke 回归）
 
@@ -46,23 +46,23 @@
 当前模块状态：
 
 - active
-  - modules/chassis
-  - modules/remote_input
+  - chassis_controller/chassis
+  - chassis_controller/remote_input
 
 - staged
-  - modules/staging/arm
-  - modules/staging/gimbal
-  - modules/staging/gantry
-  - modules/staging/referee
+  - chassis_controller/staging/arm
+  - chassis_controller/staging/gimbal
+  - chassis_controller/staging/gantry
+  - chassis_controller/staging/referee
 
 ## 4. 建议阅读顺序
 
 1. docs/AGENT_HANDOFF.md
 2. docs/LAYERING_DECOUPLING_STATUS.md
 3. docs/DIRECTORY_RESTRUCTURE_PLAN.md
-4. modules/src/module_manager.cpp
-5. modules/remote_input/remote_input_module.cpp
-6. modules/chassis/chassis_module.cpp
+4. chassis_controller/src/module_manager.cpp
+5. chassis_controller/remote_input/remote_input_module.cpp
+6. chassis_controller/chassis/chassis_module.cpp
 
 ## 5. 结构重构计划
 

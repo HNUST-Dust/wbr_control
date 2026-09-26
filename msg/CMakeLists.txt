@@ -44,13 +44,13 @@ add_custom_command(
   OUTPUT
     ${WBR_CONTROL_MSG_GENERATED_SOURCE}
     ${WBR_CONTROL_MSG_GENERATED_HEADERS}
-  COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_messages.py
+  COMMAND ${PYTHON_EXECUTABLE} ${WBR_CONTROL_ROOT}/tools/generate_messages.py
     --output-dir ${WBR_CONTROL_MSG_GENERATED_DIR}
     --source-output ${WBR_CONTROL_MSG_GENERATED_SOURCE}
     ${WBR_CONTROL_MSG_DEFINITIONS}
   DEPENDS
     ${WBR_CONTROL_MSG_DEFINITIONS}
-    ${PROJECT_SOURCE_DIR}/tools/generate_messages.py
+    ${WBR_CONTROL_ROOT}/tools/generate_messages.py
   COMMENT "Generating C++ messages from .msg definitions"
   VERBATIM
 )
@@ -61,6 +61,6 @@ zephyr_library_sources(
   ${WBR_CONTROL_MSG_GENERATED_SOURCE}
 )
 target_include_directories(wbr_msg PUBLIC
-  ${PROJECT_SOURCE_DIR}
+  ${WBR_CONTROL_ROOT}
   ${CMAKE_BINARY_DIR}/generated
 )

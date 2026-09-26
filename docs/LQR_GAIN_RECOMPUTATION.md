@@ -41,8 +41,8 @@ physical_lqr_samples.csv + physical_lqr_cubic.csv
 - 腿部 CAD 输入：`tools/data/leg_mass_properties.csv`
 - 每个腿长的 A、B、K 和闭环检查结果：`tools/generated/physical_lqr_samples.csv`
 - 三次拟合系数：`tools/generated/physical_lqr_cubic.csv`
-- 固件系数与求值函数：`src/modules/chassis/lqr_schedule.cc`
-- 当前实机调用：`src/modules/chassis/chassis_module.cpp`
+- 固件系数与求值函数：`src/chassis_controller/chassis/lqr_schedule.cc`
+- 当前实机调用：`src/chassis_controller/chassis/chassis_module.cpp`
 - 符号方程参考：`controller.m`
 
 ## 2. 状态、输入与控制律约定
@@ -300,7 +300,7 @@ python3 tools/derive_lqr_schedule.py --mode common \
 - 样本点和密集插值点的最差闭环极点实部；
 - 可直接复制到 C++ 的 `kGainPolynomial[2][6][4]` 初始化器。
 
-只有在命令成功退出、所有腿长点可控、所有验证指标通过后，才能把打印出的初始化器替换到 `src/modules/chassis/lqr_schedule.cc`。
+只有在命令成功退出、所有腿长点可控、所有验证指标通过后，才能把打印出的初始化器替换到 `src/chassis_controller/chassis/lqr_schedule.cc`。
 
 ## 8. 固件同步与核对
 

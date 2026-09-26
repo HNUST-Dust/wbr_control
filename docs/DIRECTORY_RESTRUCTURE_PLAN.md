@@ -18,7 +18,7 @@
   - 已完成：`protocols` 实体文件已迁入 `protocols`，并完成 CMake 源列表切换。
   - 验证：默认构建与 smoke 回归通过。
 - 阶段 C：已完成。
-  - 已完成：staged 模块已集中迁入 `modules/staging/*`，与 active 模块物理分区。
+  - 已完成：staged 模块已集中迁入 `chassis_controller/staging/*`，与 active 模块物理分区。
   - 已完成（第 2 步）：移除独立 `src/algorithms` 层；仍需使用的算法归入实际控制器或估计器模块。
   - 已完成（第 3 步）：建立 `platform/legacy/*` 归档分区并迁入 `platform/legacy/board/legacy_dm_h723`，同时落地平台归档策略文档。
 
@@ -27,10 +27,10 @@
 当前目录虽然功能上可用，但存在以下开发体验问题：
 
 1. 入口分散
-- 启动编排已收敛到 `src/main.cpp`，模块生命周期基础设施保留在 `modules/`。
+- 启动编排已收敛到 `src/chassis_controller/main.cpp`，模块生命周期基础设施保留在 `chassis_controller/`。
 
 2. 语义层次混杂
-- `app/` 下既有领域逻辑（modules/services/protocols/msg），又有历史算法资产和调试资产，边界不够直观。
+- `app/` 下既有领域逻辑（chassis_controller/services/protocols/msg），又有历史算法资产和调试资产，边界不够直观。
 
 3. 公共头导出路径不统一
 - 目前同时存在 `include/wbr_control/platform/*` 与 `app/include/app/*`，理解成本偏高。
@@ -65,7 +65,7 @@ applications/wbr_control/
 
     domain/
       msg/                 # 仅消息定义和 zbus channel 定义
-      modules/                  # 业务模块（chassis/remote_input/...）
+      chassis_controller/                  # 业务模块（chassis/remote_input/...）
       services/                 # 应用服务（actuator/tuning/runtime facade）
       protocols/                # 协议编解码（motors/pc_link）
 
@@ -80,7 +80,7 @@ applications/wbr_control/
 
   include/
     wbr_control/
-      modules/...               # 领域层公共 API（统一导出）
+      chassis_controller/...               # 领域层公共 API（统一导出）
       platform/...              # platform 层公共 API（统一导出）
 
   docs/
@@ -97,10 +97,10 @@ applications/wbr_control/
 
 2. 头文件导出规则
 - 上层代码只能 include：
-  - `#include <modules/...>`、`#include <msg/...>` 等领域目录头路径
-  - `#include <wbr_control/modules/...>`（启动编排层）
+  - `#include <chassis_controller/...>`、`#include <msg/...>` 等领域目录头路径
+  - `#include <wbr_control/chassis_controller/...>`（启动编排层）
   - `#include <wbr_control/platform/...>`
-- 禁止上层直接 include 源码目录相对路径（例如 `modules/...`）。
+- 禁止上层直接 include 源码目录相对路径（例如 `chassis_controller/...`）。
 
 3. 依赖方向规则
 - `domain/modules -> domain/services -> platform`
@@ -108,18 +108,18 @@ applications/wbr_control/
 - `platform` 不依赖 `domain/modules`
 
 4. 迁移占位规则
-- 占位模块统一放 `domain/modules/staging/`（或在 README 标注 staged），避免与 active 模块混淆。
+- 占位模块统一放 `domain/chassis_controller/staging/`（或在 README 标注 staged），避免与 active 模块混淆。
 
 ## 5. 入手点说明（给新开发者）
 
 建议在 README 顶部固定放以下“3 分钟上手路径”：
 
 1. 启动入口
-- `src/main.cpp`
+- `src/chassis_controller/main.cpp`
 
 2. 当前主链路
-- 输入：`modules/remote_input`
-- 控制：`modules/chassis`
+- 输入：`chassis_controller/remote_input`
+- 控制：`chassis_controller/chassis`
 - 下发：`services/actuator`
 
 3. 调参与运维
@@ -159,7 +159,7 @@ applications/wbr_control/
 ## 7. 本周可立即执行的最小动作
 
 1. 在 `docs/` 增加目录导览页（入口/主链路/调试入口）。
-2. 已完成：staged 模块已收敛到 `modules/staging/*`。
+2. 已完成：staged 模块已收敛到 `chassis_controller/staging/*`。
 3. 进入后续能力演进：补齐回放/实机测试资产与服务层能力扩展。
 
 ## 8. 风险与回滚

@@ -1,0 +1,5 @@
+/* Keep board-default CherryUSB disabled until the gimbal application owns a
+ * USB transport and links its glue implementation explicitly. */
+&cherryusb_usb0 {
+	status = "disabled";
+};

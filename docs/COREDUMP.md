@@ -14,7 +14,7 @@ NVS.
 | `coredump-partition` | `0x383000` | 128 KiB |
 
 Do not erase or reprogram the complete flash before exporting a dump. Keep the
-exact `build/zephyr/zephyr.elf` that produced the firmware; a different ELF can
+exact `build/chassis_controller/zephyr/zephyr.elf` that produced the firmware; a different ELF can
 give incorrect symbols and stack frames.
 
 ## Check and export a stored dump
@@ -46,13 +46,13 @@ Start the RISC-V debugger with the matching ELF:
 
 ```sh
 ../../zephyr-sdk-0.16.5/riscv64-zephyr-elf/bin/\
-riscv64-zephyr-elf-gdb build/zephyr/zephyr.elf
+riscv64-zephyr-elf-gdb build/chassis_controller/zephyr/zephyr.elf
 ```
 
 At the GDB prompt:
 
 ```gdb
-target remote | ../zephyr/scripts/coredump/coredump_gdbserver.py --pipe build/zephyr/zephyr.elf coredump.bin
+target remote | ../zephyr/scripts/coredump/coredump_gdbserver.py --pipe build/chassis_controller/zephyr/zephyr.elf coredump.bin
 info registers
 bt
 ```

@@ -1,5 +1,5 @@
 zephyr_library_named(wbr_platform)
-target_include_directories(wbr_platform PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(wbr_platform PUBLIC ${WBR_CONTROL_ROOT})
 target_link_libraries(wbr_platform PRIVATE
   wbr_msg
   wbr_protocols

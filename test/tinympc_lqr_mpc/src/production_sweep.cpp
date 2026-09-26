@@ -1,5 +1,5 @@
 #include "generated_chassis_model.hpp"
-#include "modules/chassis/mpc/static_tinympc_solver.hpp"
+#include "chassis_controller/chassis/mpc/static_tinympc_solver.hpp"
 
 #include <Eigen/Core>
 
