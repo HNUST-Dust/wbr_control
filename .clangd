@@ -1,4 +1,5 @@
 CompileFlags:
+  CompilationDatabase: build/chassis_controller
   Add:
     - -Wno-vla-cxx-extension
   Remove:

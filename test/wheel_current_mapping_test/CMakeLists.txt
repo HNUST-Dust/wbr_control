@@ -18,8 +18,8 @@ target_sources(app PRIVATE
   ../../msg/oscilloscope_sample.cpp
   ../../msg/remote_input_state.cpp
   ../../msg/uart_raw_frame_queue.cpp
-  ../../src/modules/oscilloscope/oscilloscope_module.cpp
-  ../../src/modules/remote_input/remote_input_module.cpp
+  ../../src/chassis_controller/oscilloscope/oscilloscope_module.cpp
+  ../../src/chassis_controller/remote_input/remote_input_module.cpp
   ../../src/protocols/motors/dji_motor_protocol.cpp
   ../../src/protocols/remote_input/dr16_protocol.cpp
   ../../src/protocols/remote_input/vt03_protocol.cpp

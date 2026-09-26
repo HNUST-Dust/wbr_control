@@ -22,8 +22,8 @@
 
 | 层级 | 职责 |
 |------|------|
-| `src/main.cpp` | Zephyr 入口，`main()` 完成启动编排 |
-| `src/modules/` | 业务模块及其专用控制器/估计器（remote_input、chassis、imu 等） |
+| `src/chassis_controller/` | 独立的底盘 Zephyr application，包含入口、配置和底盘业务模块 |
+| `src/gimbal_controller/` | 独立的云台 Zephyr application，当前为最小可构建骨架 |
 | `src/protocols/` | 电机、遥控和遥测协议实现 |
 | 各组件所属目录中的头文件 | 仓库内部接口，头文件跟随模块或库 |
 | `msg/` | zbus 消息主题定义 |
@@ -66,17 +66,24 @@ west update
 
 ### 构建与烧录
 ```bash
-# 构建
-west build -p always -b dust-hpm6750 -d build
+# 构建底盘 application
+west build -p always -b dust-hpm6750 \
+  -s wbr_control/src/chassis_controller \
+  -d wbr_control/build/chassis_controller
 
-# 烧录
-west flash -d build
+# 构建云台 application
+west build -p always -b dust-hpm6750 \
+  -s wbr_control/src/gimbal_controller \
+  -d wbr_control/build/gimbal_controller
+
+# 烧录底盘
+west flash -d wbr_control/build/chassis_controller
 
 # 启动 RTT Shell，并查看 LOG_* 与 printk() 输出
-west rtt
+west rtt -d wbr_control/build/chassis_controller
 ```
 
-`west rtt` 默认使用 `build/zephyr/zephyr.elf`，自动启动补丁版 HPM
+`west rtt` 默认使用 `wbr_control/build/chassis_controller/zephyr/zephyr.elf`，自动启动补丁版 HPM
 OpenOCD 并连接 RTT channel 0；按 `Ctrl+C` 会同时释放 RTT 和 CMSIS-DAP。
 其他参数参见 `west rtt --help`。HPM6750 通过 Debug Module 的 System Bus
 Access 读取 non-cache RTT 缓冲区，连接和轮询期间不会暂停 CPU。
@@ -92,7 +99,9 @@ Access 读取 non-cache RTT 缓冲区，连接和轮询期间不会暂停 CPU。
 ```bash
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 export ZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk-0.16.5
-west build -p always -b dust-hpm6750 -s wbr_control -d wbr_control/build
+west build -p always -b dust-hpm6750 \
+  -s wbr_control/src/chassis_controller \
+  -d wbr_control/build/chassis_controller
 ```
 
 2) 缺少 pyelftools

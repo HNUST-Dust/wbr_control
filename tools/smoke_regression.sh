@@ -7,7 +7,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WS_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
-BUILD_DIR="$ROOT_DIR/build"
+CHASSIS_APP_DIR="$ROOT_DIR/src/chassis_controller"
+BUILD_DIR="$ROOT_DIR/build/chassis_controller"
 BOARD="dust-hpm6750"
 TMP_BUILD_DIR="/tmp/wbr_control_smoke_can_off"
 OVERLAY_FILE="/tmp/wbr_control_smoke_can_off.conf"
@@ -57,20 +58,20 @@ rm -rf "$TMP_BUILD_DIR"
 mkdir -p "$TMP_LOG_DIR"
 
 echo "-- [1/5] Static contract checks"
-check_file_contains "$ROOT_DIR/src/main.cpp" "platform::InitializeCanDispatch\\(" "main initializes CAN dispatch directly"
-check_file_contains "$ROOT_DIR/src/modules/remote_input/remote_input_module.cpp" "uart_rx_enable\\(" "Remote input module owns UART RX"
-check_file_contains "$ROOT_DIR/src/modules/module_base.h" "static void ThreadEntry" "ModuleBase owns the thread entry"
-check_file_contains "$ROOT_DIR/src/modules/module_base.h" "virtual int Start\\(\\) = 0" "ModuleBase requires Start"
-check_file_contains "$ROOT_DIR/src/modules/module_base.h" "virtual void RunLoop\\(\\) = 0" "ModuleBase requires RunLoop"
-check_file_contains "$ROOT_DIR/src/modules/chassis/chassis_module.h" "public ModuleBase" "Chassis inherits ModuleBase"
-check_file_contains "$ROOT_DIR/src/modules/chassis/chassis_module.h" "int Start\\(\\) override" "Chassis overrides Start"
-check_file_contains "$ROOT_DIR/src/modules/chassis/chassis_module.h" "void RunLoop\\(\\) override" "Chassis overrides RunLoop"
-check_file_contains "$ROOT_DIR/src/modules/remote_input/remote_input_module.cpp" "device_is_ready\\(" "Remote input checks hardware in Start"
-check_file_contains "$ROOT_DIR/src/main.cpp" "static modules::ChassisModule chassis_module" "main owns the chassis instance"
-check_file_contains "$ROOT_DIR/src/main.cpp" "chassis_module\\.Start\\(" "main starts chassis explicitly"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT" "Remote input module is config-gated"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_CHASSIS" "Chassis module is config-gated"
-check_file_contains "$ROOT_DIR/src/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REFEREE" "Referee module is config-gated"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "platform::InitializeCanDispatch\\(" "main initializes CAN dispatch directly"
+check_file_contains "$ROOT_DIR/src/chassis_controller/remote_input/remote_input_module.cpp" "uart_rx_enable\\(" "Remote input module owns UART RX"
+check_file_contains "$ROOT_DIR/src/chassis_controller/module_base.h" "static void ThreadEntry" "ModuleBase owns the thread entry"
+check_file_contains "$ROOT_DIR/src/chassis_controller/module_base.h" "virtual int Start\\(\\) = 0" "ModuleBase requires Start"
+check_file_contains "$ROOT_DIR/src/chassis_controller/module_base.h" "virtual void RunLoop\\(\\) = 0" "ModuleBase requires RunLoop"
+check_file_contains "$ROOT_DIR/src/chassis_controller/chassis/chassis_module.h" "public ModuleBase" "Chassis inherits ModuleBase"
+check_file_contains "$ROOT_DIR/src/chassis_controller/chassis/chassis_module.h" "int Start\\(\\) override" "Chassis overrides Start"
+check_file_contains "$ROOT_DIR/src/chassis_controller/chassis/chassis_module.h" "void RunLoop\\(\\) override" "Chassis overrides RunLoop"
+check_file_contains "$ROOT_DIR/src/chassis_controller/remote_input/remote_input_module.cpp" "device_is_ready\\(" "Remote input checks hardware in Start"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "static modules::ChassisModule chassis_module" "main owns the chassis instance"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "chassis_module\\.Start\\(" "main starts chassis explicitly"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REMOTE_INPUT" "Remote input module is config-gated"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "CONFIG_WBR_CONTROL_MODULE_CHASSIS" "Chassis module is config-gated"
+check_file_contains "$ROOT_DIR/src/chassis_controller/main.cpp" "CONFIG_WBR_CONTROL_MODULE_REFEREE" "Referee module is config-gated"
 
 echo "-- [2/5] Build default configuration"
 run_cmd "build_default" cmake --build "$BUILD_DIR" -j8
@@ -91,9 +92,9 @@ EOF
 
 PYTHON_BIN="${WS_DIR}/.venv/bin/python"
 if [[ -x "$PYTHON_BIN" ]]; then
-  run_cmd "configure_can_off" cmake -S "$ROOT_DIR" -B "$TMP_BUILD_DIR" -GNinja -DBOARD="$BOARD" -DPython3_EXECUTABLE="$PYTHON_BIN" -DOVERLAY_CONFIG="$OVERLAY_FILE"
+  run_cmd "configure_can_off" cmake -S "$CHASSIS_APP_DIR" -B "$TMP_BUILD_DIR" -GNinja -DBOARD="$BOARD" -DPython3_EXECUTABLE="$PYTHON_BIN" -DOVERLAY_CONFIG="$OVERLAY_FILE"
 else
-  run_cmd "configure_can_off" cmake -S "$ROOT_DIR" -B "$TMP_BUILD_DIR" -GNinja -DBOARD="$BOARD" -DOVERLAY_CONFIG="$OVERLAY_FILE"
+  run_cmd "configure_can_off" cmake -S "$CHASSIS_APP_DIR" -B "$TMP_BUILD_DIR" -GNinja -DBOARD="$BOARD" -DOVERLAY_CONFIG="$OVERLAY_FILE"
 fi
 
 run_cmd "build_can_off" cmake --build "$TMP_BUILD_DIR" -j8

@@ -7,7 +7,7 @@ project(onboard_imu_filter_test)
 
 target_sources(app PRIVATE
   src/main.cpp
-  ../../src/modules/ahrs/quaternion_ekf.cpp
+  ../../src/chassis_controller/ahrs/quaternion_ekf.cpp
 )
 target_include_directories(app PRIVATE
   ../../src

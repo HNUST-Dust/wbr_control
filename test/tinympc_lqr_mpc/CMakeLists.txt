@@ -4,7 +4,7 @@ project(wbr_tinympc_lqr_mpc_test LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(TINYMPC_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../TinyMPC)
+set(TINYMPC_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../tiny_mpc)
 set(TINYMPC_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(${TINYMPC_DIR}
                  ${CMAKE_CURRENT_BINARY_DIR}/tinympc EXCLUDE_FROM_ALL)

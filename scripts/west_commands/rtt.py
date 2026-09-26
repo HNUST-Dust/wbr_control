@@ -26,7 +26,8 @@ class Rtt(WestCommand):
                 Start the patched HPM OpenOCD RTT server and attach an
                 interactive terminal to Zephyr RTT channel 0.
 
-                The default build directory is wbr_control/build. Press
+                The default build directory is
+                wbr_control/build/chassis_controller. Press
                 Ctrl-C to close the terminal and stop OpenOCD.
                 """
             ),
@@ -43,7 +44,10 @@ class Rtt(WestCommand):
             "-d",
             "--build-dir",
             type=Path,
-            help="Zephyr build directory (default: wbr_control/build)",
+            help=(
+                "Zephyr build directory "
+                "(default: wbr_control/build/chassis_controller)"
+            ),
         )
         parser.add_argument(
             "-p",
@@ -155,7 +159,7 @@ class Rtt(WestCommand):
         build_dir = (
             args.build_dir.expanduser().resolve()
             if args.build_dir
-            else app_dir / "build"
+            else app_dir / "build" / "chassis_controller"
         )
 
         if not launcher.is_file():

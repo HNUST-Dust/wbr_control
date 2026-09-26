@@ -46,8 +46,8 @@
 旧工程里 `system_startup` 的职责，在 Zephyr 下应拆成四块：
 
 - 板级和外设初始化：交给 `boards/`、DTS、Kconfig、Zephyr 驱动初始化
-- 应用启动编排：交给 `src/main.cpp`
-- 模块注册与拉起：交给 `modules/module_manager.*`
+- 应用启动编排：交给 `src/chassis_controller/main.cpp`
+- 模块注册与拉起：交给 `chassis_controller/module_manager.*`
 - 数据分发：交给 `platform/drivers/communication/*` + `msg/*`
 
 也就是说，Zephyr 下不应再保留一个统一的“全局启动任务”去做所有事情。
@@ -127,7 +127,7 @@ applications/wbr_control/
     main.cpp
   app/
     bootstrap/
-      include/wbr_control/modules/
+      include/wbr_control/chassis_controller/
         bootstrap.h
         module.h
         module_manager.h
@@ -137,7 +137,7 @@ applications/wbr_control/
     debug/
       shell/
       tracing/
-    modules/
+    chassis_controller/
       chassis/
       gimbal/
       gantry/
@@ -163,7 +163,7 @@ applications/wbr_control/
       motor_feedback_channel.h
     protocols/
       pc_link/
-    modules/
+    chassis_controller/
       imu/onboard/             # 板载 IMU 专用姿态估计器
   platform/
     board/
@@ -189,21 +189,21 @@ applications/wbr_control/
 ### `Algorithm/`
 
 不再保留独立的通用算法层。算法随实际使用者迁移，例如板载 IMU 的 Quaternion EKF
-位于 `modules/ahrs/`，控制器实现位于对应控制模块内部。
+位于 `chassis_controller/ahrs/`，控制器实现位于对应控制模块内部。
 
 ### `App/`
 
 旧工程里的应用层要拆成两部分：
 
-- `modules/`
-- `modules/`
+- `chassis_controller/`
+- `chassis_controller/`
 
 对应关系建议如下：
 
-- `app_chassis.*` -> `modules/chassis/chassis_module.*`
+- `app_chassis.*` -> `chassis_controller/chassis/chassis_module.*`
 - `app_gimbal.*` -> 当前旧实现已移除，后续按新需求重写
-- `app_gantry.*` -> `modules/gantry/gantry_module.*`
-- `app_arm.*` -> `modules/arm/arm_module.*`
+- `app_gantry.*` -> `chassis_controller/gantry/gantry_module.*`
+- `app_arm.*` -> `chassis_controller/arm/arm_module.*`
 - `system_startup.*` -> 被 `bootstrap.*`、`module_manager.*`、`communication/*` 共同替代
 
 ### `Communication/`
@@ -245,8 +245,8 @@ applications/wbr_control/
 
 这次已经做的目录收敛包括：
 
-- 删除 `app/features/` 下和 `modules/` 语义重复的旧占位文件
-- 保留并强化 `modules/` 作为主功能目录
+- 删除 `app/features/` 下和 `chassis_controller/` 语义重复的旧占位文件
+- 保留并强化 `chassis_controller/` 作为主功能目录
 - 放弃自建 `app/pubsub/`，改为使用官方 `zbus`
 - 保留 `msg/` 作为消息类型定义层
 - 将设备占位命名从旧 `dvc_*` 风格切到角色命名
@@ -256,7 +256,7 @@ applications/wbr_control/
 
 - 当前默认构建只接入了 `main/module_manager/zbus/board_identity`
   这条最小主干
-- `modules/*`、`protocols/*`、`platform/drivers/*` 目前仍以迁移骨架为主
+- `chassis_controller/*`、`protocols/*`、`platform/drivers/*` 目前仍以迁移骨架为主
 - 将应用入口和核心调度骨架切换到 C++ 形态
 - 将调试和存储能力单独纳入 `debug/` 与 `platform/storage/`
 
@@ -264,7 +264,7 @@ applications/wbr_control/
 
 为了风险最小，建议后续按这个顺序继续收敛：
 
-1. 先把 `modules/` 的 C++ 生命周期接口定型
+1. 先把 `chassis_controller/` 的 C++ 生命周期接口定型
 2. 再把 `msg/` 的基础接口定型
 3. 再把 `debug/` 与 `platform/storage/` 的接入边界定型
 4. 再定 `remote_input_module`、`referee_module` 这类输入模块的话题输出

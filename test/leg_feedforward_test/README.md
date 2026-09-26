@@ -27,7 +27,7 @@ CCACHE_DISABLE=1 ninja -C wbr_control/test/leg_feedforward_test/build
 
 ## 调参入口
 
-在 `src/main.cpp` 顶部：
+在本测试的 `src/main.cpp` 顶部：
 
 ```cpp
 kEnableLeftLeg

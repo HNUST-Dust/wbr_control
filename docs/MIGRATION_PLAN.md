@@ -34,8 +34,8 @@
 ### 3.2 目录与分层已完成收敛
 
 - core -> modules 已完成并删除兼容层。
-- msg/services/modules/protocols 实体已收敛到 app 顶层同名目录。
-- staged 模块已集中到 modules/staging。
+- msg/services/chassis_controller/protocols 实体已收敛到 app 顶层同名目录。
+- staged 模块已集中到 chassis_controller/staging。
 - 平台 legacy 分区已建立：platform/legacy。
 
 ### 3.3 最小回归能力已建立
@@ -58,7 +58,7 @@
 ### P2（演进）
 
 3. 板载 IMU 姿态估计接线
-- 现状：Quaternion EKF 已归入 `modules/ahrs/`；ICM42688P-HXY
+- 现状：Quaternion EKF 已归入 `chassis_controller/ahrs/`；ICM42688P-HXY
   的 DRDY、SPI HDMA 六轴 burst、静止零偏校准、有锁快照发布、带符号轴映射和
   HI91/板载 EKF 底盘来源选择已完成。
 - 剩余：真机确认 sensor-to-body 轴向后设置 `BODY_MAP_CONFIRMED=y`，再完成满载压力测试。

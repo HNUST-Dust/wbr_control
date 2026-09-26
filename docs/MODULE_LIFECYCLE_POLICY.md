@@ -22,15 +22,15 @@
 - 用于迁移落点或预研
 - 默认不承诺接入当前主运行链路
 - 可存在占位实现，但不能在文档中描述为“已上线链路”
-- 默认目录：`modules/staging/*`
+- 默认目录：`chassis_controller/staging/*`
 
 ## 3. 状态变更流程
 
 1. staged -> active
 - 完成模块最小接线（输入/输出/生命周期）
 - 更新模块状态文档：
-  - modules/README.md
-  - modules/README.md（legacy 说明同步）
+  - chassis_controller/README.md
+  - chassis_controller/README.md（legacy 说明同步）
   - 对应模块目录 README（若存在）
 - 更新导览文档：
   - docs/DIRECTORY_GUIDE.md
@@ -47,8 +47,8 @@
 
 每次状态变化至少同步以下文件：
 
-- modules/README.md
-- modules/README.md（legacy 说明同步）
+- chassis_controller/README.md
+- chassis_controller/README.md（legacy 说明同步）
 - docs/DIRECTORY_GUIDE.md
 - docs/AGENT_HANDOFF.md（主链路变化时）
 

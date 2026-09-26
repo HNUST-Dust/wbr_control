@@ -40,4 +40,4 @@ float32 bullet_speed
 这些传输机制均封装在 `transport/*.hpp` 或生成代码中，业务模块不再直接定义
 ZBus channel、内核消息队列、ring buffer 或最新值存储。
 
-`msg/` 不允许依赖 `modules/` 或具体 `platform/` 实现。
+`msg/` 不允许依赖 `chassis_controller/` 或具体 `platform/` 实现。

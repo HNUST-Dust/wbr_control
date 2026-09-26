@@ -5,7 +5,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 app_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${app_dir}/.." && pwd)"
-build_dir="${1:-${app_dir}/build}"
+build_dir="${1:-${app_dir}/build/chassis_controller}"
 
 if [[ "${build_dir}" != /* ]]; then
     build_dir="${app_dir}/${build_dir}"

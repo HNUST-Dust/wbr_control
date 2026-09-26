@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
+source "Kconfig.zephyr"
+
+menu "gimbal_controller application options"
+
+# Add gimbal-specific application options here as the controller is brought up.
+
+endmenu

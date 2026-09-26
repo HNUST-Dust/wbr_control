@@ -37,8 +37,8 @@
 - modules 层保留各自 `Initialize()` / `Start()` 生命周期函数。
 
 关键落点：
-- src/main.cpp
-- modules/*/*_module.{h,cpp}
+- src/chassis_controller/main.cpp
+- chassis_controller/*/*_module.{h,cpp}
 
 收益：
 - 启动顺序更直观，不再需要注册表中转。
@@ -50,7 +50,7 @@
 - main 按 Kconfig 条件直接初始化 UART/CAN/USB/LittleFS。
 
 关键落点：
-- src/main.cpp
+- src/chassis_controller/main.cpp
 
 收益：
 - 启动顺序仍集中可控，入口能直接看到完整初始化流程。
@@ -63,9 +63,9 @@
 - UART 发送路径保持直接调用 `uart_poll_out()`，未额外保留发送包装。
 
 关键落点：
-- modules/chassis/chassis_module.cpp
-- modules/arm/arm_module.cpp
-- modules/gantry/gantry_module.cpp
+- chassis_controller/chassis/chassis_module.cpp
+- chassis_controller/arm/arm_module.cpp
+- chassis_controller/gantry/gantry_module.cpp
 
 收益：
 - 发送路径更直观，module 内能直接看到协议编码与总线发送行为。
@@ -80,7 +80,7 @@
 - debug/shell/chassis_tuning_shell.cpp
 - services/chassis/chassis_tuning_service.h
 - services/chassis/chassis_tuning_service.cpp
-- modules/chassis/chassis_module.cpp
+- chassis_controller/chassis/chassis_module.cpp
 
 收益：
 - shell 不再依赖模块命名空间全局桥接函数。
@@ -97,8 +97,8 @@
 关键落点：
 - Kconfig
 - CMakeLists.txt
-- src/main.cpp
-- src/main.cpp
+- src/chassis_controller/main.cpp
+- src/chassis_controller/main.cpp
 
 说明：
 - runtime 已支持编译期裁剪：相关驱动/存储源按 Kconfig 条件加入构建。
@@ -134,7 +134,7 @@
 
 5. include 边界收敛
 - 状态：已完成。
-- 实现：上层 include 使用领域前缀（如 `modules/...`、`msg/...`）；独立 algorithms include 根已移除，控制器和估计器头文件归对应模块所有。
+- 实现：上层 include 使用领域前缀（如 `chassis_controller/...`、`msg/...`）；独立 algorithms include 根已移除，控制器和估计器头文件归对应模块所有。
 
 6. 测试与回放资产补齐
 - 状态：已完成第一步（2026-04-05）。

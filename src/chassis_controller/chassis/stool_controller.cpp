@@ -1,0 +1,173 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+* @file src/chassis_controller/chassis/stool_controller.cpp
+ * @ingroup wbr_modules
+ * @brief 实现凳式姿态下的底盘稳定控制。
+ * @details 实现运行在模块自有 Zephyr 线程或其驱动回调中。回调路径只完成有界的数据搬运和通知，耗时解析与控制计算留在线程上下文执行。
+ */
+
+#include "stool_controller.h"
+
+#include <algorithm>
+#include <cmath>
+
+#include "chassis_config.h"
+
+namespace
+{
+
+using namespace modules::chassis_config;
+constexpr double kReadyThetaTolerance = kReadyThetaToleranceDeg * kDegToRad;
+constexpr int kBranch[2] = {kLeftKinematicBranch, kRightKinematicBranch};
+constexpr double kLegAngleOffset[2] = {kLeftLegAngleOffset, kRightLegAngleOffset};
+
+} // namespace
+
+namespace modules
+{
+
+void StoolController::Reset()
+{
+	target_initialized_.fill(false);
+	pose_reference_initialized_ = false;
+	swing_active_ = false;
+	velocity_initialized_ = false;
+	leg_length_reference_.fill(0.0);
+	leg_angle_reference_.fill(0.0);
+	joint_target_.fill(0.0);
+	filtered_joint_velocity_.fill(0.0);
+	joint_pid_.fill({});
+}
+
+StoolControllerOutput StoolController::Update(const StoolControllerInput &input)
+{
+	UpdateJointVelocity(input.joint_velocity, input.dt);
+	UpdatePoseTarget(input);
+
+	StoolControllerOutput output = {};
+	output.leg_length_reference =
+		0.5 * (leg_length_reference_[0] + leg_length_reference_[1]);
+	output.swing_active = swing_active_;
+	output.target_initialized =
+		std::all_of(target_initialized_.begin(), target_initialized_.end(),
+			    [](bool value) { return value; });
+	if (!output.target_initialized) {
+		return output;
+	}
+
+	for (uint8_t joint = 0U; joint < output.joint_torque.size(); ++joint) {
+		output.joint_torque[joint] =
+			ComputeJointTorque(joint, joint_target_[joint], input.joint_position[joint],
+					   filtered_joint_velocity_[joint], input.dt);
+	}
+	output.ready = swing_active_ && std::all_of(
+		input.leg.begin(), input.leg.end(), [pitch = input.pitch](const LegKinematics &leg) {
+			const double theta = std::remainder(leg.angle - pitch, kTwoPi);
+			return std::abs(theta) <= kReadyThetaTolerance;
+		});
+	return output;
+}
+
+void StoolController::UpdateJointVelocity(const std::array<double, 4> &velocity, double dt)
+{
+	const double time_constant = 1.0 / (kTwoPi * kJointVelocityFilterCutoffHz);
+	const double alpha = std::clamp(dt / (time_constant + dt), 0.0, 1.0);
+	for (size_t joint = 0U; joint < velocity.size(); ++joint) {
+		if (!velocity_initialized_) {
+			filtered_joint_velocity_[joint] = velocity[joint];
+		} else {
+			filtered_joint_velocity_[joint] +=
+				alpha * (velocity[joint] - filtered_joint_velocity_[joint]);
+		}
+	}
+	velocity_initialized_ = true;
+}
+
+void StoolController::UpdatePoseTarget(const StoolControllerInput &input)
+{
+	if (!pose_reference_initialized_) {
+		for (size_t side = 0U; side < input.leg.size(); ++side) {
+			leg_length_reference_[side] = input.leg[side].length;
+			leg_angle_reference_[side] = input.leg[side].angle;
+		}
+		pose_reference_initialized_ = true;
+	}
+
+	const double bounded_dt = std::clamp(input.dt, 0.0005, 0.01);
+	const double maximum_length_step = kLegLengthReferenceRate * bounded_dt;
+	for (size_t side = 0U; side < input.leg.size(); ++side) {
+		leg_length_reference_[side] += std::clamp(
+			kStoolTargetLegLength - leg_length_reference_[side],
+			-maximum_length_step, maximum_length_step);
+	}
+	if (!swing_active_) {
+		swing_active_ = std::all_of(
+			input.leg.begin(), input.leg.end(), [](const LegKinematics &leg) {
+				return std::abs(leg.length - kStoolTargetLegLength) <=
+				       kSwingStartLengthTolerance;
+			});
+	}
+
+	for (uint8_t side = 0U; side < input.leg.size(); ++side) {
+		const size_t base = 2U * side;
+		/*
+		 * 收腿阶段保持使能时的腿角不动。两腿都接近短腿目标后开始摆腿；
+		 * LQR 使用 theta = alpha - pitch，因此摆腿目标 alpha_target = pitch。
+		 */
+		const double normalized_angle =
+			swing_active_ ? input.pitch : leg_angle_reference_[side];
+		const double raw_angle = RawKinematicAngle(side, normalized_angle);
+		const double target_hx = leg_length_reference_[side] * std::sin(raw_angle);
+		const double target_hz = -leg_length_reference_[side] * std::cos(raw_angle);
+		const double seed_phi1 = target_initialized_[side]
+						 ? joint_target_[base + 1U]
+						 : input.joint_position[base + 1U];
+		const double seed_phi2 = target_initialized_[side] ? joint_target_[base]
+								   : input.joint_position[base];
+		double target_phi1 = 0.0;
+		double target_phi2 = 0.0;
+		if (!InverseKinematics(target_hx, target_hz, kBranch[side], seed_phi1, seed_phi2,
+				       target_phi1, target_phi2)) {
+			continue;
+		}
+
+		joint_target_[base] = target_phi2;
+		joint_target_[base + 1U] = target_phi1;
+		target_initialized_[side] = true;
+	}
+}
+
+double StoolController::RawKinematicAngle(uint8_t side, double normalized_angle)
+{
+	return side == 0U ? std::remainder(kLegAngleOffset[0] - normalized_angle, kTwoPi)
+			  : std::remainder(normalized_angle + kLegAngleOffset[1], kTwoPi);
+}
+
+double StoolController::ComputeJointTorque(uint8_t index, double target, double position,
+					   double velocity, double dt)
+{
+	if (index >= joint_pid_.size() || !std::isfinite(target) || !std::isfinite(position) ||
+	    !std::isfinite(velocity)) {
+		return 0.0;
+	}
+
+	JointPidState &pid = joint_pid_[index];
+	const double bounded_dt = std::clamp(dt, 0.0005, 0.01);
+	const double position_error = std::remainder(target - position, kTwoPi);
+	pid.position_integral = std::clamp(pid.position_integral + position_error * bounded_dt,
+					   -kJointPositionMaxSpeed, kJointPositionMaxSpeed);
+	const double speed_target = std::clamp(kJointPositionKp * position_error +
+						       kJointPositionKi * pid.position_integral,
+					       -kJointPositionMaxSpeed, kJointPositionMaxSpeed);
+
+	const double speed_error = speed_target - velocity;
+	pid.speed_integral = std::clamp(pid.speed_integral + speed_error * bounded_dt,
+					-kJointIntegralTorqueLimit, kJointIntegralTorqueLimit);
+	return std::clamp(kJointSpeedKp * speed_error + kJointSpeedKi * pid.speed_integral,
+			  -kJointTorqueMax, kJointTorqueMax);
+}
+
+} // namespace modules

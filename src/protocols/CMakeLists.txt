@@ -6,4 +6,4 @@ file(GLOB_RECURSE WBR_CONTROL_PROTOCOLS_SOURCES CONFIGURE_DEPENDS
 
 zephyr_library_named(wbr_protocols)
 zephyr_library_sources(${WBR_CONTROL_PROTOCOLS_SOURCES})
-target_include_directories(wbr_protocols PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(wbr_protocols PUBLIC ${WBR_CONTROL_ROOT}/src)

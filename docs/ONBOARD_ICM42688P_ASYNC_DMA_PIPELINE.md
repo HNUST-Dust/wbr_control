@@ -222,7 +222,7 @@ CONFIG_WBR_CONTROL_CHASSIS_IMU_HI91=y
 `gimbal_imu -> gimbal -> pc_link`，用于未来生成视觉上位机协议中的姿态；
 在云台 IMU 接入前不配置也不参与运行。当前 `pc_link` 上行四元数仍来自 HI91。
 
-当前 `app.overlay` 已将 INT1 配置为 PB09，`prj.conf` 已启用模块。
+当前 `src/chassis_controller/app.overlay` 已将 INT1 配置为 PB09，`src/chassis_controller/prj.conf` 已启用模块。
 
 ## 11. PCB Devicetree 接线要求
 

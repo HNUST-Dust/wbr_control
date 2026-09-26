@@ -72,7 +72,7 @@ def module_name(path: Path, root: Path) -> str:
         return f"platform:{path.stem}"
     if parts[0] == "debug":
         return f"debug:{path.stem}"
-    if rel.as_posix() == "src/main.cpp":
+    if rel.as_posix() == "src/chassis_controller/main.cpp":
         return "app"
     return path.parent.name
 
@@ -181,8 +181,8 @@ def build(root: Path) -> dict:
         "messages": messages,
         "usages": usages,
         "chassisStateMachine": parse_states(
-            root / "src/modules/chassis/chassis_types.h",
-            root / "src/modules/chassis/chassis_state_machine.cpp",
+            root / "src/chassis_controller/chassis/chassis_types.h",
+            root / "src/chassis_controller/chassis/chassis_state_machine.cpp",
         ),
         "warnings": warnings,
     }
