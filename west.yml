@@ -75,7 +75,7 @@ manifest:
     - name: CherryUSB
       remote: cherryusb-fork
       repo-path: CherryUSB
-      path: CherryUSB
+      path: cherry_usb
       revision: 50c7e9085801e24d2d0991d0c4c1609fdbcfb90a
 
     # Mavlink generated headers
@@ -106,7 +106,7 @@ manifest:
     - name: TinyMPC
       remote: tinympc
       repo-path: TinyMPC
-      path: TinyMPC
+      path: tiny_mpc
       revision: 023f36bd5b27267e1a96ed47a774d120b5707f13
 
   self:
