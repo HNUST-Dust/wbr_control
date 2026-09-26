@@ -2,9 +2,10 @@
 	status = "okay";
 };
 
-/* Conservative bring-up rate for reliable multi-block SD writes. */
+/* SDHC is disabled in the production chassis image. Dedicated SDHC tests
+ * enable this node with their own overlay. */
 &sd0 {
-	max-bus-freq = <25000000>;
+	status = "disabled";
 };
 
 /* Onboard IMU heater MOSFET: PWM1-P0 on PB02. */
