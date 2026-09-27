@@ -58,9 +58,8 @@ manifest:
       remote: dust-hpm
       repo-path: hpm_support
       path: hpm_support
-      # Pin the board/SOC revision shared by dust-hpm6750 and dust-hpm5e3y.
-      # This also provides the board-selected chassis peripheral bindings.
-      revision: 74b6678f95c0bbfba045396a4ce57dbff09bbc24
+      # Internally maintained dependency: always consume the latest main branch.
+      revision: main
       west-commands: scripts/west-commands.yml
 
     # SEGGER RTT transport used by the non-UART shell/logging diagnostics.
