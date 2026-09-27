@@ -51,10 +51,16 @@ constexpr uint32_t kTxTimeoutMs =
 	modules::oscilloscope_params::kOscilloscopeTxTimeoutMs;
 constexpr size_t kProbeChannelCount = 3U;
 
+#if !DT_HAS_CHOSEN(wbr_control_oscilloscope_uart)
+#error "wbr-control,oscilloscope-uart must be selected for oscilloscope_module"
+#endif
+
+#define WBR_OSCILLOSCOPE_UART_NODE DT_CHOSEN(wbr_control_oscilloscope_uart)
+
 const struct device *FindOutputUart()
 {
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(uart0), okay)
-	return DEVICE_DT_GET(DT_NODELABEL(uart0));
+#if DT_NODE_HAS_STATUS(WBR_OSCILLOSCOPE_UART_NODE, okay)
+	return DEVICE_DT_GET(WBR_OSCILLOSCOPE_UART_NODE);
 #else
 	return nullptr;
 #endif
