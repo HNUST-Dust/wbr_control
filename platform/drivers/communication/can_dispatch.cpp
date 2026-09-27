@@ -334,7 +334,23 @@ int SendStdBatch(uint8_t bus, const struct can_frame *frames, const uint8_t *slo
 		context->slots[i] = slots[i];
 	}
 
-	const int rc = hpm_can_send_batch(dev, frames, frame_count, K_FOREVER, OnTxDone, context);
+	int rc = 0;
+#if defined(CONFIG_MCAN_HPMICRO) && CONFIG_MCAN_HPMICRO
+	/* MCAN has independent hardware TX buffers but no HPM batch extension.
+	 * Queue the frames through Zephyr's portable API and attach the batch
+	 * completion callback to the final frame.
+	 */
+	for (uint8_t i = 0U; i < frame_count; ++i) {
+		const bool last = (i + 1U) == frame_count;
+		rc = can_send(dev, &frames[i], K_FOREVER, last ? OnTxDone : nullptr,
+			      last ? context : nullptr);
+		if (rc != 0) {
+			break;
+		}
+	}
+#else
+	rc = hpm_can_send_batch(dev, frames, frame_count, K_FOREVER, OnTxDone, context);
+#endif
 	if (rc == 0) {
 		return 0;
 	}

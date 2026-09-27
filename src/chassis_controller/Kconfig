@@ -41,15 +41,15 @@ config WBR_CONTROL_MODULE_OSCILLOSCOPE
 	bool
 	default y
 	help
-	  UART0 is permanently reserved for the VOFA oscilloscope binary stream.
-	  Diagnostics use SEGGER RTT instead of UART0.
+	  The board-selected wbr-control,oscilloscope-uart carries the VOFA
+	  binary stream. Diagnostics use SEGGER RTT instead of that UART.
 
 config WBR_CONTROL_OSCILLOSCOPE_UART_BAUDRATE
 	int "VOFA oscilloscope UART baudrate"
 	default 921600
 	depends on WBR_CONTROL_MODULE_OSCILLOSCOPE
 	help
-	  UART0 baudrate used by the VOFA+ oscilloscope output.
+	  Baudrate used by the board-selected VOFA+ oscilloscope UART.
 
 config WBR_CONTROL_OSCILLOSCOPE_PERIOD_MS
 	int "VOFA oscilloscope output period in milliseconds"
@@ -64,7 +64,7 @@ config WBR_CONTROL_MODULE_HI91_IMU
 	default n
 	depends on SERIAL && UART_ASYNC_API
 	help
-	  Enable the HI91 external IMU module on UART2. The module parses HI91
+	  Enable the HI91 external IMU module on the board-selected UART. The module parses HI91
 	  binary frames and publishes the latest IMU message.
 
 config WBR_CONTROL_MODULE_AHRS
@@ -127,7 +127,7 @@ config WBR_CONTROL_HI91_IMU_UART_BAUDRATE
 	default 921600
 	depends on WBR_CONTROL_MODULE_HI91_IMU
 	help
-	  UART2 baudrate used by the HI91 external IMU module.
+	  Baudrate used by the board-selected HI91 external IMU UART.
 
 config WBR_CONTROL_HI91_IMU_STRICT_CRC
 	bool "Reject HI91 frames with CRC mismatch"

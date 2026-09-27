@@ -45,11 +45,11 @@ function(wbr_generate_params target name values schema cpp_namespace)
   target_include_directories(${target} PRIVATE ${generated_dir})
 endfunction()
 
-# Validate the resolved configuration after Kconfig so UART0 remains reserved
-# for the binary oscilloscope stream.
+# Validate the resolved configuration after Kconfig so the board-selected
+# oscilloscope UART supports asynchronous transmission.
 if(NOT CONFIG_UART_ASYNC_API)
   message(FATAL_ERROR
-    "The UART0 oscilloscope output requires CONFIG_UART_ASYNC_API=y")
+    "The oscilloscope output requires CONFIG_UART_ASYNC_API=y")
 endif()
 
 target_include_directories(app PRIVATE
