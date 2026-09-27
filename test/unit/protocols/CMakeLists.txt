@@ -11,6 +11,7 @@ target_sources(app PRIVATE
   src/main.cpp
   ../../../src/protocols/imu/hi91_protocol.cpp
   ../../../src/protocols/motors/dji_motor_protocol.cpp
+  ../../../src/protocols/mpc_link/mpc_link.cpp
   ../../../src/protocols/pc_link/pc_link.cpp
 )
 

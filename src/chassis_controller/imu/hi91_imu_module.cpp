@@ -35,6 +35,12 @@ namespace
 
 K_THREAD_STACK_DEFINE(g_hi91_imu_module_stack, 2048);
 
+#if !DT_HAS_CHOSEN(wbr_control_hi91_uart)
+#error "wbr-control,hi91-uart must be selected for hi91_imu_module"
+#endif
+
+#define WBR_HI91_UART_NODE DT_CHOSEN(wbr_control_hi91_uart)
+
 #if defined(CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE)
 constexpr uint32_t kUartBaudrate = CONFIG_WBR_CONTROL_HI91_IMU_UART_BAUDRATE;
 #else
@@ -60,8 +66,8 @@ uint8_t g_hi91_rx_dma_ring[4096U];
 
 const struct device *FindInputUart()
 {
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(uart2), okay)
-	return DEVICE_DT_GET(DT_NODELABEL(uart2));
+#if DT_NODE_HAS_STATUS(WBR_HI91_UART_NODE, okay)
+	return DEVICE_DT_GET(WBR_HI91_UART_NODE);
 #else
 	return nullptr;
 #endif

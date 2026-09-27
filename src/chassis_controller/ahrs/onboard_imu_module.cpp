@@ -19,12 +19,15 @@
 
 #if defined(CONFIG_WBR_CONTROL_MODULE_AHRS)
 
-#define ONBOARD_IMU_SPI_NODE DT_NODELABEL(spi2)
+#define ONBOARD_IMU_SPI_NODE DT_CHOSEN(wbr_control_onboard_imu_spi)
 #define ONBOARD_IMU_CS_NODE DT_ALIAS(onboard_imu_cs)
 #define ONBOARD_IMU_DRDY_NODE DT_ALIAS(onboard_imu_drdy)
 
+#if !DT_HAS_CHOSEN(wbr_control_onboard_imu_spi)
+#error "wbr-control,onboard-imu-spi must select the onboard IMU SPI controller"
+#endif
 #if !DT_NODE_HAS_STATUS(ONBOARD_IMU_SPI_NODE, okay)
-#error "The onboard IMU requires SPI2"
+#error "The selected onboard IMU SPI controller must be enabled"
 #endif
 #if !DT_NODE_EXISTS(ONBOARD_IMU_CS_NODE)
 #error "Define devicetree alias onboard-imu-cs"
