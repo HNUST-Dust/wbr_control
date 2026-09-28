@@ -16,25 +16,25 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
 
-#include "chassis_controller/chassis/chassis_module.h"
-#include "chassis_controller/imu/hi91_imu_module.h"
-#include "chassis_controller/ahrs/ahrs.h"
-#include "chassis_controller/oscilloscope/oscilloscope_module.h"
-#include "chassis_controller/referee/referee_module.h"
-#include "chassis_controller/remote_input/remote_input_module.h"
-#include "chassis_controller/sys_state/sys_state_module.h"
-#include "chassis_controller/sdlog/sdlog_module.h"
+#include "chassis_controller/modules/chassis/chassis_module.h"
+#include "chassis_controller/modules/imu/hi91_imu_module.h"
+#include "chassis_controller/modules/ahrs/ahrs.h"
+#include "chassis_controller/modules/oscilloscope/oscilloscope_module.h"
+#include "chassis_controller/modules/referee/referee_module.h"
+#include "chassis_controller/modules/remote_input/remote_input_module.h"
+#include "chassis_controller/modules/sys_state/sys_state_module.h"
+#include "chassis_controller/modules/sdlog/sdlog_module.h"
 #include <msg/system_status_message.hpp>
-#include <platform/board/board_identity.h>
+#include <chassis_controller/platform/board/board_identity.h>
 
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
 
 #if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN) && CONFIG_WBR_CONTROL_RUNTIME_INIT_CAN
-#include <platform/drivers/communication/can_dispatch.h>
+#include <chassis_controller/communication/can_dispatch.h>
 #endif
 
 #if defined(CONFIG_WBR_CONTROL_RUNTIME_INIT_USB) && CONFIG_WBR_CONTROL_RUNTIME_INIT_USB
-#include <platform/drivers/communication/usb_session.h>
+#include <chassis_controller/communication/usb_session.h>
 #endif
 
 namespace

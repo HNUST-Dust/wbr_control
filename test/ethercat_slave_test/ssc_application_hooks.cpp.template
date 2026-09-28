@@ -1,0 +1,52 @@
+/*
+ * Integration template only. Copy into SSC-generated application sources.
+ * The Beckhoff SSC license header from the generated file must be preserved.
+ */
+
+#include <cstring>
+
+#include <zephyr/kernel.h>
+
+#include <protocols/ethercat/ethercat_process_data.h>
+#include <chassis_controller/communication/ethercat_ssc_bridge.h>
+#include <chassis_controller/modules/chassis/ethercat_chassis_port.h>
+
+namespace ec = protocols::ethercat;
+
+namespace {
+
+ec::SscProcessDataBridge bridge;
+alignas(ec::MasterProcessImage) unsigned char sm2[sizeof(ec::MasterProcessImage)]{};
+alignas(ec::SlaveProcessImage) unsigned char sm3[sizeof(ec::SlaveProcessImage)]{};
+
+} // namespace
+
+extern "C" void APPL_OutputMapping(unsigned short *pData)
+{
+	std::memcpy(sm2, pData, sizeof(sm2));
+}
+
+extern "C" void APPL_Application(void)
+{
+	// Keep this monotonic and finer than the EtherCAT cycle. k_uptime_get()
+	// only has millisecond resolution and would corrupt sub-millisecond latency
+	// measurements and watchdog timing.
+	const uint64_t now_us = k_cyc_to_us_floor64(k_cycle_get_64());
+	(void)bridge.Process(sm2, sizeof(sm2), sm3, sizeof(sm3), now_us,
+			     modules::EthercatChassisPort::Instance());
+}
+
+extern "C" void APPL_InputMapping(unsigned short *pData)
+{
+	std::memcpy(pData, sm3, sizeof(sm3));
+}
+
+// On INIT, reset the bridge and local controller selection:
+//     bridge.Reset(modules::EthercatChassisPort::Instance());
+//
+// Register the HPM driver callbacks before hpm_ethercat_start():
+//     pdi   -> PDI_Isr();
+//     sync0 -> Sync0_Isr();
+//     sync1 -> Sync1_Isr();
+//     reset -> bridge.Reset(modules::EthercatChassisPort::Instance()), then the
+//              SSC reset hook.

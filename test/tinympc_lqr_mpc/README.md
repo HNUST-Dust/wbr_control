@@ -49,7 +49,7 @@ scheduling noise and is not a target WCET measurement.
 The checked-out convenience API and its generated source both retain
 `Matrix<Dynamic, Dynamic>` and heap allocation, so upstream code generation by
 itself does not make this revision MCU-safe. The application therefore maintains
-`src/chassis_controller/chassis/mpc/static_tinympc_solver.hpp`, a compile-time-sized,
+`src/chassis_controller/modules/chassis/mpc/static_tinympc_solver.hpp`, a compile-time-sized,
 input-box-only online kernel. The host equivalence regression uses `6 x 2 x 81`
 with `double`; the production shadow benchmark uses `6 x 2 x 21` with `float`.
 Its Riccati cache is generated offline into

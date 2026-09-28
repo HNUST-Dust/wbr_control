@@ -19,6 +19,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 list(APPEND BOARD_ROOT ${HPM_ZEPHYR_DIR})
 
+# Board-specific application policy lives beside the chassis platform rather
+# than in Zephyr's conventional top-level boards/ directory. Add it explicitly
+# before find_package(Zephyr) so Kconfig sees the fragment during configure.
+if(DEFINED BOARD)
+  string(REPLACE "/" "_" WBR_BOARD_CONF_NAME "${BOARD}")
+  set(WBR_BOARD_CONF
+    ${CMAKE_CURRENT_SOURCE_DIR}/platform/board/${WBR_BOARD_CONF_NAME}.conf)
+  if(EXISTS ${WBR_BOARD_CONF})
+    list(APPEND EXTRA_CONF_FILE ${WBR_BOARD_CONF})
+  endif()
+endif()
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(chassis_controller)
 
@@ -79,18 +91,17 @@ target_compile_options(app PRIVATE
 
 add_subdirectory(${WBR_CONTROL_ROOT}/msg ${CMAKE_BINARY_DIR}/wbr_msg)
 add_subdirectory(${WBR_CONTROL_ROOT}/src/protocols ${CMAKE_BINARY_DIR}/wbr_protocols)
-add_subdirectory(${WBR_CONTROL_ROOT}/src/scheduling ${CMAKE_BINARY_DIR}/wbr_scheduling)
-add_subdirectory(${WBR_CONTROL_ROOT}/platform ${CMAKE_BINARY_DIR}/wbr_platform)
-include(${CMAKE_CURRENT_SOURCE_DIR}/modules.cmake)
-add_subdirectory(${WBR_CONTROL_ROOT}/debug ${CMAKE_BINARY_DIR}/wbr_debug)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/platform ${CMAKE_BINARY_DIR}/wbr_chassis_platform)
+include(${CMAKE_CURRENT_SOURCE_DIR}/modules/modules.cmake)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/debug ${CMAKE_BINARY_DIR}/wbr_chassis_debug)
 
 # 应用入口只直接依赖模块、通道和平台；协议由模块目标自行声明。
 target_link_libraries(app PRIVATE
   wbr_msg
   wbr_modules
-  wbr_platform
+  wbr_chassis_platform
 )
 
-if(TARGET wbr_debug)
-  target_link_libraries(app PRIVATE wbr_debug)
+if(TARGET wbr_chassis_debug)
+  target_link_libraries(app PRIVATE wbr_chassis_debug)
 endif()

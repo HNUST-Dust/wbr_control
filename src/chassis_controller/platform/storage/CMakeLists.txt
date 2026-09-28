@@ -1,0 +1,1 @@
+target_sources(wbr_chassis_platform PRIVATE ethercat_sii_flash_backend.cpp)

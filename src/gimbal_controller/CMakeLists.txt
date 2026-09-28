@@ -15,3 +15,6 @@ target_include_directories(app PRIVATE
   ${WBR_CONTROL_ROOT}
   ${WBR_CONTROL_ROOT}/src
 )
+
+add_subdirectory(platform)
+target_link_libraries(app PRIVATE wbr_gimbal_platform)
