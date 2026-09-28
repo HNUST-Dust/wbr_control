@@ -48,7 +48,7 @@
 - 板级和外设初始化：交给 `boards/`、DTS、Kconfig、Zephyr 驱动初始化
 - 应用启动编排：交给 `src/chassis_controller/main.cpp`
 - 模块注册与拉起：交给 `chassis_controller/module_manager.*`
-- 数据分发：交给 `platform/drivers/communication/*` + `msg/*`
+- 数据分发：交给控制器内的 `communication/*` + `msg/*`
 
 也就是说，Zephyr 下不应再保留一个统一的“全局启动任务”去做所有事情。
 
@@ -102,7 +102,7 @@
 
 除此之外，项目还需要两个与业务正交的支撑层：
 
-- `debug/`：Zephyr shell、tracing、运行时诊断入口
+- `src/chassis_controller/debug/`：底盘应用的 Zephyr shell、tracing、运行时诊断入口
 - `platform/storage/`：文件系统、参数文件、日志文件的持久化接入
 
 考虑到项目主体是 C++，建议模块层采用“C++ 对象 + Zephyr 内核对象”的方式实现：
@@ -189,7 +189,7 @@ applications/wbr_control/
 ### `Algorithm/`
 
 不再保留独立的通用算法层。算法随实际使用者迁移，例如板载 IMU 的 Quaternion EKF
-位于 `chassis_controller/ahrs/`，控制器实现位于对应控制模块内部。
+位于 `chassis_controller/modules/ahrs/`，控制器实现位于对应控制模块内部。
 
 ### `App/`
 
@@ -200,7 +200,7 @@ applications/wbr_control/
 
 对应关系建议如下：
 
-- `app_chassis.*` -> `chassis_controller/chassis/chassis_module.*`
+- `app_chassis.*` -> `chassis_controller/modules/chassis/chassis_module.*`
 - `app_gimbal.*` -> 当前旧实现已移除，后续按新需求重写
 - `app_gantry.*` -> `chassis_controller/gantry/gantry_module.*`
 - `app_arm.*` -> `chassis_controller/arm/arm_module.*`
@@ -210,7 +210,7 @@ applications/wbr_control/
 
 建议拆成两层：
 
-- `platform/drivers/communication/`：总线事件接入、底层分发
+- `src/chassis_controller/communication/`：总线事件接入与应用级分发
 - `protocols/`：MCU/PC 等链路协议
 
 也就是：
@@ -258,7 +258,7 @@ applications/wbr_control/
   这条最小主干
 - `chassis_controller/*`、`protocols/*`、`platform/drivers/*` 目前仍以迁移骨架为主
 - 将应用入口和核心调度骨架切换到 C++ 形态
-- 将调试和存储能力单独纳入 `debug/` 与 `platform/storage/`
+- 将调试和存储能力分别纳入控制器的 `debug/` 与 `platform/storage/`
 
 ## 建议的下一步修改顺序
 
@@ -266,7 +266,7 @@ applications/wbr_control/
 
 1. 先把 `chassis_controller/` 的 C++ 生命周期接口定型
 2. 再把 `msg/` 的基础接口定型
-3. 再把 `debug/` 与 `platform/storage/` 的接入边界定型
+3. 再把控制器内 `debug/` 与 `platform/storage/` 的接入边界定型
 4. 再定 `remote_input_module`、`referee_module` 这类输入模块的话题输出
 5. 然后定 `chassis`、`gimbal`、`arm`、`gantry` 的命令与状态话题
 5. 最后再决定每个设备封装和模块之间的边界细节

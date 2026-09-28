@@ -58,7 +58,7 @@
 ### P2（演进）
 
 3. 板载 IMU 姿态估计接线
-- 现状：Quaternion EKF 已归入 `chassis_controller/ahrs/`；ICM42688P-HXY
+- 现状：Quaternion EKF 已归入 `chassis_controller/modules/ahrs/`；ICM42688P-HXY
   的 DRDY、SPI HDMA 六轴 burst、静止零偏校准、有锁快照发布、带符号轴映射和
   HI91/板载 EKF 底盘来源选择已完成。
 - 剩余：真机确认 sensor-to-body 轴向后设置 `BODY_MAP_CONFIRMED=y`，再完成满载压力测试。

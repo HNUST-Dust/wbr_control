@@ -13,10 +13,10 @@
 - 执行服务：services/actuator
 - 调参服务：services/chassis
 - 协议层：protocols/motors
-- 平台通信：platform/drivers/communication
+- 底盘通信编排：src/chassis_controller/communication
 
 3. 调试与回归入口
-- Shell 命令：debug/shell/chassis_tuning_shell.cpp
+- Shell 命令：src/chassis_controller/debug/shell/
 - 最小回归脚本：tools/smoke_regression.sh
 - 回归说明：docs/SMOKE_REGRESSION.md
 
@@ -30,9 +30,9 @@
 - msg/: legacy 说明目录（实体实现已迁移至 msg）
 - protocols/: legacy 说明目录（实体实现已迁移至 protocols）
 - 模块内控制器/估计器：算法实现随其实际使用模块维护
-- platform/: 板级、驱动、存储适配
-- platform/legacy/: 平台历史资产归档分区（不参与当前主链路）
-- 应用根目录 include：对外稳定头路径（如 chassis_controller/*、msg/*、platform/*）
+- src/chassis_controller/platform/: 底盘应用私有的板级、驱动和存储适配
+- src/gimbal_controller/platform/: 云台应用私有的平台适配边界
+- 应用根目录 include：内部稳定头路径（如 chassis_controller/*、gimbal_controller/*、msg/*）
 - docs/: 架构、迁移、交接与规范文档
 - tools/: 自动化脚本（如 smoke 回归）
 
@@ -61,8 +61,8 @@
 2. docs/LAYERING_DECOUPLING_STATUS.md
 3. docs/DIRECTORY_RESTRUCTURE_PLAN.md
 4. chassis_controller/src/module_manager.cpp
-5. chassis_controller/remote_input/remote_input_module.cpp
-6. chassis_controller/chassis/chassis_module.cpp
+5. chassis_controller/modules/remote_input/remote_input_module.cpp
+6. chassis_controller/modules/chassis/chassis_module.cpp
 
 ## 5. 结构重构计划
 

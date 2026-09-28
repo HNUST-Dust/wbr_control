@@ -12,7 +12,7 @@ UART、USB、文件系统及执行器。
 - @ref wbr_modules "应用模块"：底盘、IMU、遥控、裁判系统及系统状态模块。
 - @ref wbr_protocols "通信协议"：电机、遥控器、裁判系统、上位机及遥测协议。
 - @ref wbr_platform "平台适配"：板级身份、通信驱动、执行器和文件系统服务。
-- @ref wbr_scheduling "调度策略"：周期释放和线程优先级约定。
+- @ref wbr_scheduling "调度机制"：共享周期释放机制与应用私有线程策略。
 - @ref wbr_debug "调试功能"：Shell 和调试辅助功能。
 
 # 核心约定
