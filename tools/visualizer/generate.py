@@ -68,10 +68,15 @@ def module_name(path: Path, root: Path) -> str:
         return parts[2]
     if len(parts) >= 3 and parts[:2] == ("src", "protocols"):
         return f"protocol:{parts[2]}"
-    if len(parts) >= 3 and parts[:2] == ("platform", "drivers"):
-        return f"platform:{path.stem}"
-    if parts[0] == "debug":
-        return f"debug:{path.stem}"
+    if len(parts) >= 4 and parts[0] == "src" and parts[1].endswith("_controller") and parts[2] == "platform":
+        return f"{parts[1]}-platform:{path.stem}"
+    if (
+        len(parts) >= 4
+        and parts[0] == "src"
+        and parts[1].endswith("_controller")
+        and parts[2] in {"communication", "debug", "ethercat"}
+    ):
+        return f"{parts[1]}-{parts[2]}:{path.stem}"
     if rel.as_posix() == "src/chassis_controller/main.cpp":
         return "app"
     return path.parent.name
@@ -80,7 +85,7 @@ def module_name(path: Path, root: Path) -> str:
 def scan_usages(root: Path, storage_to_message: dict[str, str]) -> tuple[list[dict], list[dict]]:
     usages: list[dict] = []
     warnings: list[dict] = []
-    source_roots = [root / "src", root / "platform", root / "debug"]
+    source_roots = [root / "src"]
     for source_root in source_roots:
         if not source_root.exists():
             continue
@@ -181,8 +186,8 @@ def build(root: Path) -> dict:
         "messages": messages,
         "usages": usages,
         "chassisStateMachine": parse_states(
-            root / "src/chassis_controller/chassis/chassis_types.h",
-            root / "src/chassis_controller/chassis/chassis_state_machine.cpp",
+            root / "src/chassis_controller/modules/chassis/chassis_types.h",
+            root / "src/chassis_controller/modules/chassis/chassis_state_machine.cpp",
         ),
         "warnings": warnings,
     }

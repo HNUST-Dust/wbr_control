@@ -24,8 +24,14 @@ class GeneratorTest(unittest.TestCase):
 
     def test_module_name(self):
         root = Path("/repo")
-        self.assertEqual(GEN.module_name(root / "src/chassis_controller/chassis/file.cpp", root), "chassis")
-        self.assertEqual(GEN.module_name(root / "platform/drivers/communication/can.cpp", root), "platform:can")
+        self.assertEqual(GEN.module_name(root / "src/chassis_controller/modules/chassis/file.cpp", root), "chassis")
+        self.assertEqual(
+            GEN.module_name(
+                root / "src/chassis_controller/communication/can.cpp",
+                root,
+            ),
+            "chassis_controller-communication:can",
+        )
 
 
 if __name__ == "__main__":
