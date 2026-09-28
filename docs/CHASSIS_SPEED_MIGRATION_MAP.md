@@ -38,9 +38,9 @@
 ## 3. 新工程目标映射
 
 ### 3.1 模块映射
-- 旧 Chassis 类 -> chassis_controller/chassis/chassis_module
+- 旧 Chassis 类 -> chassis_controller/modules/chassis/chassis_module
 - 旧 Robot::Task 中底盘输入子集 -> chassis_controller/remote_input + channel 发布
-- 旧 system_startup 的 CAN 注入 -> platform/drivers/communication/can_dispatch
+- 旧 system_startup 的 CAN 注入 -> src/chassis_controller/communication/can_dispatch
 
 ### 3.2 话题映射（第一版）
 - 输入话题：chassis_command_topic

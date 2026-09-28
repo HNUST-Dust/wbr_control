@@ -10,5 +10,6 @@ west build -p always -b dust-hpm6750 \
 ```
 
 The application currently contains only a minimal entry point. Add gimbal-only
-sources and configuration here; keep code shared with the chassis controller in
-the repository-level shared directories.
+sources and configuration here. Board adapters and device drivers owned by this
+application belong under `platform/`; only hardware-independent code should be
+placed in repository-level shared directories.

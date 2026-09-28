@@ -2,14 +2,16 @@
 
 本目录是独立的底盘 Zephyr application，同时保存底盘领域模块的内部实现。
 应用自身的 `CMakeLists.txt`、`Kconfig`、`prj.conf`、设备树 overlay 和
-`main.cpp` 均位于此处。每个常驻线程模块只包含一个头文件和一个实现文件：
+`main.cpp` 均位于此处。业务模块统一放在 `modules/` 下；每个常驻线程模块的
+入口通常包含一个头文件和一个实现文件：
 
 ```text
 <name>_module.h
 <name>_module.cpp
 ```
 
-`ModuleBase` 是普通抽象基类，只提供线程对象、重复启动保护、线程创建和入口转发：
+共享的 `<module_base.h>` 定义 `ModuleBase` 抽象基类，只提供线程对象、
+重复启动保护、线程创建和入口转发：
 
 ```cpp
 CreateThread(...);
@@ -22,6 +24,14 @@ ThreadEntry(...);
 
 头文件位于模块自己的目录，因为这些类是应用内部的具体实现，不是可复用的公共
 SDK 接口。`main.cpp` 显式持有模块实例，并直接表达初始化顺序和线程启动顺序。
+
+目录职责如下：
+
+- `modules/`：底盘控制、输入、状态和估计业务。
+- `communication/`：CAN/USB 会话以及 EtherCAT 应用桥接。
+- `platform/`：板级身份、设备适配和持久化后端。
+- `scheduling/`：仅属于底盘应用的线程优先级与释放相位。
+- `debug/`：底盘应用 Shell 和 tracing 接入。
 
 ## 参数配置
 

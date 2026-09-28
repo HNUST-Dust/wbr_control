@@ -123,7 +123,7 @@ applications/wbr_control/
 - 下发：`services/actuator`
 
 3. 调参与运维
-- Shell：`debug/shell/chassis_tuning_shell.cpp`
+- Shell：`src/chassis_controller/debug/shell/`
 - 最小回归：`tools/smoke_regression.sh`
 
 ## 6. 分阶段迁移计划（低风险）

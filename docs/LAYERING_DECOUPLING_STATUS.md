@@ -14,7 +14,7 @@
 - 服务层：actuator / chassis_tuning
 - 协议层：protocols/motors
 - 消息层：zbus msg
-- 平台层：platform/drivers + platform/storage
+- 平台层：各应用分别拥有 `src/*_controller/platform/`
 
 综合评估：
 - 架构成熟度：较高
@@ -63,7 +63,7 @@
 - UART 发送路径保持直接调用 `uart_poll_out()`，未额外保留发送包装。
 
 关键落点：
-- chassis_controller/chassis/chassis_module.cpp
+- chassis_controller/modules/chassis/chassis_module.cpp
 - chassis_controller/arm/arm_module.cpp
 - chassis_controller/gantry/gantry_module.cpp
 
@@ -77,10 +77,10 @@
 - chassis 通过 provider 接口注册调参能力。
 
 关键落点：
-- debug/shell/chassis_tuning_shell.cpp
+- src/chassis_controller/debug/shell/
 - services/chassis/chassis_tuning_service.h
 - services/chassis/chassis_tuning_service.cpp
-- chassis_controller/chassis/chassis_module.cpp
+- chassis_controller/modules/chassis/chassis_module.cpp
 
 收益：
 - shell 不再依赖模块命名空间全局桥接函数。

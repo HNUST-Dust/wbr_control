@@ -41,13 +41,13 @@ if rg -n \
   "${EXCLUDES[@]}" \
   -g '!docs/**' \
   -g '!tools/check_include_boundaries.sh'; then
-  echo "Shared scheduling policy belongs under src/scheduling." >&2
+  echo "Shared scheduling mechanisms belong in src/periodic_schedule.h." >&2
   exit 1
 fi
 
 # msg 是最低层消息契约，不依赖业务模块、协议或平台实现。
 if rg -n \
-  '#include [<"](?:modules|protocols|platform)/|modules::|platform::|protocols::' \
+  '#include [<"](?:modules|protocols|platform|chassis_controller|gimbal_controller)/|modules::|platform::|protocols::' \
   "${ROOT_DIR}/msg" \
   "${SOURCE_GLOBS[@]}"; then
   echo "msg must not depend on modules, protocols, or platform." >&2
@@ -56,10 +56,19 @@ fi
 
 # protocols 只负责编解码，不依赖应用层。
 if rg -n \
-  '#include [<"](?:modules|msg|platform)/|modules::|msg::|platform::' \
+  '#include [<"](?:modules|msg|platform|chassis_controller|gimbal_controller)/|modules::|msg::|platform::' \
   "${ROOT_DIR}/src/protocols" \
   "${SOURCE_GLOBS[@]}"; then
   echo "protocols must not depend on modules, msg, or platform." >&2
+  exit 1
+fi
+
+# The shared scheduler contains mechanisms only. Application priorities and
+# phase offsets live with the owning controller.
+if rg -n \
+  'thread_priorit|thread_phase|chassis_controller|gimbal_controller' \
+  "${ROOT_DIR}/src/periodic_schedule.h"; then
+  echo "src/periodic_schedule.h must remain controller-independent." >&2
   exit 1
 fi
 
@@ -78,18 +87,27 @@ if rg -n \
   exit 1
 fi
 
-# platform 位于 modules 下层，允许使用 channel，但不能反向依赖业务模块。
-if rg -n \
-  '#include [<"]chassis_controller/|modules::' \
-  "${ROOT_DIR}/platform" \
+# Application-owned platform code sits below business modules. It may include
+# its own platform API, but not controller modules or the other application.
+if rg --pcre2 -n \
+  '#include [<"](?:chassis_controller/(?!platform/)|gimbal_controller/)|modules::' \
+  "${ROOT_DIR}/src/chassis_controller/platform" \
   "${SOURCE_GLOBS[@]}"; then
-  echo "platform must not depend on modules." >&2
+  echo "chassis platform must not depend on controller modules or gimbal." >&2
+  exit 1
+fi
+
+if rg --pcre2 -n \
+  '#include [<"](?:gimbal_controller/(?!platform/)|chassis_controller/)|modules::' \
+  "${ROOT_DIR}/src/gimbal_controller/platform" \
+  "${SOURCE_GLOBS[@]}"; then
+  echo "gimbal platform must not depend on controller modules or chassis." >&2
   exit 1
 fi
 
 # main 只组合模块入口，不穿透模块内部控制器。
 if rg -n \
-  '#include [<"]chassis_controller/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
+  '#include [<"]chassis_controller/modules/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
   "${ROOT_DIR}/src/chassis_controller/main.cpp"; then
   echo "main may include module entry headers only." >&2
   exit 1
@@ -97,13 +115,13 @@ fi
 
 # chassis 内部控制器只允许所属目录和显式白盒测试访问。
 if rg -n \
-  '#include [<"]chassis_controller/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
+  '#include [<"]chassis_controller/modules/chassis/(body_motion_estimator|leg_kinematics|leg_vmc|lqr_schedule|stool_controller)\\.h[>"]' \
   "${ROOT_DIR}" \
   "${EXCLUDES[@]}" \
   -g '!test/**' \
-  -g '!src/chassis_controller/chassis/**' \
+  -g '!src/chassis_controller/modules/chassis/**' \
   "${SOURCE_GLOBS[@]}"; then
-  echo "Chassis implementation headers are private to src/chassis_controller/chassis." >&2
+  echo "Chassis implementation headers are private to src/chassis_controller/modules/chassis." >&2
   exit 1
 fi
 

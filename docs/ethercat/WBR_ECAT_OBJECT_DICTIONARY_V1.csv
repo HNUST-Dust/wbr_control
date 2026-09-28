@@ -1,0 +1,38 @@
+object_index,subindex,name,data_type,bits,pdo_mapping,pdo_index,sm,direction,order
+0x7000,1,Benchmark ABI Version,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,1
+0x7000,2,Benchmark Sequence,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,2
+0x7000,3,Host Send Time Ns,UINT64,64,RxPDO,0x1600,SM2,master_to_slave,3
+0x7000,4,Benchmark Command,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,4
+0x7000,5,Payload CRC32,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,5
+0x7000,6,Payload 0,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,6
+0x7000,7,Payload 1,UINT32,32,RxPDO,0x1600,SM2,master_to_slave,7
+0x7010,1,MPC ABI Version,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,8
+0x7010,2,MPC Command Sequence,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,9
+0x7010,3,Source State Sequence,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,10
+0x7010,4,Mode And Flags,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,11
+0x7010,5,MPC Host Send Time Ns,UINT64,64,RxPDO,0x1601,SM2,master_to_slave,12
+0x7010,6,Left Support Force N,REAL32,32,RxPDO,0x1601,SM2,master_to_slave,13
+0x7010,7,Right Support Force N,REAL32,32,RxPDO,0x1601,SM2,master_to_slave,14
+0x7010,8,Valid For Us,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,15
+0x7010,9,Solve Time Us,UINT32,32,RxPDO,0x1601,SM2,master_to_slave,16
+0x6000,1,Benchmark ABI Version,UINT32,32,TxPDO,0x1A00,SM3,slave_to_master,1
+0x6000,2,Echoed Sequence,UINT32,32,TxPDO,0x1A00,SM3,slave_to_master,2
+0x6000,3,Slave Receive Ticks,UINT64,64,TxPDO,0x1A00,SM3,slave_to_master,3
+0x6000,4,Slave Transmit Ticks,UINT64,64,TxPDO,0x1A00,SM3,slave_to_master,4
+0x6000,5,Benchmark Status,UINT32,32,TxPDO,0x1A00,SM3,slave_to_master,5
+0x6000,6,Echoed Payload CRC32,UINT32,32,TxPDO,0x1A00,SM3,slave_to_master,6
+0x6010,1,State ABI Version,UINT32,32,TxPDO,0x1A01,SM3,slave_to_master,7
+0x6010,2,State Sequence,UINT32,32,TxPDO,0x1A01,SM3,slave_to_master,8
+0x6010,3,Sample Ticks,UINT64,64,TxPDO,0x1A01,SM3,slave_to_master,9
+0x6010,4,Roll Rad,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,10
+0x6010,5,Roll Rate Rad S,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,11
+0x6010,6,Body Height M,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,12
+0x6010,7,Body Height Rate M S,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,13
+0x6010,8,Left Leg Length M,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,14
+0x6010,9,Left Leg Rate M S,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,15
+0x6010,10,Right Leg Length M,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,16
+0x6010,11,Right Leg Rate M S,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,17
+0x6010,12,Left Support Force N,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,18
+0x6010,13,Right Support Force N,REAL32,32,TxPDO,0x1A01,SM3,slave_to_master,19
+0x6010,14,State Flags,UINT32,32,TxPDO,0x1A01,SM3,slave_to_master,20
+0x6010,15,Reserved,UINT32,32,TxPDO,0x1A01,SM3,slave_to_master,21

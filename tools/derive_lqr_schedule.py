@@ -269,7 +269,7 @@ def main():
     parser.add_argument('--mode', choices=('unified',), default='unified', help=argparse.SUPPRESS)
     parser.add_argument('--input', type=Path, default=root / 'tools/data/leg_mass_properties0820.csv')
     parser.add_argument('--output', type=Path, default=root / 'tools/generated/unified_lqr_samples.csv')
-    parser.add_argument('--cpp-output', type=Path, default=root / 'src/chassis_controller/chassis/unified_lqr_coefficients.inc')
+    parser.add_argument('--cpp-output', type=Path, default=root / 'src/chassis_controller/modules/chassis/unified_lqr_coefficients.inc')
     args = parser.parse_args()
     samples = read_leg_samples(args.input)
     lengths, gains, rows = [], [], []

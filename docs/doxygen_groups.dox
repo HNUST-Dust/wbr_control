@@ -26,7 +26,7 @@
  *  @brief 封装 Zephyr 设备、板级资源、通信外设、执行器和持久化存储。
  */
 
-/** @defgroup wbr_scheduling 调度策略
+/** @defgroup wbr_scheduling 调度机制
  *  @ingroup wbr_control
  *  @brief 定义周期释放、错过周期统计和线程优先级关系。
  */

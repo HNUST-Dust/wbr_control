@@ -867,7 +867,7 @@ west build -p always -b dust-hpm6750 -s src/chassis_controller -d build/chassis_
 - `wbr_control/config/*.conf`
 - `wbr_control/src/chassis_controller/app.overlay`
 - `wbr_control/src/chassis_controller/main.cpp`
-- `wbr_control/src/chassis_controller/oscilloscope/oscilloscope_module.cpp`
+- `wbr_control/src/chassis_controller/modules/oscilloscope/oscilloscope_module.cpp`
 
 ### 板级与 HPM driver
 

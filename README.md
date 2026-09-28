@@ -24,11 +24,13 @@
 |------|------|
 | `src/chassis_controller/` | 独立的底盘 Zephyr application，包含入口、配置和底盘业务模块 |
 | `src/gimbal_controller/` | 独立的云台 Zephyr application，当前为最小可构建骨架 |
+| `src/module_base.h` | 两个 application 可共用的模块生命周期抽象 |
+| `src/periodic_schedule.h` | 无漂移周期调度机制 |
 | `src/protocols/` | 电机、遥控和遥测协议实现 |
 | 各组件所属目录中的头文件 | 仓库内部接口，头文件跟随模块或库 |
 | `msg/` | zbus 消息主题定义 |
-| `platform/` | 板级、驱动、存储适配 |
-| `debug/shell/` | Shell 调试命令 |
+| `src/*_controller/platform/` | 各应用私有的板级、驱动和存储适配 |
+| `src/chassis_controller/debug/shell/` | 底盘应用 Shell 调试命令 |
 
 ---
 

@@ -1,4 +1,4 @@
-#include <chassis_controller/ahrs/quaternion_ekf.h>
+#include <chassis_controller/modules/ahrs/quaternion_ekf.h>
 #include <tf_tree.h>
 
 #include <cmath>
